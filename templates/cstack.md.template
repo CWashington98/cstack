@@ -1,0 +1,32 @@
+# cstack deltas — <REPO NAME>
+
+Per-skill factual overrides for cstack plugin skills. Facts only — commands, paths, policies.
+If you're writing *procedure* here, it belongs in a local skill override instead.
+Copy to `.claude/cstack.md` in the target repo and delete sections that don't apply.
+
+## tdd
+<!-- Test commands, runner quirks, mocking policy. Example:
+- Backend tests: `pnpm test:convex` (never mock Convex — use convex-test)
+- Frontend: `pnpm test:unit`; e2e only via `pnpm e2e:smoke`
+-->
+
+## diagnose
+<!-- Where to observe the system. Example:
+- Prod logs: `npx convex logs --prod`
+- Local repro: `pnpm dev` + seed via `scripts/seed.ts`
+-->
+
+## triage / to-prd / to-issues
+<!-- Issue tracker target. Example:
+- Tracker: GitHub Issues on this repo, labels: bug/feat/debt
+-->
+
+## prototype
+<!-- Where throwaway routes/apps go. Example:
+- UI variants: app/(proto)/ route group, delete before merge
+-->
+
+## deslop / improve-codebase-architecture
+<!-- Conventions doc locations beyond CLAUDE.md. Example:
+- Domain language: docs/CONTEXT.md; decisions: docs/adr/
+-->

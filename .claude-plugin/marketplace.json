@@ -1,0 +1,29 @@
+{
+  "name": "cstack",
+  "owner": {
+    "name": "Crishon Washington",
+    "email": "crishonw@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "cstack",
+      "source": "./plugins/core",
+      "description": "Crishon's canonical generic skills: tdd, diagnose, triage, grill-me, grill-with-docs, handoff, prototype, caveman, deslop, improve-codebase-architecture, write-a-skill, to-prd, to-issues, web-design-guidelines"
+    },
+    {
+      "name": "agent-browser",
+      "source": { "source": "github", "repo": "vercel-labs/agent-browser", "sha": "ed2e10598c9064aecfaeb7cf21b540684db4be2c" },
+      "description": "Pinned external: vercel-labs browser-automation skill (was 'dogfood' in Hermes skills-lock)"
+    },
+    {
+      "name": "ui-ux-pro-max",
+      "source": { "source": "github", "repo": "nextlevelbuilder/ui-ux-pro-max-skill", "sha": "4baa399d00da806f83ed93652172f66943205153" },
+      "description": "Pinned external: UI/UX design skill"
+    },
+    {
+      "name": "vercel-agent-skills",
+      "source": { "source": "github", "repo": "vercel-labs/agent-skills", "sha": "f8a72b9603728bb92a217a879b7e62e43ad76c81" },
+      "description": "Pinned external: vercel-labs agent skills (composition patterns etc.)"
+    }
+  ]
+}

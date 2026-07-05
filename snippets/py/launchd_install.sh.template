@@ -1,0 +1,74 @@
+#!/bin/bash
+# launchd_install.sh.template — vendored 2026-07-05 from ~/signal-watcher/install_launchd.sh.
+# Copy-paste by design: copy into your project, fill in the CONFIGURE block below,
+# rename to install_launchd.sh (or similar), chmod +x it.
+#
+# Usage (after configuring):
+#   ./install_launchd.sh           # install/refresh + start all jobs
+#   ./install_launchd.sh stop      # stop + remove all jobs
+#
+# Assumes each entry in JOBS already has a matching <label>.plist sitting in
+# PROJECT_DIR (this script copies it into ~/Library/LaunchAgents and
+# (re)registers it — it does not generate plists).
+#
+# NOTE: no `set -e` — launchd bootout is async, so we bootout ALL jobs, let it
+# settle, then bootstrap ALL fresh (avoids the "Input/output error 5" race) and
+# tolerate per-step failures along the way.
+
+# ── CONFIGURE ────────────────────────────────────────────────────────────────
+PROJECT_DIR="${PROJECT_DIR:-$HOME/<your-project-dir>}"   # where the .plist files + scripts live
+
+JOBS=(                                    # launchd labels; one <label>.plist per entry, in PROJECT_DIR
+  "com.example.myjob"                       # e.g. long-running worker (RunAtLoad + KeepAlive)
+  "com.example.myjob.report"                # e.g. scheduled job (StartCalendarInterval)
+)
+
+KICKSTART_JOB="com.example.myjob"         # job to start immediately after install; "" = none
+
+STARTUP_SCRIPTS=("run.sh" "report_run.sh")  # chmod +x these (relative to PROJECT_DIR) before install
+
+PROC_PATTERN="python watcher.py"          # pgrep pattern used to confirm the long-running job is alive
+
+# This script does NOT set a schedule — StartCalendarInterval (or RunAtLoad/KeepAlive)
+# lives inside each job's own .plist. Keep this note in sync with what the plists say.
+SCHEDULE_NOTE="see each job's plist for its schedule (StartCalendarInterval / RunAtLoad)"
+# ──────────────────────────────────────────────────────────────────────────
+
+DOMAIN="gui/$(id -u)"
+LA="$HOME/Library/LaunchAgents"
+
+if [ "$1" = "stop" ]; then
+  for L in "${JOBS[@]}"; do
+    launchctl bootout "$DOMAIN/$L" 2>/dev/null || true
+    rm -f "$LA/$L.plist"
+    echo "stopped + removed $L"
+  done
+  exit 0
+fi
+
+for S in "${STARTUP_SCRIPTS[@]}"; do
+  chmod +x "$PROJECT_DIR/$S"
+done
+mkdir -p "$LA"
+
+# 1) copy plists + bootout any existing (async) ...
+for L in "${JOBS[@]}"; do
+  cp "$PROJECT_DIR/$L.plist" "$LA/$L.plist"
+  launchctl bootout "$DOMAIN/$L" 2>/dev/null || true
+done
+sleep 2  # ... let bootout settle before re-bootstrapping
+
+# 2) bootstrap all fresh
+for L in "${JOBS[@]}"; do
+  launchctl bootstrap "$DOMAIN" "$LA/$L.plist" 2>/dev/null || true
+  launchctl enable "$DOMAIN/$L" 2>/dev/null || true
+done
+
+if [ -n "$KICKSTART_JOB" ]; then
+  launchctl kickstart -k "$DOMAIN/$KICKSTART_JOB"
+  sleep 3
+fi
+
+echo "process:"; pgrep -fl "$PROC_PATTERN" | head -1 || echo "  NOT RUNNING ❌"
+echo "agents:"; launchctl list | grep -F "${JOBS[0]%%.*}" || true
+echo "schedule: $SCHEDULE_NOTE   |   logs: see StandardOutPath/StandardErrorPath in each plist"
