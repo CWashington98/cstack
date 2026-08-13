@@ -1,6 +1,8 @@
 {
   "name": "cstack",
-  "version": "1.0.0",
-  "description": "Crishon's canonical generic Claude Code skills — shared procedure, per-repo context via CLAUDE.md and .claude/cstack.md delta files",
-  "author": { "name": "Crishon Washington" }
+  "version": "1.1.0",
+  "description": "Crishon's canonical generic Claude Code skills + the karen verification agent \u2014 shared procedure, per-repo context via CLAUDE.md and .claude/cstack.md delta files",
+  "author": {
+    "name": "Crishon Washington"
+  }
 }

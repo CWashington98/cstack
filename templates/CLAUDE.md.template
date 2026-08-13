@@ -1,0 +1,39 @@
+# CLAUDE.md — <project> constitution
+
+<!-- Stamp once at project birth; keep it under ~1 page until pain demands more.
+     The agent reads this before every task. Every line must earn its place. -->
+
+## Non-negotiables
+
+- <the security/architecture pattern every function must use — e.g. "all DB access goes through org-scoped wrappers">
+- <terminology: words that must / must never appear in user-facing copy>
+- Protected files — never delete or edit without review: `.env`, <schema>, <webhook routes>
+
+## Source of truth
+
+| Content                  | Wins                                            |
+| ------------------------ | ----------------------------------------------- |
+| Backlog / what's in flight | <your tracker>                                |
+| Decisions                | `docs/adr/` (binding — extend, never contradict) |
+| Billing / vendor state   | production database, queried directly           |
+
+## Validate before done
+
+<test command> AND <typecheck or build command> must pass — the FULL suite, not a subset.
+A file is only "verified" when its colocated tests ran.
+
+## Debugging
+
+- Reproduce first: failing test that demonstrates the bug before any fix attempt.
+- Verify the target (exact org/user/deployment) before investigating.
+
+## Routing — delegate, don't edit directly
+
+| Files             | Agent               |
+| ----------------- | ------------------- |
+| <billing/**>      | <billing expert>    |
+| <auth/**>         | <security expert>   |
+| <**/__tests__/**> | <test engineer>     |
+
+Risk decides delegation, not size: 3 lines of billing → expert; 50 lines of CSS → direct.
+After any agent claims done: run **karen** (independent verification) before merge.

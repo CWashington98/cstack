@@ -8,21 +8,33 @@
     {
       "name": "cstack",
       "source": "./plugins/core",
-      "description": "Crishon's canonical generic skills: tdd, diagnose, triage, grill-me, grill-with-docs, handoff, prototype, caveman, deslop, improve-codebase-architecture, write-a-skill, to-prd, to-issues, web-design-guidelines"
+      "description": "Crishon's canonical generic skills (tdd, diagnose, triage, grill-me, grill-with-docs, handoff, prototype, caveman, deslop, improve-codebase-architecture, write-a-skill, to-prd, to-issues, web-design-guidelines) + the karen verification agent"
     },
     {
       "name": "agent-browser",
-      "source": { "source": "url", "url": "https://github.com/vercel-labs/agent-browser.git", "sha": "ed2e10598c9064aecfaeb7cf21b540684db4be2c" },
+      "source": {
+        "source": "url",
+        "url": "https://github.com/vercel-labs/agent-browser.git",
+        "sha": "ed2e10598c9064aecfaeb7cf21b540684db4be2c"
+      },
       "description": "Pinned external: vercel-labs browser-automation skill (was 'dogfood' in Hermes skills-lock)"
     },
     {
       "name": "ui-ux-pro-max",
-      "source": { "source": "url", "url": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill.git", "sha": "4baa399d00da806f83ed93652172f66943205153" },
+      "source": {
+        "source": "url",
+        "url": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill.git",
+        "sha": "4baa399d00da806f83ed93652172f66943205153"
+      },
       "description": "Pinned external: UI/UX design skill"
     },
     {
       "name": "vercel-agent-skills",
-      "source": { "source": "url", "url": "https://github.com/vercel-labs/agent-skills.git", "sha": "f8a72b9603728bb92a217a879b7e62e43ad76c81" },
+      "source": {
+        "source": "url",
+        "url": "https://github.com/vercel-labs/agent-skills.git",
+        "sha": "f8a72b9603728bb92a217a879b7e62e43ad76c81"
+      },
       "description": "Pinned external: vercel-labs agent skills (composition patterns etc.)"
     }
   ]
