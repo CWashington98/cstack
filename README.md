@@ -62,7 +62,7 @@ Per-repo forks with minor edits are the failure mode this repo exists to end.
 plugins/core/                     # the "cstack" plugin (skills/)
 snippets/py/                      # copy-paste by design: atomic write, telegram sink, launchd, curl_cffi
 templates/                        # stamped once at project birth: CLAUDE.md constitution + cstack.md delta
-recipes/                          # bootstrap.md (zero→agent-ready); later: mutation-testing, deploy-trap, ci-posture
+recipes/                          # agent-stack-brief.md (the operating model) + bootstrap.md (zero→agent-ready)
 ```
 
 ## Success / kill criteria — check once, Q4 2026
