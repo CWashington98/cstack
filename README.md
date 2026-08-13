@@ -14,16 +14,19 @@ claude plugin install ui-ux-pro-max@cstack   # externals — only where wanted
 
 Skills invoke as `cstack:tdd`, `cstack:diagnose`, etc. A project-local `.claude/skills/tdd`
 always wins over the plugin version; both coexist (namespacing makes collisions impossible).
+The core plugin also ships the **karen** agent — independent verification after any agent
+claims "done": re-runs the gates herself, checks scope vs claim, returns READY / NOT READY.
 
-**Sharing:** this repo is private. To share with a friend: add them as a GitHub collaborator —
-the same two commands above work with their git credentials. Nothing else changes.
+**Sharing:** this repo is public — the two commands above work for anyone. New machine or
+new person: start at [`recipes/bootstrap.md`](recipes/bootstrap.md) (day-one installs,
+companion plugins, templates, enforcement hooks, adoption order).
 
 ## Customization model — "change what a skill KNOWS, not what it DOES"
 
 1. **Ambient (free):** skills read the repo's CLAUDE.md for commands/conventions — it's always in context.
 2. **Delta file:** per-repo `.claude/cstack.md` (20–40 lines) with per-skill factual overrides.
    Template: [`templates/cstack.md.template`](templates/cstack.md.template). Skills check for it.
-3. **Local override:** project `.claude/skills/<name>` — only when the *procedure* genuinely
+3. **Local override:** project `.claude/skills/<name>` — only when the _procedure_ genuinely
    differs (see excluded-by-rule below). Must earn its existence.
 
 Per-repo forks with minor edits are the failure mode this repo exists to end.
@@ -58,8 +61,8 @@ Per-repo forks with minor edits are the failure mode this repo exists to end.
 .claude-plugin/marketplace.json   # catalog: core plugin + pinned externals
 plugins/core/                     # the "cstack" plugin (skills/)
 snippets/py/                      # copy-paste by design: atomic write, telegram sink, launchd, curl_cffi
-templates/                        # stamped once at project birth: cstack.md delta template
-recipes/                          # (post-8/30) mutation-testing operating model, deploy-trap doc, ci-posture
+templates/                        # stamped once at project birth: CLAUDE.md constitution + cstack.md delta
+recipes/                          # bootstrap.md (zero→agent-ready); later: mutation-testing, deploy-trap, ci-posture
 ```
 
 ## Success / kill criteria — check once, Q4 2026
