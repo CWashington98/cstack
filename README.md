@@ -50,7 +50,7 @@ Per-repo forks with minor edits are the failure mode this repo exists to end.
 - **Deletion budget = addition budget.** A quarter where something goes unused, it leaves
   before anything new enters.
 - **≤2 hrs/month.** Two consecutive months over budget → delete, don't reorganize.
-- **Client-repo copies decay in place.** Don't chase the drifted copies in client-B/client-D —
+- **Client-repo copies decay in place.** Don't chase the drifted copies in client repos —
   the installed plugin outranks them for you; teammates keep theirs. Never write into
   client/team repos; recipes travel by consented PR only.
 - **Externals are sha-pinned; updates are deliberate sha bumps.** Auto-update stays off.
