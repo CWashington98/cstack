@@ -30,6 +30,10 @@ npx skills add <skill-name>
 
 ## 2. Stamp the templates
 
+Fastest path: run the **`bootstrap-agents`** skill (ships with the plugin) — it explores
+the codebase, proposes a risk map, and generates the constitution, 2-3 domain expert
+agents, the routing table, and the hooks skeleton from these templates. Manual path:
+
 - `templates/CLAUDE.md.template` → `<project>/CLAUDE.md` — the constitution. Fill in the
   non-negotiables, source-of-truth table, validate-before-done commands, and routing table.
 - `templates/cstack.md.template` → `<project>/.claude/cstack.md` — per-repo factual deltas
