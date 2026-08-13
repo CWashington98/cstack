@@ -1,8 +1,11 @@
 # cstack
 
-Personal Claude Code plugin marketplace. One place for the generic skills that used to be
-copy-pasted (and drift) across every repo, plus sha-pinned third-party skill repos, plus
-stable python snippets.
+Personal Claude Code plugin marketplace, with one goal: **make any repository
+AI-native** — a constitution the agent reads, experts it routes to, gates it can't
+talk its way past, and skills for the procedures. One place for the generic skills
+that used to be copy-pasted (and drift) across every repo, plus sha-pinned
+third-party skill repos, plus stable python snippets. Licensing/attribution:
+[LICENSE](LICENSE) + [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 ## Install
 
@@ -54,6 +57,10 @@ Per-repo forks with minor edits are the failure mode this repo exists to end.
   the installed plugin outranks them for you; teammates keep theirs. Never write into
   client/team repos; recipes travel by consented PR only.
 - **Externals are sha-pinned; updates are deliberate sha bumps.** Auto-update stays off.
+- **Reference over vendoring.** Default to pointers (install commands, pinned URL+SHA)
+  with a one-line "what it's for." Vendor a copy only when the upstream license is
+  verified permissive AND stability demands it — record it in THIRD-PARTY-NOTICES.md.
+  Unlicensed upstreams are pointer-only, forever. See `recipes/skills-ecosystem.md`.
 
 ## Layout
 
