@@ -39,3 +39,11 @@ test("the core plugin ships only our own skills plus the web design guidelines",
   const skills = readdirSync(join(root, "plugins", "core", "skills")).sort();
   assert.deepEqual(skills, ["bootstrap-agents", "caveman", "deslop", "web-design-guidelines", "write-a-skill"]);
 });
+
+test("the plain skill and its reference files exist", () => {
+  const skill = readFileSync(join(root, "plugins", "plain", "skills", "plain", "SKILL.md"), "utf8");
+  assert.match(skill, /^---\nname: plain\ndescription: .+\n---/);
+  for (const f of ["rules.md", "pr-layout.md", "glossary-format.md"]) {
+    assert.ok(existsSync(join(root, "plugins", "plain", "skills", "plain", f)), f);
+  }
+});

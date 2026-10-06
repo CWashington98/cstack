@@ -39,6 +39,14 @@ cstack used to ship copies of these. They now come from his plugin, which he kee
 | improve-codebase-architecture | improve-codebase-architecture |
 | prototype | prototype |
 
+## plain
+
+Keeps everything we publish readable for a junior developer or product manager with no outside context. It has writing rules, a checker script, a blank cold reader and a hold before anything is posted to GitHub, published as a page, or committed as a spec or plan.
+
+    claude plugin install plain@cstack
+
+The hold does nothing until a repository opts in with `.claude/plain.json` (shared) or `.claude/plain.local.json` (personal). Details: `plugins/plain/skills/plain/glossary-format.md`.
+
 **Sharing:** this repo is public — the two commands above work for anyone. New machine or
 new person: start at [`recipes/bootstrap.md`](recipes/bootstrap.md) (day-one installs,
 companion plugins, templates, enforcement hooks, adoption order).
