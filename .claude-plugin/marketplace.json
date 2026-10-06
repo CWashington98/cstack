@@ -44,7 +44,7 @@
     },
     {
       "name": "pstack-picks",
-      "description": "Pinned pointer to four of Lauren Tan's pstack skills (pstack 0.15.13, MIT): never block on the human, show your work (a reviewable decision log), encode lessons in structure, and unslop. show-me-your-work needs the other two, so they come together.",
+      "description": "Pinned pointer to six of Lauren Tan's pstack skills (pstack 0.15.13, MIT): never block on the human, show your work (a reviewable decision log), encode lessons in structure, unslop, and her two verification tools (create and maintain a per-app verification skill). Kept as reference while cstack's verify plugin grows its own Claude Code versions.",
       "source": {
         "source": "git-subdir",
         "url": "https://github.com/cursor/plugins.git",
@@ -56,7 +56,9 @@
         "./principle-never-block-on-the-human",
         "./show-me-your-work",
         "./principle-encode-lessons-in-structure",
-        "./unslop"
+        "./unslop",
+        "./create-verification-skill",
+        "./maintain-verification-skill"
       ]
     },
     {
