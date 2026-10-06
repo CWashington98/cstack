@@ -37,7 +37,7 @@ import { readdirSync } from "node:fs";
 
 test("the core plugin ships only our own skills plus the web design guidelines", () => {
   const skills = readdirSync(join(root, "plugins", "core", "skills")).sort();
-  assert.deepEqual(skills, ["bootstrap-agents", "caveman", "deslop", "web-design-guidelines", "write-a-skill"]);
+  assert.deepEqual(skills, ["bootstrap-agents", "caveman", "deslop", "upkeep", "web-design-guidelines", "write-a-skill"]);
 });
 
 test("the plain skill and its reference files exist", () => {
