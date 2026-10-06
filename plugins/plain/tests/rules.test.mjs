@@ -62,3 +62,9 @@ test("mixed case product names are not acronyms", () => {
 test("a word that starts a multi-word glossary term passes inside that term", () => {
   assert.deepEqual(run("We run it in T3 Code.", config({ glossary: [{ term: "T3 Code", avoid: [] }] })), []);
 });
+
+test("exactly 35 words is advice, not a hold, and exactly 25 words is advice", () => {
+  const words = (n) => Array.from({ length: n }, () => "word").join(" ") + ".";
+  assert.deepEqual(run(words(35)).map((f) => f.split(":").slice(0, 2).join(":")), ["long-sentence:advice"]);
+  assert.deepEqual(run(words(25)).map((f) => f.split(":").slice(0, 2).join(":")), ["long-sentence:advice"]);
+});

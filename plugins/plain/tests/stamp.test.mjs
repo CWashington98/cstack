@@ -51,3 +51,13 @@ test("the stamp command refuses text that fails the checker or the reader", () =
   assert.equal(run("write", "good.md", "--verdict", "pass.json").status, 0);
   assert.equal(run("has", "good.md").status, 0);
 });
+
+test("a stamp made by an older checker version no longer counts", async () => {
+  const { writeFileSync, mkdirSync } = await import("node:fs");
+  const { fingerprint } = await import("../scripts/plain-stamp.mjs");
+  const dir = makeRepo();
+  const stamps = join(plainDir(dir), "stamps");
+  mkdirSync(stamps, { recursive: true });
+  writeFileSync(join(stamps, `${fingerprint("Old text.")}.json`), JSON.stringify({ checkerVersion: "0" }));
+  assert.equal(hasStamp(dir, "Old text."), false);
+});

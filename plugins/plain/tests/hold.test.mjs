@@ -113,3 +113,77 @@ test("the hook holds with exit 2 and explains why on standard error", () => {
 test("unreadable hook input allows the action", () => {
   assert.equal(spawnSync(process.execPath, [script], { input: "not json", encoding: "utf8" }).status, 0);
 });
+
+import { writeFileSync, existsSync } from "node:fs";
+
+test("git add followed by git commit in one command checks the spec being added", () => {
+  const dir = repo({ "docs/superpowers/specs/s.md": "READY. Q21.\n", "README.md": "Hello.\n" });
+  assert.equal(bash(dir, "git add docs && git commit -m 'Add the spec'").allow, false);
+  assert.equal(bash(dir, "git add -A && git commit -m 'Add the spec'").allow, false);
+  assert.equal(bash(dir, "git add README.md && git commit -m 'Update the readme'").allow, true);
+});
+
+test("commit -a and commit with paths include modified spec files; a plain commit does not", () => {
+  const dir = repo({ "docs/superpowers/specs/s.md": "First version of the map plan.\n" });
+  git(dir, "add", ".");
+  git(dir, "commit", "-qm", "start");
+  writeFileSync(join(dir, "docs/superpowers/specs/s.md"), "Second version of the map plan.\n");
+  assert.equal(bash(dir, 'git commit -am "Update the map plan"').allow, false);
+  assert.equal(bash(dir, 'git commit docs/superpowers/specs/s.md -m "Update the map plan"').allow, false);
+  assert.equal(bash(dir, 'git commit -m "Update the map plan"').allow, true);
+});
+
+test("a leading cd and git -C are followed, even from a folder without plain settings", () => {
+  const dir = repo({ "sub/only.md": "BLUF here.\n" });
+  assert.equal(bash(dir, "cd sub && gh pr create --body-file only.md").allow, false);
+  const elsewhere = makeRepo();
+  assert.equal(bash(elsewhere, `cd ${dir} && gh pr create --body-file bad.md`).allow, false);
+  assert.equal(bash(elsewhere, `git -C ${dir} commit -m "feat: add the A1 skeleton"`).allow, false);
+});
+
+test("a body file that can't be found is held", () => {
+  assert.match(text(bash(repo(), "gh pr create --body-file missing.md")), /wasn't found/);
+});
+
+test("text sent through standard input is held, or read when it is a commit message", () => {
+  const dir = repo();
+  assert.equal(bash(dir, `gh api repos/o/r/pulls -X POST --input - <<'EOF'\n{"body":"BLUF READY"}\nEOF`).allow, false);
+  assert.equal(bash(dir, "gh api repos/o/r/issues/1/comments -F body=@- < bad.md").allow, false);
+  assert.equal(bash(dir, `git commit -F - <<'EOF'\nfeat: add the A1 skeleton\nEOF`).allow, false);
+  assert.equal(bash(dir, `git commit -F - <<'EOF'\nfeat: add the map skeleton\nEOF`).allow, true);
+});
+
+test("the <<- heredoc form and $( in --body-file are handled", () => {
+  const dir = repo();
+  assert.equal(bash(dir, `git commit -m "$(cat <<-EOF\n\tfeat: add the A1 skeleton\n\tEOF\n)"`).allow, false);
+  assert.equal(bash(dir, 'gh pr create --body-file "$(echo good.md)"').allow, false);
+});
+
+test("advice alone never holds a stamped post, and commit first lines ignore the other rules", () => {
+  const dir = repo({ "advice.md": "We leverage the cache.\n" });
+  writeStamp(dir, "We leverage the cache.\n", { pass: true });
+  assert.equal(bash(dir, 'gh pr create --title "Cache" --body-file advice.md').allow, true);
+  assert.equal(bash(dir, 'git commit -m "Update the cache as discussed"').allow, true);
+});
+
+test("an override without a reason is held even when the text would pass", () => {
+  const dir = repo();
+  writeStamp(dir, GOOD, { pass: true });
+  assert.equal(bash(dir, 'PLAIN_OVERRIDE= gh pr create --title "Map" --body-file good.md').allow, false);
+});
+
+test("only page publishes are checked, not other page actions", () => {
+  const dir = repo({ "page.html": "<p>BLUF works</p>" });
+  const page = (action) => decide({ tool_name: "Artifact", tool_input: { action, file_path: join(dir, "page.html") }, cwd: dir }).allow;
+  assert.equal(page("publish"), false);
+  assert.equal(page("read"), true);
+});
+
+test("plain settings that aren't valid JSON hold posts with a clear message, and leave other commands alone", () => {
+  const dir = makeRepo({ ".claude/plain.json": "{ not json", "good.md": GOOD });
+  const r = bash(dir, "gh pr create --body-file good.md");
+  assert.equal(r.allow, false);
+  assert.match(text(r), /plain\.json/);
+  assert.equal(bash(dir, "ls").allow, true);
+  assert.equal(existsSync(join(plainDir(dir), "errors.log")), false);
+});

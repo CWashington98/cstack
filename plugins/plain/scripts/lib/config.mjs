@@ -33,7 +33,12 @@ export function parseGlossary(markdown) {
 }
 
 function readJson(path) {
-  return existsSync(path) ? JSON.parse(readFileSync(path, "utf8")) : null;
+  if (!existsSync(path)) return null;
+  try {
+    return JSON.parse(readFileSync(path, "utf8"));
+  } catch (error) {
+    return { __error: `${path} is not valid JSON (${error.message}). Fix the file or remove it.` };
+  }
 }
 
 export function loadConfig(cwd) {
@@ -41,6 +46,10 @@ export function loadConfig(cwd) {
   const shared = readJson(join(root, ".claude", "plain.json"));
   const personal = readJson(join(root, ".claude", "plain.local.json"));
   const defaults = JSON.parse(readFileSync(join(here, "..", "data", "common-words.json"), "utf8"));
+  const broken = [shared, personal].find((s) => s?.__error);
+  if (broken) {
+    return { root, enabled: true, error: broken.__error, common: new Set(defaults), neverPublish: {}, watchFolders: DEFAULT_WATCH, readerModel: "sonnet", glossary: [] };
+  }
   const glossary = [join(root, "GLOSSARY.md"), join(root, ".claude", "GLOSSARY.local.md")]
     .filter(existsSync)
     .flatMap((p) => parseGlossary(readFileSync(p, "utf8")));
