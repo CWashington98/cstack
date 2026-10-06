@@ -74,7 +74,7 @@ export function prepare(raw, name = "") {
 }
 
 function splitSentences(chunk, line, out) {
-  for (const piece of chunk.split(/(?<=[.!?])\s+(?=[A-Z0-9"'(])/)) {
+  for (const piece of chunk.split(/(?<=[.!?][*_]*)\s+(?=[*_]*[A-Z0-9"'(])/)) {
     const text = piece.trim();
     const words = text.split(/\s+/).filter(Boolean).length;
     if (words) out.push({ text, line, words });

@@ -42,3 +42,7 @@ test("sentences are split and counted; list items, table cells and headings stan
 test("Windows line endings are handled", () => {
   assert.equal(stripIgnored("a\r\nb").split("\n").length, 2);
 });
+
+test("a sentence that starts in bold or italics is still a new sentence", () => {
+  assert.deepEqual(sentences("It is borderline. **We measure first.** _Then_ we decide.").map((s) => s.words), [3, 3, 3]);
+});
