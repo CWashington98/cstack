@@ -27,7 +27,7 @@ test("HTML pages lose styles, scripts and code, keep their text, and keep their 
 });
 
 test("prepare uses the HTML path only for .html files", () => {
-  assert.match(prepare("<p>A</p>", "page.html"), /^\s*A\s*$/);
+  assert.match(prepare("<p>A</p>", "page.html"), /^\s*A\s*\u241E?\s*$/);
   assert.equal(prepare("<p>A</p>", "notes.md"), "<p>A</p>");
 });
 
@@ -49,4 +49,9 @@ test("a sentence that starts in bold or italics is still a new sentence", () => 
 
 test("sentences ending in a quote, or starting with a lowercase name, are still split", () => {
   assert.deepEqual(sentences('She said "tests are not enough." Her method works. smsMarketing learned it too.').map((s) => s.words), [6, 3, 4]);
+});
+
+test("in HTML, table cells, list items and paragraphs count as separate pieces", () => {
+  const prose = prepare("<table><tr><td>Low</td><td>Copy, styling and docs</td><td>Steps 1 and 2</td></tr></table><ul><li>One two</li><li>Three</li></ul>", "page.html");
+  assert.deepEqual(sentences(prose).map((s) => s.words), [1, 4, 4, 2, 1]);
 });

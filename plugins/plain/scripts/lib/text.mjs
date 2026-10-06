@@ -59,6 +59,7 @@ export function htmlToText(html) {
     .replace(/\r\n?/g, "\n")
     .replace(/<(style|script|pre|code|svg)\b[\s\S]*?<\/\1>/gi, blank)
     .replace(/<!--[\s\S]*?-->/g, blank)
+    .replace(/<\/(td|th|li|p|h[1-6]|div|dt|dd|caption|figcaption|tr|blockquote|section|header|footer)\s*>/gi, " \u241E ")
     .replace(/<[^>]+>/g, (tag) => (/\n/.test(tag) ? blank(tag) : " "))
     .replace(/&nbsp;/g, " ")
     .replace(/&lt;/g, "<")
@@ -74,6 +75,10 @@ export function prepare(raw, name = "") {
 }
 
 function splitSentences(chunk, line, out) {
+  if (chunk.includes("\u241E")) {
+    for (const part of chunk.split("\u241E")) splitSentences(part, line, out);
+    return;
+  }
   for (const piece of chunk.split(/(?<=[.!?][*_"'”’)]*)\s+(?=[*_]*["'“(]?[A-Za-z0-9])/)) {
     const text = piece.trim();
     const words = text.split(/\s+/).filter(Boolean).length;
