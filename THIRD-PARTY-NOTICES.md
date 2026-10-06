@@ -33,6 +33,7 @@ recipes, templates) are © Crishon Washington, MIT (see LICENSE).
 | [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser)                       | Apache-2.0  | No need to copy; pin gives stability         |
 | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills)                         | none stated | **No license file — must never be vendored** |
 | [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | MIT         | No need to copy; pin gives stability         |
+| [cursor/plugins, pstack folder](https://github.com/cursor/plugins/tree/main/pstack) (Lauren Tan) | MIT | `pstack-picks`: four skills picked by folder; no need to copy |
 
 License spot-check performed 2026-08-13 via the GitHub license API. Re-verify before
 vendoring anything new.

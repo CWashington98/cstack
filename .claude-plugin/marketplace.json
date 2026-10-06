@@ -41,6 +41,23 @@
         "sha": "f8a72b9603728bb92a217a879b7e62e43ad76c81"
       },
       "description": "Pinned external: vercel-labs agent skills (composition patterns etc.)"
+    },
+    {
+      "name": "pstack-picks",
+      "description": "Pinned pointer to four of Lauren Tan's pstack skills (pstack 0.15.13, MIT): never block on the human, show your work (a reviewable decision log), encode lessons in structure, and unslop. show-me-your-work needs the other two, so they come together.",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/cursor/plugins.git",
+        "path": "pstack/skills",
+        "sha": "e5a8186d7b43be8d6ac4452440fbead5f1a51c70"
+      },
+      "strict": false,
+      "skills": [
+        "./principle-never-block-on-the-human",
+        "./show-me-your-work",
+        "./principle-encode-lessons-in-structure",
+        "./unslop"
+      ]
     }
   ]
 }
