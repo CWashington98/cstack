@@ -31,6 +31,8 @@ recipes, templates) are © Crishon Washington, MIT (see LICENSE).
 | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills)                         | none stated | **No license file — must never be vendored** |
 | [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | MIT         | No need to copy; pin gives stability         |
 | [cursor/plugins, pstack folder](https://github.com/cursor/plugins/tree/main/pstack) (Lauren Tan) | MIT | `pstack-picks`: four skills picked by folder; no need to copy |
+| [callstackincubator/agent-skills](https://github.com/callstackincubator/agent-skills) (Callstack) | MIT | `rn-callstack-picks`: three React Native skills picked by folder |
+| [vercel-labs/agent-skills, react-native-skills](https://github.com/vercel-labs/agent-skills) | none stated | `rn-vercel-picks`: pointer only, never copied |
 
 License spot-check performed 2026-08-13 via the GitHub license API. Re-verify before
 vendoring anything new.

@@ -22,9 +22,10 @@ claims "done": re-runs the gates herself, checks scope vs claim, returns READY /
 
 ## Matt Pocock's skills
 
-cstack used to ship copies of these. They now come from his plugin, which he keeps current:
+cstack used to ship copies of these. Install them from his own marketplace, which carries his latest release. The copy in Anthropic's official marketplace lags behind it (on 2026-10-05 it was 27 commits older than his version 1.3.1):
 
-    claude plugin install mattpocock-skills@claude-plugins-official
+    claude plugin marketplace add mattpocock/skills
+    claude plugin install mattpocock-skills@mattpocock
 
 | Old cstack name | Name in his plugin |
 |---|---|
@@ -46,6 +47,16 @@ Keeps everything we publish readable for a junior developer or product manager w
     claude plugin install plain@cstack
 
 The hold does nothing until a repository opts in with `.claude/plain.json` (shared) or `.claude/plain.local.json` (personal). Details: `plugins/plain/skills/plain/glossary-format.md`.
+
+## React Native projects
+
+Install these only in a project that has a React Native or Expo app, using `--scope local` so other projects don't load them:
+
+    claude plugin install expo@expo-plugins --scope local          # Expo's official skills
+    claude plugin install rn-callstack-picks@cstack --scope local  # performance, navigation, upgrades
+    claude plugin install rn-vercel-picks@cstack --scope local     # everyday React Native coding rules
+
+Expo's older `expo-app-design`, `upgrading-expo` and `expo-deployment` plugins are deprecated; the `expo` plugin replaces all three.
 
 **Sharing:** this repo is public — the two commands above work for anyone. New machine or
 new person: start at [`recipes/bootstrap.md`](recipes/bootstrap.md) (day-one installs,

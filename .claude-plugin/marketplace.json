@@ -58,6 +58,36 @@
         "./principle-encode-lessons-in-structure",
         "./unslop"
       ]
+    },
+    {
+      "name": "rn-callstack-picks",
+      "description": "Pinned pointer to three of Callstack's React Native skills (MIT): performance (frames per second, bundle size, startup time, native), React Navigation, and React Native upgrades. Install only in projects with a React Native app.",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/callstackincubator/agent-skills.git",
+        "path": "skills",
+        "sha": "61e6e7dfdf3a8ee862254c200d751fcb1fb863dc"
+      },
+      "strict": false,
+      "skills": [
+        "./react-native-best-practices",
+        "./react-navigation",
+        "./upgrading-react-native"
+      ]
+    },
+    {
+      "name": "rn-vercel-picks",
+      "description": "Pinned pointer to Vercel's React Native coding rules (lists, animation, navigation, UI patterns, state, monorepos). Pointer only: the source repository has no license. Install only in projects with a React Native app.",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/vercel-labs/agent-skills.git",
+        "path": "skills",
+        "sha": "063bee94c3f4df8453406c830b0a7df0f2860278"
+      },
+      "strict": false,
+      "skills": [
+        "./react-native-skills"
+      ]
     }
   ]
 }
