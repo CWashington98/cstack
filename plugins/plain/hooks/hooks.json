@@ -1,0 +1,13 @@
+{
+  "description": "plain: hold unclear text before it is posted to GitHub, published as a page, or committed as a spec or plan",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Artifact",
+        "hooks": [
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/plain-hold.mjs\"", "timeout": 30 }
+        ]
+      }
+    ]
+  }
+}
