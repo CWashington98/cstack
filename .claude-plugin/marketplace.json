@@ -11,6 +11,11 @@
       "description": "Crishon's canonical generic skills (tdd, diagnose, triage, grill-me, grill-with-docs, handoff, prototype, caveman, deslop, improve-codebase-architecture, write-a-skill, to-prd, to-issues, web-design-guidelines) + the karen verification agent + the bootstrap-agents codebase wizard"
     },
     {
+      "name": "plain",
+      "source": "./plugins/plain",
+      "description": "Keeps everything we publish readable for a junior developer or product manager with no outside context: writing rules, a checker, a blank cold reader and a hold before posting. Opt in per repository with .claude/plain.json."
+    },
+    {
       "name": "agent-browser",
       "source": {
         "source": "url",

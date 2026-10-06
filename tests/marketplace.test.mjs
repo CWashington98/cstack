@@ -1,0 +1,34 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync, existsSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const market = JSON.parse(readFileSync(join(root, ".claude-plugin", "marketplace.json"), "utf8"));
+
+test("every local plugin has a manifest with the same name", () => {
+  for (const p of market.plugins.filter((p) => typeof p.source === "string")) {
+    const manifest = join(root, p.source, ".claude-plugin", "plugin.json");
+    assert.ok(existsSync(manifest), `${p.name}: missing ${manifest}`);
+    assert.equal(JSON.parse(readFileSync(manifest, "utf8")).name, p.name);
+  }
+});
+
+test("every outside plugin is pinned to an exact commit", () => {
+  for (const p of market.plugins.filter((p) => typeof p.source === "object")) {
+    assert.match(p.source.sha ?? "", /^[0-9a-f]{40}$/, `${p.name} is not pinned`);
+  }
+});
+
+test("pointers into part of someone else's repository list the skills they pick", () => {
+  for (const p of market.plugins.filter((p) => p.source?.source === "git-subdir")) {
+    assert.equal(p.strict, false, `${p.name} must set strict: false`);
+    assert.ok(Array.isArray(p.skills) && p.skills.length > 0, `${p.name} must list its skills`);
+    for (const s of p.skills) assert.match(s, /^\.\//, `${p.name}: skill paths start with ./`);
+  }
+});
+
+test("the plain plugin is listed", () => {
+  assert.ok(market.plugins.some((p) => p.name === "plain" && p.source === "./plugins/plain"));
+});
