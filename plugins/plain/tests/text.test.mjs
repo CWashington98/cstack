@@ -46,3 +46,7 @@ test("Windows line endings are handled", () => {
 test("a sentence that starts in bold or italics is still a new sentence", () => {
   assert.deepEqual(sentences("It is borderline. **We measure first.** _Then_ we decide.").map((s) => s.words), [3, 3, 3]);
 });
+
+test("sentences ending in a quote, or starting with a lowercase name, are still split", () => {
+  assert.deepEqual(sentences('She said "tests are not enough." Her method works. smsMarketing learned it too.').map((s) => s.words), [6, 3, 4]);
+});
