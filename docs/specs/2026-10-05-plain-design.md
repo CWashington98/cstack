@@ -1,6 +1,13 @@
 # plain: a check that keeps everything we publish readable
 
-Status: draft for review, second version, 2026-10-05. Changes from the first version: the reader is now a junior developer or a product manager; the glossary uses Matt Pocock's `GLOSSARY.md` format; pull request descriptions get a fixed layout; specs and plans are checked too; a monthly review keeps improving the checks.
+Status: draft for review, second version, 2026-10-05.
+
+Changes from the first version:
+- the reader is now a junior developer or a product manager
+- the glossary uses Matt Pocock's `GLOSSARY.md` format
+- pull request descriptions get a fixed layout
+- specs and plans are checked too
+- a monthly review keeps improving the checks
 
 ## 1. Why
 
@@ -8,15 +15,15 @@ Our specs, pull requests, issues and pages are hard to read for anyone who wasn'
 
 | Repository | Pull requests with unexplained acronyms or planning codes | Most common problems | Longest sentences (top 10%) |
 |---|---|---|---|
-| smsMarketing | 25 of 25 | "BLUF" used as a heading 73 times, "SHA", "ADR", question numbers like "Q12" and "Q21", decision numbers like "D12" | 59 words or more |
-| onehearthealth | 20 of 25 | Decision numbers like "D14" and "D3c", "G4", "K34", "IAM", "ADR" | 34 words or more |
-| precordia | 17 of 25 | "VSD", "AS", "MR", "EDT", "A13", "R4b" | 28 words or more |
+| smsMarketing | 25 of 25 | `BLUF` used as a heading 73 times, `SHA`, `ADR`, question numbers like `Q12` and `Q21`, decision numbers like `D12` | 59 words or more |
+| onehearthealth | 20 of 25 | Decision numbers like `D14` and `D3c`, `G4`, `K34`, `IAM`, `ADR` | 34 words or more |
+| precordia | 17 of 25 | `VSD`, `AS`, `MR`, `EDT`, `A13`, `R4b` | 28 words or more |
 
 Three patterns cause most of it:
 
-- **Planning codes leak out.** Plans number their questions and decisions ("Q21", "D3c"). Pull requests then cite those numbers, which mean nothing to someone who never read the plan.
-- **Acronyms go unexplained.** Some are project terms ("VSD"), some are borrowed jargon ("BLUF", military shorthand for "bottom line up front").
-- **Capital letters are used for emphasis** ("READY", "NOT", "CLEAN"), which makes text harder to scan.
+- **Planning codes leak out.** Plans number their questions and decisions (`Q21`, `D3c`). Pull requests then cite those numbers, which mean nothing to someone who never read the plan.
+- **Acronyms go unexplained.** Some are project terms (`VSD`), some are borrowed jargon (`BLUF`, military shorthand for `bottom line up front`).
+- **Capital letters are used for emphasis** (`READY`, `NOT`, `CLEAN`), which makes text harder to scan.
 
 The owner described this as a problem in everything built so far, including their own pull requests and specs.
 
@@ -52,7 +59,7 @@ This applies to every section, including technical detail.
 These go in `rules.md`, which the skill loads before writing anything.
 
 1. **Start with the point.** The first sentence says what happened or what changed. The second says what you need from the reader, if anything.
-2. **Attach the context.** Never rely on things the reader can't see: "as discussed", "per the plan", "like last time", question or decision numbers, or section numbers of other documents. Put the needed facts in the text itself. A link can point to more detail, but the text must make sense without it.
+2. **Attach the context.** Never rely on things the reader can't see: `as discussed`, `per the plan`, `like last time`, question or decision numbers, or section numbers of other documents. Put the needed facts in the text itself. A link can point to more detail, but the text must make sense without it.
 3. **Spell out acronyms.** Use an acronym only if it's on the common list, or if you spell it out the first time: "ventricular septal defect (VSD)". Never invent new ones.
 4. **Introduce internal names once.** "Karen, our automated code reviewer". "Atlas, the zoomable map of the system".
 5. **Explain domain terms once,** using the wording in the repository's `GLOSSARY.md`: "aortic stenosis (a narrowing of the heart's main valve)".
@@ -65,7 +72,7 @@ These go in `rules.md`, which the skill loads before writing anything.
 
 Sources:
 - the US Federal Plain Language Guidelines (public domain)
-- ideas from ASD-STE100 Simplified Technical English (the standard Matt Pocock's `wait-what` skill uses)
+- ideas from Simplified Technical English, a writing standard from the aerospace industry (Matt Pocock's `wait-what` skill uses it)
 - the AI-writing patterns in poteto's `unslop` skill (MIT license)
 - Matt Pocock's glossary format (MIT license)
 
@@ -77,7 +84,7 @@ Rules are rewritten in our words, with credit.
 
 Three ways to use it:
 
-- **Write:** given a draft, a file, a spec or a pull request number, apply the rules, run the checker and the cold reader, fix and repeat until both pass, then record a pass stamp (section 6.4). Shows the before and after.
+- **Write:** given a draft, a file, a spec or a pull request number, apply the rules. Run the checker and the cold reader, and fix and repeat until both pass. Then record a pass stamp (section 6.4) and show the before and after.
 - **Fix an existing post:** `/plain 123` rewrites pull request 123's description in the layout from section 6.8, and posts it.
 - **Explain:** when the owner says a message didn't make sense, re-explain it following the rules.
 
@@ -89,10 +96,10 @@ It skips code blocks, inline code, links, quoted logs and diagrams. It checks ev
 
 | Finding | Example | Level |
 |---|---|---|
-| Acronym not on the common list and not spelled out at first use | "BLUF", "VSD" | Hold |
-| Planning code | "Q21", "D3c", "A1", "R4b", a section sign followed by a number | Hold |
-| Word in capitals for emphasis | "READY", "NOT" | Hold |
-| Reference to unseen context | "as discussed", "per the plan", "see above" in a standalone post | Hold |
+| Acronym not on the common list and not spelled out at first use | `BLUF`, `VSD` | Hold |
+| Planning code | `Q21`, `D3c`, `A1`, `R4b`, a section sign followed by a number | Hold |
+| Word in capitals for emphasis | `READY`, `NOT` | Hold |
+| Reference to unseen context | `as discussed`, `per the plan`, `see above` in a standalone post | Hold |
 | Sentence over 35 words | | Hold |
 | A word the glossary says to avoid | "purchase" when the glossary prefers "order" | Advice |
 | Sentence of 25 to 35 words | | Advice |
@@ -177,7 +184,7 @@ Only terms specific to the project go in it, not general programming terms. Matt
 **`.claude/plain.json`** holds what `GLOSSARY.md` doesn't:
 
 - extra common words for this repository (the default list ships with `plain`)
-- codes never to publish, with what to say instead ("BLUF: put the summary first, no heading needed")
+- codes never to publish, with what to say instead (`BLUF: put the summary first, no heading needed`)
 - the spec and plan folders the hold watches
 - the cold reader's model
 
@@ -236,8 +243,8 @@ The last point follows a rule from `/retro`: a problem with a fixed pattern gets
 ## 7. How we know it works
 
 1. **Checker tests**, using fixtures from the real pull request text in section 1:
-   - "BLUF", "Q21", "D3c" and "READY" are held
-   - "ventricular septal defect (VSD)" followed later by "VSD" passes
+   - `BLUF`, `Q21`, `D3c` and `READY` are held
+   - `ventricular septal defect (VSD)` followed later by `VSD` passes
    - code blocks, links and diagrams are ignored
    - a glossary term used with its preferred word passes; an avoided word gets advice
 2. **Cold reader tests:**

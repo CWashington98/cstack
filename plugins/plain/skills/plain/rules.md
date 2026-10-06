@@ -24,6 +24,7 @@ This applies to every section, including technical detail.
 9. **No capital letters for emphasis.** Use bold sparingly instead.
 10. **Numbers say what they mean.** "4.4% of all usage", not "4.4%".
 11. **Technical detail goes last,** in its own section. It is written for a junior developer: standard terms are fine, anything else is explained.
+12. **Quote bad examples in code formatting.** When a text discusses a bad term, like `BLUF` or `Q21`, put the example in backticks. The checker skips code, so quoting a term doesn't count as using it.
 
 Sources:
 - the US Federal Plain Language Guidelines (public domain)

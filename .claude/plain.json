@@ -1,0 +1,4 @@
+{
+  "neverPublish": { "BLUF": "Put the summary first; no heading needed." },
+  "watchFolders": ["docs/specs", "docs/superpowers/specs", "docs/superpowers/plans"]
+}

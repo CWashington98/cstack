@@ -2,7 +2,7 @@
 
 Status: draft for review, second version, 2026-10-05.
 
-Changes from the first version, after an independent review by Karen (our automated reality-check reviewer) and a comparison with published practice from Anthropic, HumanLayer, Simon Willison, Kent Beck, Mitchell Hashimoto, Geoffrey Huntley, Cognition, Cursor and Stripe:
+Two reviews shaped this version. Karen, our automated reality-check reviewer, checked every claim. A research pass compared the plan with published practice from Anthropic, HumanLayer, Simon Willison, Kent Beck, Mitchell Hashimoto, Geoffrey Huntley, Cognition, Cursor and Stripe. The changes:
 
 - The security fix now targets the part of the plugin that actually creates the extra sessions.
 - The savings estimate is lower and shows its arithmetic.
@@ -14,7 +14,7 @@ Changes from the first version, after an independent review by Karen (our automa
 
 ## 1. The goal
 
-Ship better software with less of the owner's time, across every project, and get the most out of both Claude accounts: fewer lockouts before a reset, and the spare capacity spent on checking work rather than wasted.
+Ship better software with less of the owner's time, across every project. Get the most out of both Claude accounts: fewer lockouts before a reset, and spare capacity spent on checking work rather than wasted.
 
 The "/insights" report mentioned throughout is Claude Code's built-in usage report. It examined 11 sessions in depth from October 2 to 4, 2026.
 
