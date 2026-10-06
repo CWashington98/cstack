@@ -18,7 +18,7 @@ ecosystem — the job is knowing what's there and pointing at it, not copying it
 
 ## Recommended set, and what each is for
 
-**Process discipline (mattpocock/skills, via skills.sh or vendored here):**
+**Process discipline (mattpocock/skills, via his plugin `mattpocock-skills@claude-plugins-official`):**
 `tdd` — red-green-refactor loop with real assertions · `diagnose` — reproduce →
 minimise → hypothesise → instrument → fix → regression-test · `triage` — issue state
 machine · `grill-me` / `grill-with-docs` — interrogate a plan until shared

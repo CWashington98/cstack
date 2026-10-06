@@ -32,3 +32,10 @@ test("pointers into part of someone else's repository list the skills they pick"
 test("the plain plugin is listed", () => {
   assert.ok(market.plugins.some((p) => p.name === "plain" && p.source === "./plugins/plain"));
 });
+
+import { readdirSync } from "node:fs";
+
+test("the core plugin ships only our own skills plus the web design guidelines", () => {
+  const skills = readdirSync(join(root, "plugins", "core", "skills")).sort();
+  assert.deepEqual(skills, ["bootstrap-agents", "caveman", "deslop", "web-design-guidelines", "write-a-skill"]);
+});

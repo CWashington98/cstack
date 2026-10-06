@@ -15,10 +15,29 @@ claude plugin install cstack@cstack          # the core skills — everywhere
 claude plugin install ui-ux-pro-max@cstack   # externals — only where wanted
 ```
 
-Skills invoke as `cstack:tdd`, `cstack:diagnose`, etc. A project-local `.claude/skills/tdd`
+Skills invoke as `cstack:deslop`, `cstack:caveman`, etc. A project-local `.claude/skills/deslop`
 always wins over the plugin version; both coexist (namespacing makes collisions impossible).
 The core plugin also ships the **karen** agent — independent verification after any agent
 claims "done": re-runs the gates herself, checks scope vs claim, returns READY / NOT READY.
+
+## Matt Pocock's skills
+
+cstack used to ship copies of these. They now come from his plugin, which he keeps current:
+
+    claude plugin install mattpocock-skills@claude-plugins-official
+
+| Old cstack name | Name in his plugin |
+|---|---|
+| tdd | tdd |
+| diagnose | diagnosing-bugs |
+| triage | triage |
+| to-prd | to-spec |
+| to-issues | to-tickets |
+| grill-with-docs | grill-with-docs |
+| grill-me | grill-me |
+| handoff | handoff |
+| improve-codebase-architecture | improve-codebase-architecture |
+| prototype | prototype |
 
 **Sharing:** this repo is public — the two commands above work for anyone. New machine or
 new person: start at [`recipes/bootstrap.md`](recipes/bootstrap.md) (day-one installs,
