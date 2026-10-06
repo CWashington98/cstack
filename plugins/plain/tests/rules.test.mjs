@@ -58,3 +58,7 @@ test("filler words get advice", () => {
 test("mixed case product names are not acronyms", () => {
   assert.deepEqual(run("TypeScript, GitHub, iOS and GraphQL are fine."), []);
 });
+
+test("a word that starts a multi-word glossary term passes inside that term", () => {
+  assert.deepEqual(run("We run it in T3 Code.", config({ glossary: [{ term: "T3 Code", avoid: [] }] })), []);
+});

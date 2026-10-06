@@ -21,9 +21,10 @@ function definedAtFirstUse(prose, tok, i) {
 export function checkText(prose, config) {
   const found = [];
   const add = (index, rule, level, text, message) => found.push({ index, rule, level, line: lineOf(prose, index), text, message });
-  const isAllowed = (tok) => {
+  const isAllowed = (tok, at = -1) => {
     const base = tok.replace(/s$/, "");
-    return [tok, base].some((t) => config.common.has(t) || config.glossary.some((g) => g.term === t));
+    if ([tok, base].some((t) => config.common.has(t) || config.glossary.some((g) => g.term === t))) return true;
+    return at >= 0 && config.glossary.some((g) => g.term.includes(" ") && prose.startsWith(g.term, at));
   };
   const never = new Set(Object.keys(config.neverPublish));
   let m;
@@ -38,7 +39,7 @@ export function checkText(prose, config) {
   while ((m = code.exec(prose))) {
     const tok = m[0];
     codeAt.add(m.index);
-    if (never.has(tok) || isAllowed(tok)) continue;
+    if (never.has(tok) || isAllowed(tok, m.index)) continue;
     add(m.index, "planning-code", "hold", tok, `"${tok}" looks like a planning code. Say what it means instead.`);
   }
 
@@ -47,7 +48,7 @@ export function checkText(prose, config) {
   while ((m = caps.exec(prose))) {
     const tok = m[0];
     const base = tok.replace(/s$/, "");
-    if (codeAt.has(m.index) || never.has(tok) || never.has(base) || isAllowed(tok) || seen.has(base)) continue;
+    if (codeAt.has(m.index) || never.has(tok) || never.has(base) || isAllowed(tok, m.index) || seen.has(base)) continue;
     seen.add(base);
     if (definedAtFirstUse(prose, base, m.index)) continue;
     add(m.index, "capitals", "hold", tok, `"${tok}" isn't on the common list or in the glossary. Spell it out the first time, like "full name (${base})", or write it in lowercase if it's emphasis.`);
