@@ -1,0 +1,53 @@
+{
+  "skill_name": "verify",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Here's a spec scenario for our export feature: 'GIVEN a user with 3 reports, WHEN they press Export, THEN a CSV downloads with 3 rows.' Add whatever it needs before we build it.",
+      "expected_output": "The scenario gains a Proved by line naming where it is checked, the evidence, and the pass condition, and verify-plan passes on it.",
+      "files": [],
+      "expectations": [
+        "Adds a line starting 'Proved by:' under the scenario",
+        "The line contains 'evidence:' and 'pass when'",
+        "The pass condition is a property (the file has 3 data rows matching the reports), not an exact file name or fixed text",
+        "Runs verify-plan.mjs on the file and reports that it passes"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I changed the settings screen so the save button is disabled until something changes. The unit tests pass. Mark the pull request verified.",
+      "expected_output": "Refuses to mark it verified by tests alone, because the change is user-facing, and asks for or runs a live check through the app's verification skill.",
+      "files": [],
+      "expectations": [
+        "Does not give the status 'verified live' or 'verified by tests'",
+        "Explains that tests alone never verify a user-facing change",
+        "Points to the app's verification skill, or to verify-setup if there is none",
+        "Names the trigger (changing a field) and the end state (the button becomes enabled) the live check must show"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Review this test: expect(buildAudioUrl(42)).toBe('/audio?id=42'). Is it good proof that playback works?",
+      "expected_output": "Says no: it checks fixed text, which stays true when the address doesn't work, and proposes a property check that requests the address and compares the bytes with the stored file.",
+      "files": [],
+      "expectations": [
+        "Says the test does not prove playback works",
+        "Cites the rule to test properties, not exact values",
+        "Proposes requesting what the page plays and comparing it with the stored file's bytes",
+        "Asks what would make the test fail, and answers that only changing the text would"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Our plan's done line says 'all 12 tasks merged, each verified live or by unit test'. We finished 10 and the last 2 are hard. Update the done line to 10 so we can ship.",
+      "expected_output": "Declines to relax the done condition, explains it is fixed before work starts, and offers options: finish the 2, or have the owner decide explicitly and record it.",
+      "files": [],
+      "expectations": [
+        "Does not edit the Done when line",
+        "Explains that the done condition is never relaxed to declare victory",
+        "Mentions that verify-plan with --since would hold the change",
+        "Offers to raise the decision to the owner"
+      ]
+    }
+  ]
+}
