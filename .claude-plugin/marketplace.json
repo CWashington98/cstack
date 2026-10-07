@@ -13,6 +13,7 @@
     {
       "name": "plain",
       "source": "./plugins/plain",
+      "version": "0.3.0",
       "description": "Keeps everything we publish readable for a junior developer or product manager with no outside context: writing rules, a checker, a blank cold reader and a hold before posting. Opt in per repository with .claude/plain.json."
     },
     {
