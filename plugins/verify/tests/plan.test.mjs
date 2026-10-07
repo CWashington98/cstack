@@ -176,3 +176,54 @@ test("a done condition relaxed after work started is held", () => {
 test("a spec with only scenarios needs no proof boxes or done line", () => {
   assert.equal(check(GOOD_SCENARIO).held, false);
 });
+
+const runRepo = (status) => {
+  const root = makeRepo();
+  mkdirSync(join(root, "runs", "r1"), { recursive: true });
+  writeFileSync(join(root, "runs", "r1", "run.json"), JSON.stringify({ status }));
+  return root;
+};
+const liveBox = (evidence) => `**Done when:** all 1 tasks merged.\n- [ ] **Verify unit:** tests. Evidence: commit\n- [x] **Verify live:** the audio plays. Evidence: ${evidence}\n`;
+
+test("a run that ended blocked or failed is never a pass", () => {
+  for (const status of ["blocked", "failed"]) {
+    assert.match(messages(check(plan(item(true, "run runs")), runRepo(status))), new RegExp(`ended "${status}", which is never a pass`), status);
+  }
+});
+
+test("a ticked Verify live box needs a run that finished verified live", () => {
+  assert.equal(check(liveBox("run runs"), runRepo("verified live")).held, false);
+  assert.match(messages(check(liveBox("run runs"), runRepo("verified by tests"))), /needs a run that finished "verified live"/);
+});
+
+test("a placeholder link with no path is not proof", () => {
+  assert.match(messages(check(plan(item(true, "link https://github.com/")))), /full https:\/\/ address/);
+  assert.match(messages(check(plan(item(true, "link https://github.com")))), /full https:\/\/ address/);
+  assert.equal(check(plan(item(true, "link https://github.com/o/r/pull/12"))).held, false);
+});
+
+test("an unreadable --since ref is a usage error, not a missing plan", () => {
+  const root = makeRepo({ "plan.md": plan(item(false, "commit")) });
+  git(root, "add", "."); git(root, "commit", "-qm", "plan");
+  const relaxed = plan(item(false, "commit")).replace("all 1 tasks merged", "some tasks merged, 1 maybe");
+  assert.throws(() => checkFile(relaxed, { file: join(root, "plan.md"), root, since: "no-such-ref" }), /--since no-such-ref is not a commit/);
+  writeFileSync(join(root, "plan.md"), relaxed);
+  assert.equal(spawnSync("node", [script, join(root, "plan.md"), "--since", "no-such-ref"], { encoding: "utf8" }).status, 2);
+  git(root, "mv", "plan.md", "renamed.md"); git(root, "commit", "-qm", "rename");
+  assert.equal(checkFile(relaxed, { file: join(root, "new.md"), root, since: "HEAD" }).findings.some((f) => /changed since/.test(f.message)), false, "a plan that did not exist at the ref has nothing to compare");
+});
+
+test("a code block that is never closed is held, so it can't hide items", () => {
+  const r = check(plan("```js\nconst x = 1;\n" + item(true, "file docs/missing.md")));
+  assert.match(messages(r), /code block opened on line \d+ is never closed/);
+  assert.equal(r.held, true);
+});
+
+test("held item titles are cut at a word boundary, with an ellipsis", () => {
+  const full = "Step 1: write the implementation of the evidence checker for every kind of proof.";
+  const msg = check(plan(`- [ ] **${full}**\n`)).findings.find((f) => /names no evidence/.test(f.message)).message;
+  const title = msg.match(/^"([^"]+)"/)[1];
+  assert.ok(title.endsWith("…") && title.length <= 61, title);
+  const kept = title.slice(0, -1);
+  assert.ok(full.startsWith(kept) && full[kept.length] === " ", `cut mid-word: ${title}`);
+});
