@@ -17,6 +17,11 @@
       "description": "Keeps everything we publish readable for a junior developer or product manager with no outside context: writing rules, a checker, a blank cold reader and a hold before posting. Opt in per repository with .claude/plain.json."
     },
     {
+      "name": "verify",
+      "source": "./plugins/verify",
+      "description": "Proves that work works, not only that tests pass: a proof standard, a check that specs and plans name their evidence, one verification skill per app (created by verify-setup, kept honest by verify-upkeep), shared guides for driving web and Expo apps, and the pr-review skill for Karen plus Codex verdicts tied to the commit."
+    },
+    {
       "name": "agent-browser",
       "source": {
         "source": "url",
