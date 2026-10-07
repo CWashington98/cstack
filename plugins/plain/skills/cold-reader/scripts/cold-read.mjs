@@ -14,6 +14,9 @@ import { READER_VERSION } from "./version.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
+// Model calls in tests and scoring run only when PLAIN_LIVE is exactly "1".
+export const isLive = (env = process.env) => env.PLAIN_LIVE === "1";
+
 export function buildArgs(model) {
   const prompt = readFileSync(join(here, "..", "reader-prompt.md"), "utf8");
   return [

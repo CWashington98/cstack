@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { coldRead, parseVerdict, buildArgs } from "../skills/cold-reader/scripts/cold-read.mjs";
+import { coldRead, parseVerdict, buildArgs, isLive } from "../skills/cold-reader/scripts/cold-read.mjs";
 import { READER_VERSION } from "../skills/cold-reader/scripts/version.mjs";
 
 const skillDir = join(dirname(fileURLToPath(import.meta.url)), "..", "skills", "cold-reader");
@@ -72,7 +72,13 @@ test("a failed reader run is an error, never a pass", () => {
   assert.equal(coldRead("x", { run: () => ({ status: 1, stdout: "", stderr: "boom" }) }).pass, false);
 });
 
-test("live probe: the reader knows nothing about our projects", { skip: !process.env.PLAIN_LIVE }, () => {
+test("live model calls run only when PLAIN_LIVE is exactly 1", () => {
+  assert.equal(isLive({ PLAIN_LIVE: "1" }), true);
+  for (const value of ["0", "", "true", "yes"]) assert.equal(isLive({ PLAIN_LIVE: value }), false, value);
+  assert.equal(isLive({}), false);
+});
+
+test("live probe: the reader knows nothing about our projects", { skip: !isLive() }, () => {
   const v = coldRead("Karen approved the Atlas change, and Hermes is next.");
   assert.equal(v.pass, false, JSON.stringify(v));
   for (const name of ["Karen", "Atlas", "Hermes"]) {

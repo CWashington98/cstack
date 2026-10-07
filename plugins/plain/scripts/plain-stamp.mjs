@@ -34,24 +34,30 @@ export function writeStamp(cwd, text, verdict) {
   const dir = join(plainDir(cwd), "stamps");
   mkdirSync(dir, { recursive: true });
   const fp = fingerprint(text);
-  writeFileSync(join(dir, `${fp}.json`), JSON.stringify({ fingerprint: fp, checkerVersion: CHECKER_VERSION, readerVersion: READER_VERSION, reader: verdict, at: new Date().toISOString() }, null, 2));
+  const advice = verdict.pass !== true;
+  writeFileSync(join(dir, `${fp}.json`), JSON.stringify({ fingerprint: fp, checkerVersion: CHECKER_VERSION, readerVersion: READER_VERSION, advice, reader: verdict, at: new Date().toISOString() }, null, 2));
   return fp;
 }
 
 // "none" when this exact text was never stamped, "stale" when it was stamped
-// under an older checker or reader version, "current" otherwise.
+// under an older checker or reader version, "advice" when the reader didn't
+// pass it (allowed only for specs and plans), "current" when it fully passed.
 export function stampStatus(cwd, text) {
   const path = join(plainDir(cwd), "stamps", `${fingerprint(text)}.json`);
   if (!existsSync(path)) return "none";
   try {
     const stamp = JSON.parse(readFileSync(path, "utf8"));
-    return stamp.checkerVersion === CHECKER_VERSION && stamp.readerVersion === READER_VERSION ? "current" : "stale";
+    if (stamp.checkerVersion !== CHECKER_VERSION || stamp.readerVersion !== READER_VERSION) return "stale";
+    return stamp.advice === true || stamp.reader?.pass !== true ? "advice" : "current";
   } catch {
     return "none";
   }
 }
 
-export const hasStamp = (cwd, text) => stampStatus(cwd, text) === "current";
+export function hasStamp(cwd, text, { adviceOk = false } = {}) {
+  const status = stampStatus(cwd, text);
+  return status === "current" || (adviceOk && status === "advice");
+}
 
 function appendLog(cwd, name, entry) {
   const dir = plainDir(cwd);
@@ -76,7 +82,7 @@ function main(argv) {
     return 1;
   }
   const text = readFileSync(file, "utf8");
-  if (command === "has") return hasStamp(process.cwd(), text) ? 0 : 1;
+  if (command === "has") return hasStamp(process.cwd(), text, { adviceOk: isWatchedSpec(process.cwd(), file) }) ? 0 : 1;
   if (command !== "write") {
     console.error("Usage: plain-stamp.mjs write <file> --verdict <verdict.json> | has <file>");
     return 1;

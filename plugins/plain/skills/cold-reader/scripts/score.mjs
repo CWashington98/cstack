@@ -8,7 +8,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { coldRead } from "./cold-read.mjs";
+import { coldRead, isLive } from "./cold-read.mjs";
 import { htmlToText } from "../../../scripts/lib/text.mjs";
 import { READER_VERSION } from "./version.mjs";
 
@@ -113,7 +113,7 @@ export function formatTable(results, totals) {
 }
 
 function main(argv) {
-  if (process.env.PLAIN_LIVE !== "1") {
+  if (!isLive()) {
     console.error("score: this calls the model once per case. Run it with PLAIN_LIVE=1.");
     return 2;
   }

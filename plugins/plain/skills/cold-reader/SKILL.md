@@ -43,7 +43,7 @@ It leaves out:
 ## How strict, by kind of text
 
 - **Pull requests, issues, comments and pages** must pass.
-- **Long specs and plans** get the reader's flags as advice. Fix what you can, but a flag doesn't stop them. They must still pass the plain checker.
+- **Long specs and plans** get the reader's flags as advice. Fix what you can, but a flag doesn't stop them from being committed. They must still pass the plain checker. Posting or publishing the same text as a post or page needs a full pass.
 
 The plain skill applies this rule when it records a pass stamp.
 

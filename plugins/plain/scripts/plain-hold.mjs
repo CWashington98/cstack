@@ -259,7 +259,7 @@ function evaluate(check, config) {
   if (check.type === "inline") return [`${check.label}: the text is written inline in the command or sent through standard input. Save it to a file, use --body-file (or -F body=@file), and run /plain on that file first.`];
   if (check.type === "missing") return [`${check.label} file ${check.path} wasn't found from ${check.cwd}. Check the path.`];
   if (check.type === "commit-specs") {
-    return specFilesForCommit(config, check).flatMap((f) => evaluate(fileCheck(`Spec or plan file ${f}`, f, config.root), config));
+    return specFilesForCommit(config, check).flatMap((f) => evaluate({ ...fileCheck(`Spec or plan file ${f}`, f, config.root), adviceOk: true }, config));
   }
   const { findings } = checkString(check.text, check.name ?? "", check.cwd, config);
   const holds = findings.filter((f) => f.level === "hold" && (!check.rules || check.rules.has(f.rule)));
@@ -269,6 +269,8 @@ function evaluate(check, config) {
   if (check.stamp) {
     const status = stampStatus(check.cwd, check.text);
     if (status === "stale") return [`${check.label} was stamped by an older version of the checker or the cold reader. Run /plain on ${check.name} again.`];
+    if (status === "advice" && !check.adviceOk) return [`${check.label} was stamped as a spec or plan, where the cold reader's flags are only advice. A post or page must pass the cold reader. Run /plain on ${check.name} and fix what it flags.`];
+    if (status === "advice") return [];
     if (status !== "current") return [`${check.label} has no pass stamp for this exact text. Run /plain on ${check.name} first.`];
   }
   return [];

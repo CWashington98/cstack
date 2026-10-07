@@ -34,7 +34,7 @@ It reports only:
 | Code names in the technical detail section | No |
 | More detail a curious reader might like | No |
 
-Pull requests, issues, comments and pages must pass. For a spec or plan in a watched folder, the flags are advice. The plain stamp command accepts a failing verdict for those, as long as the reader ran.
+Pull requests, issues, comments and pages must pass. For a spec or plan in a watched folder, the flags are advice. The plain stamp command accepts a failing verdict for those, as long as the reader ran. It marks that stamp as advice only. The hold accepts it for committing the spec, never for a post or page with the same text.
 
 ## The test set
 

@@ -6,7 +6,7 @@ import { join, dirname, basename } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { makeRepo, git } from "../../../tests/helpers.mjs";
-import { writeStamp, hasStamp, plainDir, logOverride, fingerprint } from "../scripts/plain-stamp.mjs";
+import { writeStamp, hasStamp, stampStatus, plainDir, logOverride, fingerprint } from "../scripts/plain-stamp.mjs";
 import { CHECKER_VERSION } from "../scripts/lib/version.mjs";
 import { READER_VERSION } from "../skills/cold-reader/scripts/version.mjs";
 
@@ -108,4 +108,32 @@ test("for a spec or plan in a watched folder, the reader's flags are advice, but
   assert.equal(ok.status, 0, ok.stderr);
   assert.match(ok.stdout, /advice/);
   assert.equal(run("has", spec).status, 0);
+});
+
+test("a stamp made under an older checker version no longer counts, even with the current reader version", async () => {
+  const { writeFileSync, mkdirSync } = await import("node:fs");
+  const dir = makeRepo();
+  const stamps = join(plainDir(dir), "stamps");
+  mkdirSync(stamps, { recursive: true });
+  writeFileSync(join(stamps, `${fingerprint("Old checker.")}.json`), JSON.stringify({ checkerVersion: "0", readerVersion: READER_VERSION, reader: { pass: true } }));
+  assert.equal(hasStamp(dir, "Old checker."), false);
+  writeFileSync(join(stamps, `${fingerprint("Both current.")}.json`), JSON.stringify({ checkerVersion: CHECKER_VERSION, readerVersion: READER_VERSION, reader: { pass: true } }));
+  assert.equal(hasStamp(dir, "Both current."), true);
+});
+
+test("only files inside a watched folder count as specs or plans, not folders whose names start the same way", async () => {
+  const { isWatchedSpec } = await import("../scripts/plain-stamp.mjs");
+  const dir = makeRepo({ ".claude/plain.json": "{}", "docs/superpowers/specs/x.md": "x", "docs/superpowers/specs-old/x.md": "x" });
+  assert.equal(isWatchedSpec(dir, "docs/superpowers/specs/x.md"), true);
+  assert.equal(isWatchedSpec(dir, "docs/superpowers/specs-old/x.md"), false);
+});
+
+test("an advice-only stamp is recorded as advice and doesn't count as a pass for a post", () => {
+  const dir = makeRepo();
+  writeStamp(dir, "Spec text.", { pass: false, unclear_terms: ["Atlas"], missing_context: [] });
+  assert.equal(stampStatus(dir, "Spec text."), "advice");
+  assert.equal(hasStamp(dir, "Spec text."), false);
+  assert.equal(hasStamp(dir, "Spec text.", { adviceOk: true }), true);
+  writeStamp(dir, "Post text.", { pass: true, unclear_terms: [], missing_context: [] });
+  assert.equal(stampStatus(dir, "Post text."), "current");
 });

@@ -102,6 +102,21 @@ test("a spec file in a commit must pass and be stamped", () => {
   assert.equal(bash(dir, 'git commit -m "Add the map spec"').allow, true);
 });
 
+test("an advice-only stamp lets a spec be committed, but never lets the same text go out as a post or page", () => {
+  const spec = "docs/superpowers/specs/map.md";
+  const dir = repo({ [spec]: GOOD, "copy.md": GOOD, "page.md": GOOD });
+  writeStamp(dir, GOOD, { pass: false, unclear_terms: ["Atlas"], missing_context: [], restatement: "x", ask: "y" });
+  for (const command of [`gh pr create --title "Add the map page" --body-file ${spec}`, 'gh pr create --title "Add the map page" --body-file copy.md', "gh issue comment 5 --body-file copy.md", "gh api repos/o/r/issues/5/comments -F body=@copy.md"]) {
+    const r = bash(dir, command);
+    assert.equal(r.allow, false, command);
+    assert.match(text(r), /advice/, command);
+  }
+  assert.equal(decide({ tool_name: "Artifact", tool_input: { file_path: join(dir, "page.md") }, cwd: dir }).allow, false, "page publish");
+  git(dir, "add", "docs");
+  const commit = bash(dir, 'git commit -m "Add the map spec"');
+  assert.equal(commit.allow, true, text(commit));
+});
+
 test("page publishes are checked; asset uploads are not", () => {
   const dir = repo({ "page.html": "<style>:root{--BG:#FFF}</style><p>BLUF works</p>" });
   assert.equal(decide({ tool_name: "Artifact", tool_input: { file_path: join(dir, "page.html") }, cwd: dir }).allow, false);
