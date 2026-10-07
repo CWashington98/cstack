@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { join, dirname } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { makeRepo } from "../../../tests/helpers.mjs";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { makeRepo, git } from "../../../tests/helpers.mjs";
 import { proseLines } from "../scripts/lib/markdown.mjs";
 import { checkFile } from "../scripts/lib/plan.mjs";
 import { parseArgs } from "../scripts/lib/args.mjs";
@@ -74,4 +75,65 @@ test("the command exits 0 on a pass, 1 on a hold and 2 on a missing file", () =>
   assert.equal(run("good.md").status, 0);
   assert.equal(run("bad.md").status, 1);
   assert.equal(run("missing.md").status, 2);
+});
+
+const item = (ticked, evidence) => `- [${ticked ? "x" : " "}] **Step 1: do it.** Evidence: ${evidence}\n`;
+const DONE = "**Done when:** all 1 tasks merged.\n- [ ] **Verify unit:** tests. Evidence: commit\n- [ ] **Verify live:** none: no user-facing behavior. Evidence: commit\n";
+const plan = (body) => `# Plan\n\n${DONE}\n${body}`;
+
+test("flags a plan item that names no evidence", () => {
+  const r = check(plan("- [ ] **Step 1: write the code.**\n"));
+  assert.match(messages(r), /names no evidence/);
+});
+
+test("an unticked item may name evidence that does not exist yet", () => {
+  const r = check(plan(item(false, 'test tests/a.test.mjs "adds"; file docs/x.md; commit')));
+  assert.equal(r.held, false, messages(r));
+});
+
+test("a ticked plan item whose evidence file doesn't exist is held", () => {
+  const r = check(plan(item(true, "file docs/missing.md")));
+  assert.match(messages(r), /docs\/missing\.md does not exist/);
+});
+
+test("a ticked test item needs the file to contain the test name", () => {
+  const root = makeRepo({ "tests/a.test.mjs": 'test("adds two numbers", () => {});\n' });
+  assert.equal(check(plan(item(true, 'test tests/a.test.mjs "adds two numbers"')), root).held, false);
+  assert.match(messages(check(plan(item(true, 'test tests/a.test.mjs "subtracts"')), root)), /does not contain "subtracts"/);
+});
+
+test("a ticked commit item needs a commit ID that exists", () => {
+  const root = makeRepo({ "a.txt": "a" });
+  git(root, "add", "."); git(root, "commit", "-qm", "a");
+  const sha = git(root, "rev-parse", "HEAD").trim();
+  assert.equal(check(plan(item(true, `commit ${sha.slice(0, 10)}`)), root).held, false);
+  assert.match(messages(check(plan(item(true, "commit")), root)), /names no commit ID/);
+  assert.match(messages(check(plan(item(true, "commit 0123456789")), root)), /is not a commit/);
+});
+
+test("ticked screenshot, log, run and link items are checked", () => {
+  const root = makeRepo({ "shots/after.png": "x", "out.log": "# fail 0\n", "shots/notes.txt": "x" });
+  mkdirSync(join(root, "runs", "r1"), { recursive: true });
+  writeFileSync(join(root, "runs", "r1", "run.json"), JSON.stringify({ status: "verified live" }));
+  const ok = [ "screenshot shots/after.png", 'log out.log "# fail 0"', "run runs", "link https://github.com/o/r/pull/1" ];
+  for (const e of ok) assert.equal(check(plan(item(true, e)), root).held, false, e);
+  assert.match(messages(check(plan(item(true, "screenshot shots/notes.txt")), root)), /not an image or video/);
+  assert.match(messages(check(plan(item(true, 'log out.log "# fail 1"')), root)), /does not contain/);
+  assert.match(messages(check(plan(item(true, "link github.com/x")), root)), /full https:\/\/ address/);
+});
+
+test("evidence paths resolve from the repository root, and ~/ means the home folder", () => {
+  const root = makeRepo({ "docs/plans/p.md": "", "src/a.js": "x" });
+  const r = checkFile(plan(item(true, "file src/a.js")), { file: join(root, "docs/plans/p.md"), root });
+  assert.equal(r.held, false, messages(r));
+  assert.equal(check(plan(item(true, "file ~/")), root).held, false);
+});
+
+test("an unknown evidence kind is held", () => {
+  assert.match(messages(check(plan(item(false, "vibes it works")))), /unknown evidence kind "vibes"/);
+});
+
+test("checkbox examples inside fenced code are not plan items", () => {
+  const r = check(plan("````markdown\n- [ ] **Step 1: example.**\n````\n" + item(false, "commit")));
+  assert.equal(r.items, 3); // the two proof boxes and the one real item
 });
