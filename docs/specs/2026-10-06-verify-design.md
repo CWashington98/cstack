@@ -1,6 +1,6 @@
 # verify: proving that work works
 
-Status: draft for review, 2026-10-06.
+Status: draft for review, second version, 2026-10-06. Adds: general-first rule, shared driving guides with thin per-app skills, Karen and Codex on every pull request, and the `pr-review` skill.
 
 ## 1. Why
 
@@ -34,6 +34,13 @@ Lauren Tan (poteto), who builds Cursor's agent tooling, puts it plainly: "Tests 
 | Test properties, not exact values; four testing tiers; a deliberately uneven test fixture | precordia's lessons from the audio bug |
 | Every "it works" claim ends in a verdict: verified, not verified, or inconclusive | onehearthealth's `verify-this` setup on its `dev` branch |
 | Scope tripwires, fast checks first, failing test first, mutation testing for risky code, independent review where findings must be reproduced | The earlier research on Anthropic, Matt Pocock, superpowers and Trail of Bits |
+
+## 3a. General first
+
+cstack is used in every project, so it ships only general skills, scripts and guides. A project contributes facts, settings and feature maps, never custom logic.
+
+- **Decided from many projects, not one.** Five active projects inform the defaults: precordia, onehearthealth, smsMarketing, and the projects in the `IC/investFest` and `IC/rebellion` folders. A rule that only one project needs stays in that project, until a third project needs it too.
+- **Project examples in this document are facts, not features.** Journeys, risk names and app lists show what each project's settings would hold.
 
 ## 4. Part one: planning the proof
 
@@ -77,7 +84,16 @@ Each pull request gets one status, tied to its latest commit. A new commit clear
 
 ## 5. Part two: a verification skill for each app
 
-### 5.1 What one contains
+### 5.1 Two layers: shared guides and thin app skills
+
+| Layer | Where | What it holds |
+|---|---|---|
+| **Shared driving guides** | cstack, once | How to drive each kind of surface: web apps (Playwright, or the Chrome tools for exploring), Expo apps (Maestro, or Expo's cloud simulator skill), and backends (scripts that read back stored data). Each guide includes the general health checks: the installed app or site really is this project's, the build matches the current commit, and nothing waits on a fixed pause. It also covers known limits, such as Maestro having no real microphone. |
+| **App skill** | each project, per app | Only that app's facts: start command, app ID or address, routes and labels, test data, the feature map and gotchas. Mostly generated from the app's own files (`app.json`, route folders, existing test flows). |
+
+Two bugs found in precordia's patient mobile tests show why the line falls here. The recording test targets the wrong app ID, which only a per-app fact can catch. It also never presses "Start Recording", which the shared guide's rule "trigger and end state in every check" catches in any app.
+
+### 5.1a What an app skill contains
 
 Each app gets a skill at `.claude/skills/verify-<app>/`, committed so teammates and every agent can use it. It's written for an agent that has never seen the app, picking it up in the middle of a task.
 
@@ -127,7 +143,9 @@ Some of the worst bugs live between apps. Each repository gets one `journeys.md`
 
 | Now (active in the last 60 days) | When a spec first touches them |
 |---|---|
-| precordia labeling app; onehearthealth mobile and dashboard; smsMarketing dashboard, admin and marketing site | The other eight apps. precordia's patient mobile app is the one candidate to do early, because it handles clinical recordings. |
+| precordia labeling app and patient mobile app; onehearthealth mobile and dashboard; smsMarketing dashboard, admin and marketing site | The other seven apps |
+
+precordia's patient mobile app is included now (owner decision): it handles clinical recordings, and its recording test silently proves nothing today.
 
 The spec process asks "does this app have a verification skill?" and creates one as part of the first change that touches it.
 
@@ -182,13 +200,44 @@ The proof standard, used by every check and shown in each pull request's "Proof 
 9. **A runner must prove it ran everything.** It reports how many scenarios it ran against how many exist, and fails when they differ.
 10. **Never put patient data in evidence.** Use IDs and counts. This applies to onehearthealth and precordia.
 
-## 8. Part five: verdicts that hold
+## 8. Part five: verdicts and the `pr-review` skill
 
-- **Only an agent or person who didn't write the code gives the verdict.** A green build or an approving bot is not a verdict.
-- **Verdicts are tied to the exact commit.** A new commit clears the verdict. After a rebase, it's carried over only if the change content is identical, which git can check with `git patch-id`.
-- **Verdicts are visible to everyone:** a comment on the pull request carrying the commit ID. One cheap continuous integration job checks that the latest verdict matches the latest commit. This runs on GitHub, so it works for teammates and for merges made in the browser.
-- **Long or unattended runs keep a decision log** with poteto's `show-me-your-work`: what was decided, why, and a pointer to the evidence. A different model family reviews the log at the end.
-- **When a check fails, first suspect the check,** then the product.
+**Every pull request gets two verdicts: Karen (Claude) and Codex (OpenAI).** Different models from different providers catch different mistakes, and each checks the other. Both are required. If they disagree, the owner decides. If Codex runs out of quota, a Claude reviewer on a different model fills in and says so in its comment.
+
+The `pr-review` skill runs the review. It encodes what has worked and what has gone wrong across the projects:
+
+| Rule | The lesson behind it |
+|---|---|
+| Reviewers get only the change since the branch point, the spec with its "Proved by" lines, and the pull request description. Never the author's reasoning. | A reviewer who sees the argument tends to accept it |
+| Each reviewer works in its own read-only copy of the repository | A reviewer's checkouts once wiped an implementer's edits |
+| Cheap checks first: the scripted `verify` steps, the `plain` check on the description, and whether live evidence exists | Model reviews are slow; scripts are certain |
+| Karen runs the gates herself and checks the claimed scope against the actual change | Expert agents report "done" against narrow criteria and miss side effects |
+| Karen audits the tests: they must check properties, not exact values, and must fail if the code returned nothing | The audio bug's test checked fixed text and passed while the feature was dead |
+| Karen deliberately breaks the code: conditions flipped both ways, and off-by-one changes | Three reviews missed two dead `capped` flags; one such break found them |
+| Karen checks the test data can reach the limits being tested | A limit derived from a count was unreachable in a small test fixture |
+| Karen audits live evidence: trigger and end state, never a stale build | "Look, it opens" proves nothing |
+| Karen checks completeness against a listed inventory | A status page once left out 10 blockers and 22 to-dos |
+| Codex reviews adversarially for correctness, from up to three angles depending on size: skeptic, architect and minimalist. It adds a security angle for high-risk changes. | Lauren Tan's adversarial review uses the other model family for exactly this |
+| Every finding is reproduced by a separate check, or dropped. Security claims must show the exact line, the trigger, the data flow and proof, after a search for existing defenses. | Anthropic's code review and Trail of Bits' false-positive checks |
+| Correctness only: no style comments, nothing that existed before the change, nothing a linter catches | Anthropic warns that reviewers always find something, and chasing it over-engineers the code |
+| Verdicts are plain-English comments carrying the commit ID. A new commit clears them. After a rebase they carry over only if the change content is identical (`git patch-id`). | The verdict must be for the exact code being merged |
+| Reviews happen before the pull request opens, and again on the final commit before merge | A pull request was once merged in the browser while Karen was still reviewing; she came back not ready |
+
+**Two modes:**
+
+- **Own pull requests:** every rule in the table.
+- **Teammates' pull requests:**
+  - prove a fix by watching its test fail without the fix and pass with it
+  - check that mirror pull requests are byte-identical
+  - draft the review in plain English, and post it only after the owner approves
+  - never add reviewers the owner didn't ask for
+
+**Learning loop:**
+
+- Findings that keep recurring become automatic checks.
+- Bugs a review missed become cases in a test set for the reviewers themselves, starting with the audio bug and the dead `capped` flags.
+- Long or unattended runs keep a decision log with Lauren Tan's `show-me-your-work`, reviewed by the other model family.
+- When a check fails, first suspect the check, then the product.
 
 ## 9. Part six: where it's enforced
 
@@ -245,7 +294,8 @@ Planted problems that must be caught:
 | Patient data in screenshots | Proof rule 10; fixtures with fake patients only |
 | Mobile features that need the microphone | Maestro can't use the microphone. Recording features use component tests plus a read-back of the stored file, as onehearthealth's guide already says. |
 
-## 13. Open questions
+## 13. Decisions made
 
-- Should precordia's patient mobile app get its verification skill now, because it handles clinical recordings, or wait until a spec touches it?
-- Where should verdict comments come from: Karen, the Codex reviewer, or both for high-risk changes?
+- precordia's patient mobile app gets its verification skill now.
+- Karen and Codex both give a verdict on every pull request.
+- Shared driving guides live in cstack; each app skill holds only that app's facts.

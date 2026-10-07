@@ -1,6 +1,6 @@
 # plain: a check that keeps everything we publish readable
 
-Status: draft for review, second version, 2026-10-05.
+Status: draft for review, third version, 2026-10-06. Adds: the cold reader as its own calibrated skill with a test set.
 
 Changes from the first version:
 - the reader is now a junior developer or a product manager
@@ -107,31 +107,38 @@ It skips code blocks, inline code, links, quoted logs and diagrams. It checks ev
 
 Output is a list of findings with line numbers, as text for people and JSON for scripts. Exit code 0 means pass, 1 means held.
 
-### 6.3 The cold reader: `plain-read`
+### 6.3 The cold reader: its own skill, `cold-reader`
 
-A model reads the text knowing nothing else, and reports what it couldn't follow. This is the only way to test "makes sense with no outside context" directly.
+A model reads the text knowing nothing else, and reports what it couldn't follow. This is the only way to test "makes sense with no outside context" directly. It's a separate skill that `plain` calls, so it can be tuned and maintained on its own.
 
-**How it stays blank (not yet tested; rollout step 1 checks it).** A normal subagent loads the project's CLAUDE.md and memory, so it would already know what "Karen" means. Instead, the cold reader runs as a separate `claude -p` call:
+**How it stays blank (tested: a live probe confirmed it didn't know Karen, Atlas or Hermes).** A normal subagent loads the project's CLAUDE.md and memory, so it would already know what "Karen" means. Instead, the cold reader runs as a separate `claude -p` call:
 
 - started from an empty temporary folder, so there are no project files and no project memory
 - with `--setting-sources local`, so no user settings or plugins load
 - with no tools, so it can't go looking for answers
 - with a fixed system prompt that describes the reader from section 2
 
-It returns:
+It returns the terms it couldn't understand, the context it needed but couldn't see, a two-sentence restatement, and what it thinks the reader is asked to do.
 
-```json
-{
-  "unclear_terms": ["terms it couldn't understand"],
-  "missing_context": ["things it needed but couldn't see"],
-  "restatement": "two sentences: what it thinks the text says",
-  "ask": "what it thinks the reader is being asked to do"
-}
-```
+**Calibration.** First real use, on three past pull requests, showed the reader understood every change correctly but flagged a mix of fair problems and noise. It now reports only:
 
-It passes when both lists are empty. The writer then compares the restatement with what they meant. If they differ, the text is rewritten. After two failed rewrites, the text is held and brought to the owner with the reader's notes.
+| Flag | Reported? |
+|---|---|
+| A term the text never explains | Yes |
+| Context needed to follow the change that the text doesn't give | Yes |
+| A term the text already explains | No |
+| Code names in the technical detail section | No |
+| More detail a curious reader might like | No |
 
-It uses Sonnet by default, and each repository can change that.
+**How strict, by kind of text:** pull requests, issues, comments and pages must pass. Long specs and plans get the reader's flags as advice, and must still pass the checker.
+
+**Maintained like code:**
+
+- **Its own files:** the reader's instructions, the calibration rules above, and its own version number. A new version makes old pass stamps stop counting.
+- **A test set** of real texts with every flag labeled fair or noise. It starts with the three examples from first real use (precordia 199, onehearthealth 868, smsMarketing 1630), and grows from the other projects too. Any change to the reader is scored against the set before it ships: it must still catch the fair flags and drop the noise.
+- **Monthly review:** flags the owner disagrees with become new test cases.
+
+The writer still compares the restatement with what they meant, and rewrites when they differ. After two failed rewrites, the text is held and brought to the owner with the reader's notes. The reader's model is Sonnet by default, and each repository can change that.
 
 ### 6.4 The pass stamp
 
