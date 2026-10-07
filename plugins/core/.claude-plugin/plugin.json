@@ -1,6 +1,6 @@
 {
   "name": "cstack",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Crishon's own Claude Code skills (caveman, deslop, write-a-skill, bootstrap-agents, web-design-guidelines) and the karen verification agent. Matt Pocock's skills now come from his own plugin.",
   "author": {
     "name": "Crishon Washington"
