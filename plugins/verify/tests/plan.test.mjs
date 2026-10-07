@@ -227,3 +227,8 @@ test("held item titles are cut at a word boundary, with an ellipsis", () => {
   const kept = title.slice(0, -1);
   assert.ok(full.startsWith(kept) && full[kept.length] === " ", `cut mid-word: ${title}`);
 });
+
+test("a proof link may end with a slash, as long as it has a real path", () => {
+  assert.equal(check(plan(item(true, "link https://ci.example.com/runs/123/"))).held, false);
+  assert.match(messages(check(plan(item(true, "link https://ci.example.com/")))), /full https:\/\/ address/);
+});

@@ -201,3 +201,23 @@ test("a full run that was never finished is held", () => {
   const dir = goodRun(root);
   assert.match(checkRun(dir, { fullRun: true }).problems.join("\n"), /no final status/);
 });
+
+test("a sub-feature ID listed by two feature files covers neither until the file is named", () => {
+  const root = repo();
+  const features = join(root, "features");
+  mkdirSync(features);
+  writeFileSync(join(features, "README.md"), "# Map\n");
+  writeFileSync(join(features, "notes.md"), "# Notes\n\n## Sub-features\n\n- `save` stores a note.\n");
+  writeFileSync(join(features, "settings.md"), "# Settings\n\n## Sub-features\n\n- `save` stores settings.\n");
+  const drive = (feature) => {
+    const dir = startRun(root, "web");
+    touch(dir, "a.png", "b.png");
+    addStep(dir, { kind: "health", ok: true });
+    addStep(dir, { kind: "drive", feature, trigger: "a.png", end: "b.png", sideEffects: "none: test", ok: true });
+    return checkRun(dir, { cover: features });
+  };
+  const bare = drive("save");
+  assert.deepEqual(bare.coverage, { covered: 0, total: 2 });
+  assert.match(bare.problems.join("\n"), /"save" is listed by more than one feature file \(notes, settings\)\. Record it as notes\/save or settings\/save/);
+  assert.deepEqual(drive("notes/save").coverage, { covered: 1, total: 2 });
+});

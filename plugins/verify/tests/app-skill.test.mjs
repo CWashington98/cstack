@@ -128,3 +128,9 @@ test("an app.config file is read for the app ID instead of crashing", () => {
   assert.match(text(expoSkill({ "apps/phone/app.config.ts": "export default ({ config }) => ({ ...config, ios: { bundleIdentifier: process.env.ID } });\n" }, facts)), /can't find the app ID written as plain text in apps\/phone\/app\.config\.ts/);
   assert.match(text(expoSkill({ "apps/phone/app.json": "{ not json" })), /app\.json is not valid JSON/);
 });
+
+test("an app.config file with quoted keys is read like plain keys", () => {
+  const facts = { ...EXPO, expo: { ...EXPO.expo, appConfig: "apps/phone/app.config.js" } };
+  const js = `module.exports = { "expo": { "ios": { "bundleIdentifier": "com.example.app" }, "android": { 'package': "com.example.app" } } };\n`;
+  assert.deepEqual(expoSkill({ "apps/phone/app.config.js": js }, facts).findings, []);
+});
