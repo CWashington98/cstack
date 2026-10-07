@@ -2,7 +2,7 @@
 // and every plan item names its evidence.
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { resolve, join, extname } from "node:path";
+import { resolve, join, extname, relative } from "node:path";
 import { homedir } from "node:os";
 import { proseLines, HEADING } from "./markdown.mjs";
 
@@ -136,11 +136,62 @@ export function checkItems(lines, root) {
   return { findings, count: items.length, items };
 }
 
+const PR_HEADING = /^(#{1,6})\s+(Pull request\b.*)$/i;
+const DONE_LINE = /^\s*(?:\*\*)?Done when:(?:\*\*)?\s*(.+)$/i;
+
+export function checkProofBoxes(lines) {
+  const sections = [];
+  let current = null;
+  for (const l of lines) {
+    const h = l.text.match(/^(#{1,6})\s/);
+    const pr = l.text.match(PR_HEADING);
+    if (pr) { current = { title: pr[2].trim(), line: l.line, level: pr[1].length, items: [] }; sections.push(current); continue; }
+    if (h && current && h[1].length <= current.level) current = null;
+    const m = l.text.match(ITEM);
+    if (m && current) current.items.push(m[2]);
+  }
+  if (!sections.length) sections.push({ title: "the plan", line: 1, items: lines.map((l) => l.text.match(ITEM)?.[2]).filter(Boolean) });
+  const findings = [];
+  for (const s of sections) {
+    const label = s.title === "the plan" ? "The plan" : `Pull request section "${s.title}"`;
+    const box = (name) => s.items.find((t) => new RegExp(`^\\**\\s*${name}\\b`, "i").test(t));
+    for (const name of ["Verify unit", "Verify live"]) {
+      if (!box(name)) findings.push(hold(s.line, `${label} has no "${name}" box. Every pull request needs three proof boxes: verify unit, verify live, and verify performance when speed or size could change.`));
+    }
+    const live = box("Verify live");
+    if (live && /Verify live\**:?\**\s*none\b/i.test(live) && !/none\s*[:—-]\s*\w/i.test(live)) {
+      findings.push(hold(s.line, `${label}: "Verify live" says none without a reason. Live proof is skipped only for changes with no user-facing behavior, and the box says why.`));
+    }
+  }
+  return findings;
+}
+
+const doneLine = (lines) => lines.find((l) => DONE_LINE.test(l.text));
+
+export function checkDone(lines, { file, root, since } = {}) {
+  const done = doneLine(lines);
+  if (!done) return [hold(1, `The plan has no "Done when:" line. Write the finish line as a count fixed before work starts, for example "Done when: all 12 tasks merged, each verified live or by unit test".`)];
+  const findings = [];
+  if (!/\d/.test(done.text)) findings.push(hold(done.line, `"Done when" has no count. Make it countable, such as "all 12 tasks merged", so nobody can declare victory early.`));
+  if (since && file && root) {
+    let old = null;
+    try {
+      old = execFileSync("git", ["show", `${since}:${relative(root, file)}`], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    } catch { /* the plan did not exist at that ref: nothing to compare */ }
+    const before = old && doneLine(proseLines(old));
+    if (before && before.text.trim() !== done.text.trim()) {
+      findings.push(hold(done.line, `The done condition changed since ${since}. It is fixed before work starts and never relaxed. Before: "${before.text.trim()}". Now: "${done.text.trim()}".`));
+    }
+  }
+  return findings;
+}
+
 export function checkFile(raw, { file, root, since } = {}) {
   const lines = proseLines(raw);
   const sc = checkScenarios(lines);
   const it = checkItems(lines, root);
   const findings = [...sc.findings, ...it.findings];
+  if (it.count) findings.push(...checkProofBoxes(lines), ...checkDone(lines, { file, root, since }));
   if (!sc.count && !it.count) {
     findings.push(hold(1, `Found no scenarios and no plan items, so there is nothing to check. A spec has "#### Scenario:" headings; a plan has checkbox items.`));
   }
