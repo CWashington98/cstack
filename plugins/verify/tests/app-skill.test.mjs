@@ -82,3 +82,35 @@ test("the command exits 0 on a pass, 1 on a hold and 2 on a missing folder", () 
   assert.equal(spawnSync("node", [script, bad.dir], { encoding: "utf8" }).status, 1);
   assert.equal(spawnSync("node", [script, join(good.root, "nope")], { encoding: "utf8" }).status, 2);
 });
+
+const EXPO = { app: "phone", surface: "expo", appRoot: "apps/phone", start: { command: "npm run ios", ready: "curl -s localhost:8081/status", stop: "kill" }, expo: { appId: "com.example.app", appConfig: "apps/phone/app.json", flows: "apps/phone/maestro" } };
+const P = ".claude/skills/verify-phone";
+const expoSkill = (overrides = {}, facts = EXPO) => {
+  const root = makeRepo(Object.fromEntries(Object.entries({
+    "apps/phone/app.json": JSON.stringify({ expo: { ios: { bundleIdentifier: "com.example.app" }, android: { package: "com.example.app" } } }),
+    "apps/phone/maestro/home.yaml": 'appId: com.example.app\n---\n- tapOn: "Go"\n- assertVisible: "Done"\n',
+    [`${P}/SKILL.md`]: SKILL_MD("verify-phone"),
+    [`${P}/facts.json`]: JSON.stringify(facts),
+    [`${P}/features/README.md`]: README,
+    [`${P}/features/search.md`]: FEATURE,
+    ...overrides,
+  }).filter(([, v]) => v !== null)));
+  return checkAppSkill(join(root, P), root);
+};
+
+test("an Expo skill checks every flow against the real app ID", () => {
+  assert.deepEqual(expoSkill().findings, []);
+  assert.equal(expoSkill().flows, 1);
+  const r = expoSkill({ "apps/phone/maestro/old.yaml": 'appId: com.example.old\n---\n- tapOn: "Go"\n- assertVisible: "Done"\n' });
+  assert.match(text(r), /targets app ID "com\.example\.old"/);
+});
+
+test("facts.json's app ID must match app.json", () => {
+  assert.match(text(expoSkill({}, { ...EXPO, expo: { ...EXPO.expo, appId: "com.example.old" } })), /facts\.json says the app ID is "com\.example\.old"/);
+});
+
+test("replays listed in facts.json are checked", () => {
+  const r = run({ "e2e/play.spec.ts": "await page.waitForTimeout(500);\n" }, { ...FACTS, replays: ["e2e/play.spec.ts"] });
+  assert.match(text(r), /waits a fixed time/);
+  assert.equal(r.flows, 1);
+});
