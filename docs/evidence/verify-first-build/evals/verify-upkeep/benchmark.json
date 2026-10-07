@@ -1,0 +1,306 @@
+{
+  "metadata": {
+    "skill_name": "verify-upkeep",
+    "skill_path": "plugins/verify/skills/verify-upkeep",
+    "executor_model": "sonnet",
+    "grader_model": "sonnet",
+    "timestamp": "2026-10-07T14:07:59.277Z",
+    "evals_run": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "runs_per_configuration": 1,
+    "notes": "One agent ran all prompts for a configuration in turn; timing and tokens are for the whole set, not per prompt. Live steps (servers, simulators, Codex, GitHub) were described, not run."
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "failed": 1,
+        "total": 4,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Drives every mapped feature live",
+          "passed": false,
+          "evidence": "Live pass: not done; both features recorded as unreachable"
+        },
+        {
+          "text": "Runs evidence.mjs check with --cover",
+          "passed": true,
+          "evidence": "evidence.mjs check ... --full-run --head HEAD --cover .claude/skills/verify-notes/features -> exit 1, covered 2 of 2"
+        },
+        {
+          "text": "Sorts each problem into document drift, broken tooling or a broken product",
+          "passed": true,
+          "evidence": "Problems sorted: Document drift (export); Broken tooling or product (missing seed.mjs, undetermined); Product broken: none"
+        },
+        {
+          "text": "Edits only the app skill's folder",
+          "passed": true,
+          "evidence": "Edits made: none to the skill. Nothing outside the skill folder was touched (only the evidence run folder)"
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.667,
+        "passed": 2,
+        "failed": 1,
+        "total": 3,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Calls it document drift",
+          "passed": true,
+          "evidence": "This is **document drift**, not a broken product"
+        },
+        {
+          "text": "Fixes the feature file",
+          "passed": true,
+          "evidence": "Added features/export.md with the More > Export notes path; listed in README"
+        },
+        {
+          "text": "Re-drives export live before shipping",
+          "passed": false,
+          "evidence": "Not run: live re-drive of export; fix not shipped, drive never done"
+        }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Calls it a broken product",
+          "passed": true,
+          "evidence": "This is a **broken product**, not drift and not tooling"
+        },
+        {
+          "text": "Reports it to the owner",
+          "passed": true,
+          "evidence": "Report to the owner: feature create-save; steps; expected vs actual; evidence (delivery listed as not run, but described exactly)"
+        },
+        {
+          "text": "Changes no product code",
+          "passed": true,
+          "evidence": "Make no change to the skill and no change to product code"
+        },
+        {
+          "text": "Leaves it out of the upkeep pull request",
+          "passed": true,
+          "evidence": "Keep it out of the upkeep pull request; this one never goes in the PR"
+        }
+      ]
+    },
+    {
+      "eval_id": 4,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Stops and points to verify-setup",
+          "passed": true,
+          "evidence": "Run `verify-setup` first. It builds .claude/skills/verify-<app>/"
+        },
+        {
+          "text": "Does not invent a verification skill or a target",
+          "passed": true,
+          "evidence": "I did not invent a target; no files written"
+        }
+      ]
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 2,
+        "failed": 2,
+        "total": 4,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Drives every mapped feature live",
+          "passed": false,
+          "evidence": "I could not start the app here, so nothing was driven live"
+        },
+        {
+          "text": "Runs evidence.mjs check with --cover",
+          "passed": false,
+          "evidence": "Any evidence check or coverage check; I did not know of such a tool"
+        },
+        {
+          "text": "Sorts each problem into document drift, broken tooling or a broken product",
+          "passed": true,
+          "evidence": "1. Document drift: ... 3. No broken tooling or broken product seen"
+        },
+        {
+          "text": "Edits only the app skill's folder",
+          "passed": true,
+          "evidence": "I only edited files inside the skill folder; product code is untouched"
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.667,
+        "passed": 2,
+        "failed": 1,
+        "total": 3,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Calls it document drift",
+          "passed": true,
+          "evidence": "This is document drift: the product is fine, the written steps are out of date"
+        },
+        {
+          "text": "Fixes the feature file",
+          "passed": true,
+          "evidence": "Wrote features/export-notes.md with the menu path and linked it from README"
+        },
+        {
+          "text": "Re-drives export live before shipping",
+          "passed": false,
+          "evidence": "I have not driven it live, because I can't run the app here"
+        }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Calls it a broken product",
+          "passed": true,
+          "evidence": "This is a broken product, not a documentation problem"
+        },
+        {
+          "text": "Reports it to the owner",
+          "passed": true,
+          "evidence": "This should go to the Notes owner as a bug report: steps, evidence (not actually sent)"
+        },
+        {
+          "text": "Changes no product code",
+          "passed": true,
+          "evidence": "So I changed nothing: no product code"
+        },
+        {
+          "text": "Leaves it out of the upkeep pull request",
+          "passed": true,
+          "evidence": "The bug stays out of the upkeep pull request"
+        }
+      ]
+    },
+    {
+      "eval_id": 4,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 1,
+        "failed": 1,
+        "total": 2,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Stops and points to verify-setup",
+          "passed": false,
+          "evidence": "Only vaguely: 'If you have a setup step for that, such as a verify setup skill'; does not name verify-setup as the next step"
+        },
+        {
+          "text": "Does not invent a verification skill or a target",
+          "passed": true,
+          "evidence": "I did not guess how to start or drive the app, and I created nothing"
+        }
+      ]
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.854,
+        "stddev": 0.149,
+        "min": 0.6666666666666666,
+        "max": 1
+      },
+      "expectations_passed": 11,
+      "expectations_total": 13,
+      "set_tokens": 85170,
+      "set_duration_seconds": 110.5
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.667,
+        "stddev": 0.204,
+        "min": 0.5,
+        "max": 1
+      },
+      "expectations_passed": 9,
+      "expectations_total": 13,
+      "set_tokens": 74039,
+      "set_duration_seconds": 65.7
+    },
+    "delta": {
+      "pass_rate": "+0.19"
+    }
+  }
+}

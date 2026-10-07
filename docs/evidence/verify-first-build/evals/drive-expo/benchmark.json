@@ -1,0 +1,243 @@
+{
+  "metadata": {
+    "skill_name": "drive-expo",
+    "skill_path": "plugins/verify/skills/drive-expo",
+    "executor_model": "sonnet",
+    "grader_model": "sonnet",
+    "timestamp": "2026-10-07T14:07:59.277Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 1,
+    "notes": "One agent ran all prompts for a configuration in turn; timing and tokens are for the whole set, not per prompt. Live steps (servers, simulators, Codex, GitHub) were described, not run."
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.6,
+        "passed": 3,
+        "failed": 2,
+        "total": 5,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Runs check-app-skill and the health check before driving",
+          "passed": false,
+          "evidence": "check-app-skill ran (exit 1, 'SKILL.md is missing') but the health check is listed under 'Not run'"
+        },
+        {
+          "text": "Drives with Maestro, using the app ID from facts.json",
+          "passed": true,
+          "evidence": "Wrote facts.json with appId com.example.mobile and record.yaml using that ID (flow not executed, but written per facts.json)"
+        },
+        {
+          "text": "The flow presses the record button and waits for the finished state",
+          "passed": true,
+          "evidence": "tap 'Start Recording', wait up to 30s for 'Recording saved'"
+        },
+        {
+          "text": "Reads back the stored recording row",
+          "passed": false,
+          "evidence": "'Read-back of the stored recording row (command unknown...)' under Not run; 'I won't claim that step'"
+        },
+        {
+          "text": "Says a simulator can't prove the sound itself",
+          "passed": true,
+          "evidence": "'It does not prove the sound content'; simulator has no real microphone"
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Compares the flows' appId with the bundleIdentifier and package in app.json",
+          "passed": true,
+          "evidence": "app.json com.example.mobile on both platforms vs flows com.old.app"
+        },
+        {
+          "text": "Reports the mismatch as the likely cause",
+          "passed": true,
+          "evidence": "'The likely cause is a wrong app ID in the flows'"
+        },
+        {
+          "text": "Does not simply reinstall the app as the fix",
+          "passed": true,
+          "evidence": "'Don't reinstall yet'; fix is changing appId"
+        }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Uses the button's text or test ID instead of point:",
+          "passed": true,
+          "evidence": "tapOn: \"Start Recording\""
+        },
+        {
+          "text": "Explains why screen positions break",
+          "passed": true,
+          "evidence": "breaks when layout, font size, device size or a banner moves things"
+        }
+      ]
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Runs check-app-skill and the health check before driving",
+          "passed": false,
+          "evidence": "'any health check' listed under Not run; no check-app-skill"
+        },
+        {
+          "text": "Drives with Maestro, using the app ID from facts.json",
+          "passed": false,
+          "evidence": "appId taken from app.json; no facts.json involved; flow not run"
+        },
+        {
+          "text": "The flow presses the record button and waits for the finished state",
+          "passed": true,
+          "evidence": "tapOn 'Start Recording', extendedWaitUntil 'Recording saved' timeout 30000"
+        },
+        {
+          "text": "Reads back the stored recording row",
+          "passed": false,
+          "evidence": "'any stored-row read-back' under Not run"
+        },
+        {
+          "text": "Says a simulator can't prove the sound itself",
+          "passed": true,
+          "evidence": "'the sound itself needs a physical device'"
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Compares the flows' appId with the bundleIdentifier and package in app.json",
+          "passed": true,
+          "evidence": "com.old.app vs com.example.mobile for ios.bundleIdentifier and android.package"
+        },
+        {
+          "text": "Reports the mismatch as the likely cause",
+          "passed": true,
+          "evidence": "'Likely cause is an app ID mismatch, not a missing install'"
+        },
+        {
+          "text": "Does not simply reinstall the app as the fix",
+          "passed": true,
+          "evidence": "'I changed both flows ... rather than reinstalling'"
+        }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Uses the button's text or test ID instead of point:",
+          "passed": true,
+          "evidence": "tapOn: \"Start Recording\" (or id:)"
+        },
+        {
+          "text": "Explains why screen positions break",
+          "passed": true,
+          "evidence": "break when device size, orientation, font scale, safe areas or layout change"
+        }
+      ]
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.867,
+        "stddev": 0.189,
+        "min": 0.6,
+        "max": 1
+      },
+      "expectations_passed": 8,
+      "expectations_total": 10,
+      "set_tokens": 74731,
+      "set_duration_seconds": 78.3
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.8,
+        "stddev": 0.283,
+        "min": 0.4,
+        "max": 1
+      },
+      "expectations_passed": 7,
+      "expectations_total": 10,
+      "set_tokens": 69021,
+      "set_duration_seconds": 60.8
+    },
+    "delta": {
+      "pass_rate": "+0.07"
+    }
+  }
+}

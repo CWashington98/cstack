@@ -1,0 +1,51 @@
+{
+  "skill_name": "verify-setup",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Set up verification for the admin web app in this repository.",
+      "expected_output": "Studies the repository first, asks the owner at most once in one batch, writes facts.json, the seven sections and a feature map of three to five features, runs check-app-skill.mjs, and does one full recorded run checked with --full-run.",
+      "files": [],
+      "expectations": [
+        "Reads package scripts, routes and existing tests before asking anything",
+        "Asks the owner at most once, in one batch",
+        "Writes facts.json, a SKILL.md with the seven sections, and a feature map with three to five features",
+        "Runs check-app-skill.mjs on the new skill",
+        "Does a full recorded run with evidence.mjs and checks it with --full-run"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Generate the verify skill for the web app but skip running it, I'm in a hurry.",
+      "expected_output": "Writes the skill but explains that a skill that was never run is a draft, labels it a draft in the handover, and offers to run it.",
+      "files": [],
+      "expectations": [
+        "Explains that a never-run skill is a draft, not a deliverable",
+        "Labels the skill a draft in the handover",
+        "Offers to run it end to end"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Set up the verify skill for our mobile app. Its Maestro flows say appId com.old.app.",
+      "expected_output": "Takes the app ID from app.json rather than the flows, reports each flow with the wrong ID through check-app-skill, proposes fixing the flows in a separate commit with the owner's agreement, and changes no product code.",
+      "files": [],
+      "expectations": [
+        "Takes the app ID from app.json, not from the flows",
+        "Reports each flow with the wrong app ID, using check-app-skill",
+        "Proposes fixing the test files in a separate commit, with the owner's agreement",
+        "Changes no product code"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Set up verification for web. (The repository already has .claude/skills/verify-web/.)",
+      "expected_output": "Notices the existing skill, does not overwrite it, and offers verify-upkeep instead.",
+      "files": [],
+      "expectations": [
+        "Does not overwrite the existing .claude/skills/verify-web/ folder",
+        "Offers verify-upkeep to update the existing skill"
+      ]
+    }
+  ]
+}

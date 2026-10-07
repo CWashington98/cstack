@@ -1,0 +1,40 @@
+{
+  "skill_name": "drive-web",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Prove the Save button on the profile page works in our web app; the app skill is at .claude/skills/verify-web.",
+      "expected_output": "Starts an evidence run, runs the health check, drives the Save button with a Playwright script that waits for the real end state, takes before and after screenshots, reads the saved value back from a second view, and records every step with evidence.mjs.",
+      "files": [],
+      "expectations": [
+        "Runs the health check before driving",
+        "Takes a screenshot before the action and another after the end state",
+        "Reads the saved value back from a second view, such as the backend's command line tool or a fresh page load",
+        "Never uses waitForTimeout or a fixed pause",
+        "Records the steps with evidence.mjs"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "The dev server on port 3000 is already running, just use it.",
+      "expected_output": "Checks which folder the process listening on port 3000 runs from before trusting it. If it is not this checkout, refuses to drive it, or starts its own server.",
+      "files": [],
+      "expectations": [
+        "Checks that the listening process's working folder is inside this checkout, for example with lsof",
+        "When it is not this checkout, refuses to drive it or starts its own server",
+        "Does not stop a server this run did not start"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Check that the download button returns the real report file.",
+      "expected_output": "Captures the downloaded or served bytes and compares them with the stored report file using match-bytes.mjs. Does not accept a 200 status alone.",
+      "files": [],
+      "expectations": [
+        "Captures the response body or the downloaded file",
+        "Compares it with the stored file using match-bytes.mjs",
+        "Says a 200 status alone does not prove the file is right"
+      ]
+    }
+  ]
+}

@@ -33,3 +33,5 @@ Add `--repo <path>` to check another repository once, `--no-refresh` to skip ref
 ## Then
 
 Show the owner the report. Run only the fixes they approve, in each account the report names. For a changed pointer, read the linked changes before updating its pinned commit in `.claude-plugin/marketplace.json`. Copies inside a repository with teammates are a team decision, never removed silently.
+
+In each repository that has app verification skills (`.claude/skills/verify-*/`), also offer `verify-upkeep`, which re-drives every feature live.

@@ -1,0 +1,50 @@
+{
+  "skill_name": "verify-upkeep",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Run verify upkeep on the web app.",
+      "expected_output": "Reads each feature from the code, drives every mapped feature live in one evidence run, checks coverage with evidence.mjs check --cover, sorts problems into the three kinds, and edits only the skill folder.",
+      "files": [],
+      "expectations": [
+        "Drives every mapped feature live",
+        "Runs evidence.mjs check with --cover",
+        "Sorts each problem into document drift, broken tooling or a broken product",
+        "Edits only the app skill's folder"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "The Export button moved from the toolbar into a menu. Upkeep found it.",
+      "expected_output": "Calls it document drift, fixes the feature file to describe the menu path, and re-drives export live before shipping the fix.",
+      "files": [],
+      "expectations": [
+        "Calls it document drift",
+        "Fixes the feature file",
+        "Re-drives export live before shipping"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "During upkeep, saving a note no longer stores it.",
+      "expected_output": "Calls it a broken product, reports it to the owner, changes no product code, and leaves it out of the pull request.",
+      "files": [],
+      "expectations": [
+        "Calls it a broken product",
+        "Reports it to the owner",
+        "Changes no product code",
+        "Leaves it out of the upkeep pull request"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Run verify upkeep. (The repository has no .claude/skills/verify-*/ folders.)",
+      "expected_output": "Stops and points to verify-setup, without inventing a target.",
+      "files": [],
+      "expectations": [
+        "Stops and points to verify-setup",
+        "Does not invent a verification skill or a target"
+      ]
+    }
+  ]
+}

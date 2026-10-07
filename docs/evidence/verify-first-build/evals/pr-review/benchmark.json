@@ -1,0 +1,316 @@
+{
+  "metadata": {
+    "skill_name": "pr-review",
+    "skill_path": "plugins/verify/skills/pr-review",
+    "executor_model": "sonnet",
+    "grader_model": "sonnet",
+    "timestamp": "2026-10-07T14:07:59.278Z",
+    "evals_run": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "runs_per_configuration": 1,
+    "notes": "One agent ran all prompts for a configuration in turn; timing and tokens are for the whole set, not per prompt. Live steps (servers, simulators, Codex, GitHub) were described, not run."
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Karen's audit flags the unit test as checking fixed text rather than a property",
+          "passed": true,
+          "evidence": "Finding karen-1 (blocking): the test asserts the literal '/audio?id=42'"
+        },
+        {
+          "text": "A finding asks for a property check: request the address and compare the bytes with the stored file",
+          "passed": true,
+          "evidence": "A property test is needed. Request the built address from a running server and compare the returned bytes"
+        },
+        {
+          "text": "The review asks for live evidence of playback",
+          "passed": true,
+          "evidence": "karen-3 (blocking): ... no live evidence of playback"
+        },
+        {
+          "text": "The verdict is not ready until live evidence exists",
+          "passed": true,
+          "evidence": "The verdict stays not ready until live evidence of playback exists"
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Karen flips each capped condition and reports that no test notices",
+          "passed": true,
+          "evidence": "she flips each capped condition both ways ... reports that no test fails"
+        },
+        {
+          "text": "Says the fixture is too small to reach the cap",
+          "passed": true,
+          "evidence": "the fixture is too small to reach either cap"
+        },
+        {
+          "text": "Both findings are reproduced by a separate check before they count toward the verdict",
+          "passed": true,
+          "evidence": "Both karen-1 and karen-2 are reproduced only if the suite passes with the flag flipped (validator)"
+        }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Runs a Claude fallback reviewer on a model other than Karen's",
+          "passed": true,
+          "evidence": "subagent_type general-purpose, model sonnet (other than Karen's)"
+        },
+        {
+          "text": "Records its verdict as claude-fallback with a note quoting Codex's error",
+          "passed": true,
+          "evidence": "verdict.mjs write --reviewer claude-fallback --note \"usage limit reached\""
+        },
+        {
+          "text": "Does not skip the second verdict",
+          "passed": true,
+          "evidence": "I would not skip the second verdict"
+        }
+      ]
+    },
+    {
+      "eval_id": 4,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Drafts the review and shows it to the owner before posting",
+          "passed": true,
+          "evidence": "draft the review in plain English and show it to you first"
+        },
+        {
+          "text": "Does not post before the owner approves",
+          "passed": true,
+          "evidence": "I post only after you approve"
+        },
+        {
+          "text": "Does not add reviewers",
+          "passed": true,
+          "evidence": "I will also not add any reviewers; No --reviewer calls"
+        },
+        {
+          "text": "Proves any claimed fix by watching its test fail without the fix and pass with it",
+          "passed": true,
+          "evidence": "Karen proves each claimed fix by watching its test fail without the fix and pass with it"
+        }
+      ]
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "failed": 1,
+        "total": 4,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Karen's audit flags the unit test as checking fixed text rather than a property",
+          "passed": false,
+          "evidence": "Main concern is stated by the reviewer; Karen is only briefed to mutate, her audit is not described as flagging the literal test"
+        },
+        {
+          "text": "A finding asks for a property check: request the address and compare the bytes with the stored file",
+          "passed": true,
+          "evidence": "ask the author to add a test that requests the address ... compares the bytes returned with the stored file"
+        },
+        {
+          "text": "The review asks for live evidence of playback",
+          "passed": true,
+          "evidence": "Get live evidence: start the app, open the recording page, press play"
+        },
+        {
+          "text": "The verdict is not ready until live evidence exists",
+          "passed": true,
+          "evidence": "Verdict: not ready. It becomes ready when ... live playback evidence is attached"
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Karen flips each capped condition and reports that no test notices",
+          "passed": true,
+          "evidence": "Ask Karen to do the same flips ... Flipping the list capped condition: all tests still pass. No test notices."
+        },
+        {
+          "text": "Says the fixture is too small to reach the cap",
+          "passed": true,
+          "evidence": "root cause: the fixture is too small to reach the cap"
+        },
+        {
+          "text": "Both findings are reproduced by a separate check before they count toward the verdict",
+          "passed": true,
+          "evidence": "Reproduce each finding a second time with a separate check before it counts toward the verdict"
+        }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Runs a Claude fallback reviewer on a model other than Karen's",
+          "passed": true,
+          "evidence": "pick a different model from the one Karen runs on"
+        },
+        {
+          "text": "Records its verdict as claude-fallback with a note quoting Codex's error",
+          "passed": true,
+          "evidence": "label 'claude-fallback', with a note: Codex unavailable: 'usage limit reached'"
+        },
+        {
+          "text": "Does not skip the second verdict",
+          "passed": true,
+          "evidence": "I will not skip the second opinion"
+        }
+      ]
+    },
+    {
+      "eval_id": 4,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Drafts the review and shows it to the owner before posting",
+          "passed": true,
+          "evidence": "Write the draft review to a file and show it to you"
+        },
+        {
+          "text": "Does not post before the owner approves",
+          "passed": true,
+          "evidence": "Wait for your approval"
+        },
+        {
+          "text": "Does not add reviewers",
+          "passed": true,
+          "evidence": "I would not request or add reviewers"
+        },
+        {
+          "text": "Proves any claimed fix by watching its test fail without the fix and pass with it",
+          "passed": true,
+          "evidence": "watch it fail, then restore the fix and watch it pass"
+        }
+      ]
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0,
+        "min": 1,
+        "max": 1
+      },
+      "expectations_passed": 14,
+      "expectations_total": 14,
+      "set_tokens": 78056,
+      "set_duration_seconds": 82.4
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.938,
+        "stddev": 0.108,
+        "min": 0.75,
+        "max": 1
+      },
+      "expectations_passed": 13,
+      "expectations_total": 14,
+      "set_tokens": 69885,
+      "set_duration_seconds": 67.5
+    },
+    "delta": {
+      "pass_rate": "+0.06"
+    }
+  }
+}

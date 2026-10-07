@@ -1,0 +1,14 @@
+{
+  "app": "notes",
+  "surface": "web",
+  "appRoot": "apps/notes",
+  "start": {
+    "command": "cd apps/notes && npm run dev -- --port 4173",
+    "ready": "curl -sf -o /dev/null http://127.0.0.1:4173/",
+    "stop": "pkill -TERM -P \"$(cat \"$RUN/server.pid\")\"; kill \"$(cat \"$RUN/server.pid\")\""
+  },
+  "web": { "baseUrl": "http://127.0.0.1:4173" },
+  "forbiddenTargets": ["notes.example.com"],
+  "testData": { "seed": "NOTES_DATA_DIR=\"$RUN/data\" npm run seed --prefix apps/notes" },
+  "readBack": { "note": "sqlite3 \"$RUN/data/notes.db\" \"select id, length(body) from notes where title = '<title>'\"" }
+}

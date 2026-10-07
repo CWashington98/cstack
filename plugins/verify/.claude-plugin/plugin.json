@@ -1,0 +1,7 @@
+{
+  "name": "verify",
+  "version": "0.1.0",
+  "description": "Proving that work works: a proof standard, checks that specs and plans name their evidence, a verification skill for each app, shared guides for driving web and Expo apps, and Karen plus Codex verdicts on every pull request.",
+  "author": { "name": "Crishon Washington" },
+  "license": "MIT"
+}
