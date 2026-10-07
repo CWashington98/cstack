@@ -1,0 +1,39 @@
+{
+  "pass": false,
+  "unclear_terms": [
+    "murmur probability / murmur confidence (what the murmur score means clinically and how the two differ)",
+    "heart-sound scoring service (which system this is)",
+    "Crishon (who this person is and their role)",
+    "sync-v2 backend change",
+    "dev branch / dev environment (which one, and how it relates to this PR)",
+    "our guardrails",
+    "decision record",
+    "Karen, our automated reviewer",
+    "the new standard (requiring a screenshot on dev)",
+    "signal-quality confidence",
+    "analytics snapshot",
+    "machine-learning data export",
+    "scheduled email",
+    "hestia-v1 model",
+    "pia model",
+    "heart-recordings-section.tsx",
+    "use-patient.ts",
+    "the scoring service's interface description JSON file (which file; lines 1150, 1727, 1945)",
+    "audio-level results"
+  ],
+  "missing_context": [
+    "The clickable prototype Crishon tried and the discussion that led to the 4 October 2026 decision",
+    "The task list of the sync-v2 backend change where the decision is recorded; it is not in this PR and the reader cannot see it",
+    "The 'new standard' that would require a screenshot, and why it applies or does not apply to this PR",
+    "What the 'guardrails' are and the rule that decides when a decision record is needed",
+    "Why the stored field and the server code that fills it are left unchanged, and whether they will be removed later",
+    "Why the ML export keeps the column, and who uses it",
+    "How the dev environment showed a stale number from an earlier scoring run",
+    "Whether the live check on dev will be done, who does it, and whether it blocks merging",
+    "Which of hestia-v1 and pia is in production use and why no pia example exists",
+    "The actual diff and the new test, which are not shown",
+    "Whether the mobile app or other consumers may later need the field"
+  ],
+  "restatement": "This pull request removes the duplicate 'Confidence' line from the dashboard recording card, because it only repeated the murmur probability (the scoring service returns no confidence), and it also stops fetching that field. The stored field, server code, analytics, mobile app and ML data export are left unchanged; tests pass, but the required live screenshot on dev is missing.",
+  "ask": "Nothing"
+}

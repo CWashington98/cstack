@@ -1,8 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { coldRead, parseVerdict } from "../scripts/plain-read.mjs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { coldRead, parseVerdict, buildArgs, isLive } from "../skills/cold-reader/scripts/cold-read.mjs";
+import { READER_VERSION } from "../skills/cold-reader/scripts/version.mjs";
+
+const skillDir = join(dirname(fileURLToPath(import.meta.url)), "..", "skills", "cold-reader");
 
 const reply = (v) => ({ status: 0, stderr: "", stdout: JSON.stringify(v) });
 
@@ -26,6 +31,30 @@ test("the reader runs from an empty temporary folder with no settings, tools, sk
   assert.match(seen.input, /<text>\nHello\.\n<\/text>/);
 });
 
+test("the reader's instructions are the cold-reader skill's own file", () => {
+  const args = buildArgs("sonnet");
+  const prompt = args[args.indexOf("--system-prompt") + 1];
+  assert.equal(prompt, readFileSync(join(skillDir, "reader-prompt.md"), "utf8"));
+  assert.ok(existsSync(join(skillDir, "SKILL.md")));
+});
+
+test("the reader's instructions carry the calibration: what to report and what to leave out", () => {
+  const prompt = readFileSync(join(skillDir, "reader-prompt.md"), "utf8");
+  assert.match(prompt, /never explains/);
+  assert.match(prompt, /A term the text explains/);
+  assert.match(prompt, /Technical detail/);
+  assert.match(prompt, /curious reader/);
+  assert.match(prompt, /Do not guess/);
+  assert.notEqual(READER_VERSION, "1", "the calibrated instructions are a new reader version");
+});
+
+test("every verdict records the reader version that made it", () => {
+  assert.match(READER_VERSION, /^\d+$/);
+  const v = coldRead("Hello.", { run: () => reply({ unclear_terms: [], missing_context: [], restatement: "A greeting.", ask: "Nothing" }) });
+  assert.equal(v.readerVersion, READER_VERSION);
+  assert.equal(parseVerdict(JSON.stringify({ unclear_terms: [], missing_context: [], restatement: "x", ask: "y" })).readerVersion, READER_VERSION);
+});
+
 test("unclear terms or missing context fail", () => {
   assert.equal(parseVerdict(JSON.stringify({ unclear_terms: ["Karen"], missing_context: [], restatement: "x", ask: "y" })).pass, false);
   assert.equal(parseVerdict(JSON.stringify({ unclear_terms: [], missing_context: ["the plan"], restatement: "x", ask: "y" })).pass, false);
@@ -43,7 +72,13 @@ test("a failed reader run is an error, never a pass", () => {
   assert.equal(coldRead("x", { run: () => ({ status: 1, stdout: "", stderr: "boom" }) }).pass, false);
 });
 
-test("live probe: the reader knows nothing about our projects", { skip: !process.env.PLAIN_LIVE }, () => {
+test("live model calls run only when PLAIN_LIVE is exactly 1", () => {
+  assert.equal(isLive({ PLAIN_LIVE: "1" }), true);
+  for (const value of ["0", "", "true", "yes"]) assert.equal(isLive({ PLAIN_LIVE: value }), false, value);
+  assert.equal(isLive({}), false);
+});
+
+test("live probe: the reader knows nothing about our projects", { skip: !isLive() }, () => {
   const v = coldRead("Karen approved the Atlas change, and Hermes is next.");
   assert.equal(v.pass, false, JSON.stringify(v));
   for (const name of ["Karen", "Atlas", "Hermes"]) {

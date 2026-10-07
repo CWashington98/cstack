@@ -2,19 +2,23 @@
 // The cold reader: a separate Claude call that knows nothing about the
 // project. It runs from an empty temporary folder with no settings,
 // plugins, skills, tools or extra servers, and reports what it couldn't follow.
-// Usage: node plain-read.mjs <file> [--model m] [--json]. Exit 0 passes, 1 fails, 2 error.
+// Usage: node cold-read.mjs <file> [--model m] [--json]. Exit 0 passes, 1 fails, 2 error.
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { htmlToText } from "./lib/text.mjs";
-import { loadConfig } from "./lib/config.mjs";
+import { htmlToText } from "../../../scripts/lib/text.mjs";
+import { loadConfig } from "../../../scripts/lib/config.mjs";
+import { READER_VERSION } from "./version.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
+// Model calls in tests and scoring run only when PLAIN_LIVE is exactly "1".
+export const isLive = (env = process.env) => env.PLAIN_LIVE === "1";
+
 export function buildArgs(model) {
-  const prompt = readFileSync(join(here, "data", "reader-prompt.md"), "utf8");
+  const prompt = readFileSync(join(here, "..", "reader-prompt.md"), "utf8");
   return [
     "-p",
     "--model", model,
@@ -41,6 +45,7 @@ export function parseVerdict(stdout) {
   const ok = Array.isArray(v.unclear_terms) && Array.isArray(v.missing_context) && typeof v.restatement === "string" && typeof v.ask === "string";
   if (!ok) return { pass: false, error: "The reader's JSON is missing fields." };
   return {
+    readerVersion: READER_VERSION,
     pass: v.unclear_terms.length === 0 && v.missing_context.length === 0,
     unclear_terms: v.unclear_terms,
     missing_context: v.missing_context,
@@ -68,7 +73,7 @@ function main(argv) {
   const args = argv.slice(2);
   const file = args.find((a, i) => !a.startsWith("--") && args[i - 1] !== "--model");
   if (!file || !existsSync(file)) {
-    console.error(`plain-read: file not found: ${file ?? "(none given)"}`);
+    console.error(`cold-read: file not found: ${file ?? "(none given)"}`);
     return 2;
   }
   const model = args.includes("--model") ? args[args.indexOf("--model") + 1] : loadConfig(process.cwd()).readerModel;

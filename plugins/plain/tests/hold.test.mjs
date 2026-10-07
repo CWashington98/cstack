@@ -51,6 +51,19 @@ test("a clean body file needs a stamp, then goes ahead", () => {
   assert.equal(bash(dir, 'gh pr create --title "Add the map page" --body-file good.md').allow, true);
 });
 
+test("a stamp made under an older cold reader version holds the post and says why", async () => {
+  const { writeFileSync, mkdirSync } = await import("node:fs");
+  const { fingerprint } = await import("../scripts/plain-stamp.mjs");
+  const { CHECKER_VERSION } = await import("../scripts/lib/version.mjs");
+  const dir = repo();
+  const stamps = join(plainDir(dir), "stamps");
+  mkdirSync(stamps, { recursive: true });
+  writeFileSync(join(stamps, `${fingerprint(GOOD)}.json`), JSON.stringify({ checkerVersion: CHECKER_VERSION, readerVersion: "0" }));
+  const r = bash(dir, 'gh pr create --title "Add the map page" --body-file good.md');
+  assert.equal(r.allow, false);
+  assert.match(text(r), /older version of the checker or the cold reader/);
+});
+
 test("titles with planning codes are held", () => {
   const dir = repo();
   writeStamp(dir, GOOD, { pass: true });
@@ -87,6 +100,21 @@ test("a spec file in a commit must pass and be stamped", () => {
   assert.equal(bash(dir, 'git commit -m "Add the map spec"').allow, false);
   writeStamp(dir, spec, { pass: true });
   assert.equal(bash(dir, 'git commit -m "Add the map spec"').allow, true);
+});
+
+test("an advice-only stamp lets a spec be committed, but never lets the same text go out as a post or page", () => {
+  const spec = "docs/superpowers/specs/map.md";
+  const dir = repo({ [spec]: GOOD, "copy.md": GOOD, "page.md": GOOD });
+  writeStamp(dir, GOOD, { pass: false, unclear_terms: ["Atlas"], missing_context: [], restatement: "x", ask: "y" });
+  for (const command of [`gh pr create --title "Add the map page" --body-file ${spec}`, 'gh pr create --title "Add the map page" --body-file copy.md', "gh issue comment 5 --body-file copy.md", "gh api repos/o/r/issues/5/comments -F body=@copy.md"]) {
+    const r = bash(dir, command);
+    assert.equal(r.allow, false, command);
+    assert.match(text(r), /advice/, command);
+  }
+  assert.equal(decide({ tool_name: "Artifact", tool_input: { file_path: join(dir, "page.md") }, cwd: dir }).allow, false, "page publish");
+  git(dir, "add", "docs");
+  const commit = bash(dir, 'git commit -m "Add the map spec"');
+  assert.equal(commit.allow, true, text(commit));
 });
 
 test("page publishes are checked; asset uploads are not", () => {

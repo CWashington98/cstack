@@ -1,0 +1,198 @@
+{
+  "skill_name": "cold-reader",
+  "about": "Each case is a text and the flags a well-calibrated reader should and should not raise. A label is fair (the reader should raise it) or noise (the reader should not). Each reader flag is matched against the labels in order, and the first label whose pattern matches gets it, so put narrower labels before broader ones. Flags that match no label are counted as unlabeled, for a person to label later. Labels on the three rewrites come from the owner's review of first real use, on 6 October 2026.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "precordia-199-rewrite",
+      "prompt": "Cold-read the pull request description in evals/files/precordia-199-rewrite.md.",
+      "expected_output": "Fails. Flags the unexplained panel and seat terms, the undefined 'new standard', and pull request 197, which it names but doesn't describe. Does not flag Clerk or Karen, which the text explains, the code names in the technical detail section, or curious-reader detail.",
+      "files": ["evals/files/precordia-199-rewrite.md"],
+      "kind": "pull request",
+      "expect_pass": false,
+      "labels": [
+        { "label": "code names in the technical detail section", "verdict": "noise", "match": ["emailErrorCode", "already-has-account", "clerkAccountExists", "inviteMember", "viewer-cannot-hold-seat", "invitation tables", "spec scenario"], "why": "The technical detail section is for a developer reading the code." },
+        { "label": "which deliberate breaks slipped through", "verdict": "noise", "match": ["slipped", "2 of (the )?30", "two of (the )?30", "which (2|two)\\b"], "why": "Detail a curious reader might like; not needed to follow the change." },
+        { "label": "where the 10-person panel limit comes from", "verdict": "noise", "match": ["10[- ]person", "limit of 10", "panel limit"], "why": "Detail a curious reader might like." },
+        { "label": "pull request 197", "verdict": "fair", "match": ["\\b197\\b", "third review"], "why": "Named but never described; say in one line what it did." },
+        { "label": "the new standard", "verdict": "fair", "match": ["new standard"], "why": "Mentioned without saying what it is." },
+        { "label": "Karen", "verdict": "noise", "match": ["karen"], "why": "Explained where it first appears: our automated reviewer." },
+        { "label": "Clerk", "verdict": "noise", "match": ["\\bclerk\\b"], "why": "Explained where it first appears: the service that handles our logins." },
+        { "label": "review panel, seat and 'Seat now'", "verdict": "fair", "match": ["\\bpanels?\\b", "\\bseat"], "why": "Central to the change and never explained." }
+      ],
+      "assertions": [
+        "The verdict fails.",
+        "Panel or seat, the new standard and pull request 197 are each flagged.",
+        "Clerk, Karen and the code names in the technical detail section are not flagged.",
+        "The restatement is present."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "onehearthealth-868-rewrite",
+      "prompt": "Cold-read the pull request description in evals/files/onehearthealth-868-rewrite.md.",
+      "expected_output": "Fails. Flags Crishon (no role given), murmur probability versus confidence, and the undefined 'new standard'. Does not flag Karen or the scoring service, which the text explains, the file names and line numbers in the technical detail section, or nice-to-know questions.",
+      "files": ["evals/files/onehearthealth-868-rewrite.md"],
+      "kind": "pull request",
+      "expect_pass": false,
+      "labels": [
+        { "label": "code names in the technical detail section", "verdict": "noise", "match": ["heart-recordings-section", "use-patient", "\\b1150\\b", "\\b1727\\b", "\\b1945\\b", "interface description", "json file", "hestia", "\\bpia\\b", "audio-level"], "why": "The technical detail section is for a developer reading the code." },
+        { "label": "why the export keeps the column, and who uses it", "verdict": "noise", "match": ["export"], "why": "Nice to know, not needed to follow this change." },
+        { "label": "whether the field will be removed later", "verdict": "noise", "match": ["removed later", "later need", "will be removed", "removed in the future"], "why": "Nice to know, not needed to follow this change." },
+        { "label": "the new standard", "verdict": "fair", "match": ["new standard"], "why": "Mentioned without saying what it is." },
+        { "label": "Crishon", "verdict": "fair", "match": ["crishon"], "why": "A person named with no role; say 'the product owner, Crishon'." },
+        { "label": "murmur probability versus confidence", "verdict": "fair", "match": ["\\bmurmur", "probability.*confidence", "confidence.*probability"], "why": "One clause on what each means would let a newcomer follow the change." },
+        { "label": "Karen", "verdict": "noise", "match": ["karen"], "why": "Explained: our automated reviewer." },
+        { "label": "the scoring service", "verdict": "noise", "match": ["scoring service"], "why": "Explained: the heart-sound scoring service." }
+      ],
+      "assertions": [
+        "The verdict fails.",
+        "Crishon, murmur probability versus confidence and the new standard are each flagged.",
+        "Karen, the scoring service and the technical detail code names are not flagged.",
+        "The restatement is present."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "smsmarketing-1630-rewrite",
+      "prompt": "Cold-read the pull request description in evals/files/smsmarketing-1630-rewrite.md.",
+      "expected_output": "Fails. Flags 'owner' (business owner or someone else?), Codex and Opus, the undefined 'new standard', and how a ZIP code times texts. Does not flag Karen or the security reviewer, which the text explains, the code names in the technical detail section, or questions about follow-up owners and test counts.",
+      "files": ["evals/files/smsmarketing-1630-rewrite.md"],
+      "kind": "pull request",
+      "expect_pass": false,
+      "labels": [
+        { "label": "code names in the technical detail section", "verdict": "noise", "match": ["askZip", "updateLegalContent", "zipFieldInBuilder", "admin/migrations", "migration file"], "why": "The technical detail section is for a developer reading the code." },
+        { "label": "follow-ups have no owners or tickets", "verdict": "noise", "match": ["follow-?ups?"], "why": "Nice to know, not needed to follow the change." },
+        { "label": "why 42 tests for 38 scenarios", "verdict": "noise", "match": ["\\b42\\b", "\\b38\\b"], "why": "Nice to know, not needed to follow the change." },
+        { "label": "the owner's approval as a high-risk change", "verdict": "noise", "match": ["approv", "high-risk"], "why": "Technical detail section." },
+        { "label": "Karen and the security reviewer", "verdict": "noise", "match": ["karen", "security"], "why": "Explained in the text." },
+        { "label": "the new standard", "verdict": "fair", "match": ["new standard"], "why": "Mentioned without saying what it is; the owner judged this fair in the other two rewrites." },
+        { "label": "Codex", "verdict": "fair", "match": ["codex"], "why": "Never explained; one clause would do." },
+        { "label": "Opus", "verdict": "fair", "match": ["\\bopus\\b"], "why": "Never explained; one clause would do." },
+        { "label": "how a ZIP code times texts", "verdict": "fair", "match": ["time ?zone", "time texts", "timing", "quiet hours", "how (a )?zip", "zip .*(used|time)"], "why": "One clause: it sets the customer's time zone for quiet hours." },
+        { "label": "owner", "verdict": "fair", "match": ["\\bowners?\\b"], "why": "Customers also appear; say 'the business owner' the first time." }
+      ],
+      "assertions": [
+        "The verdict fails.",
+        "Owner, Codex, Opus, the new standard and how ZIP times texts are each flagged.",
+        "Karen, the security reviewer and the technical detail code names are not flagged.",
+        "The restatement is present."
+      ]
+    },
+    {
+      "id": 4,
+      "name": "precordia-199-original",
+      "prompt": "Cold-read the pull request description in evals/files/precordia-199-original.md.",
+      "expected_output": "Fails. The original leads with a planning reference and internal names it never explains.",
+      "files": ["evals/files/precordia-199-original.md"],
+      "kind": "pull request",
+      "expect_pass": false,
+      "labels": [
+        { "label": "#197 round 3", "verdict": "fair", "match": ["\\b197\\b", "round 3", "third review"], "why": "An earlier pull request and its review rounds, never described." },
+        { "label": "J1", "verdict": "fair", "match": ["\\bJ1\\b"], "why": "A planning code." },
+        { "label": "HANDOFF section 8", "verdict": "fair", "match": ["handoff"], "why": "A document the reader can't see." },
+        { "label": "Karen", "verdict": "fair", "match": ["karen"], "why": "Never explained in this version." }
+      ],
+      "assertions": ["The verdict fails.", "Karen, J1, HANDOFF and #197 are each flagged."]
+    },
+    {
+      "id": 5,
+      "name": "onehearthealth-868-original",
+      "prompt": "Cold-read the pull request description in evals/files/onehearthealth-868-original.md.",
+      "expected_output": "Fails. The original cites option C, D3, ADR-0010 and pull request 849 without explaining them.",
+      "files": ["evals/files/onehearthealth-868-original.md"],
+      "kind": "pull request",
+      "expect_pass": false,
+      "labels": [
+        { "label": "D3", "verdict": "fair", "match": ["\\bD3\\b", "3\\.3"], "why": "A planning code." },
+        { "label": "option C", "verdict": "fair", "match": ["option c"], "why": "A choice from a list the reader can't see." },
+        { "label": "ADR-0010", "verdict": "fair", "match": ["\\bADR"], "why": "An unexplained acronym and a document the reader can't see." },
+        { "label": "pull request 849", "verdict": "fair", "match": ["849"], "why": "Another pull request, never described." },
+        { "label": "Karen", "verdict": "fair", "match": ["karen"], "why": "Never explained in this version." },
+        { "label": "Crishon", "verdict": "fair", "match": ["crishon"], "why": "A person named with no role." }
+      ],
+      "assertions": ["The verdict fails.", "Option C, D3, ADR-0010, 849, Karen and Crishon are each flagged."]
+    },
+    {
+      "id": 6,
+      "name": "smsmarketing-1630-original",
+      "prompt": "Cold-read the pull request description in evals/files/smsmarketing-1630-original.md.",
+      "expected_output": "Fails. The original uses BLUF, Q1-Q6, 'high zone', Karen, Codex and 'operator' without explaining them.",
+      "files": ["evals/files/smsmarketing-1630-original.md"],
+      "kind": "pull request",
+      "expect_pass": false,
+      "labels": [
+        { "label": "BLUF", "verdict": "fair", "match": ["bluf"], "why": "An unexplained acronym." },
+        { "label": "Q1-Q6", "verdict": "fair", "match": ["\\bQ[1-6]\\b"], "why": "Planning codes for questions the reader can't see." },
+        { "label": "high zone", "verdict": "fair", "match": ["high zone"], "why": "Internal risk term, never explained." },
+        { "label": "Karen", "verdict": "fair", "match": ["karen"], "why": "Never explained in this version." },
+        { "label": "Codex", "verdict": "fair", "match": ["codex"], "why": "Never explained." },
+        { "label": "operator", "verdict": "fair", "match": ["operator"], "why": "A role never explained." }
+      ],
+      "assertions": ["The verdict fails.", "BLUF, Q1-Q6, high zone, Karen, Codex and operator are each flagged."]
+    },
+    {
+      "id": 7,
+      "name": "karen-unexplained",
+      "prompt": "Cold-read the text in evals/files/karen-unexplained.md.",
+      "expected_output": "Fails, flagging Karen, whom the text never explains.",
+      "files": ["evals/files/karen-unexplained.md"],
+      "kind": "pull request",
+      "expect_pass": false,
+      "labels": [{ "label": "Karen", "verdict": "fair", "match": ["karen"], "why": "A name the text never explains." }],
+      "assertions": ["The verdict fails.", "Karen is flagged."]
+    },
+    {
+      "id": 8,
+      "name": "karen-explained",
+      "prompt": "Cold-read the text in evals/files/karen-explained.md.",
+      "expected_output": "Passes. The same text as karen-unexplained, but it says Karen is our automated code reviewer.",
+      "files": ["evals/files/karen-explained.md"],
+      "kind": "pull request",
+      "expect_pass": true,
+      "labels": [{ "label": "Karen", "verdict": "noise", "match": ["karen"], "why": "Explained in the text." }],
+      "assertions": ["The verdict passes.", "Karen is not flagged."]
+    },
+    {
+      "id": 9,
+      "name": "blank-probe",
+      "prompt": "Cold-read the text in evals/files/blank-probe.md, which asks what Karen, Atlas and Hermes are.",
+      "expected_output": "Fails. The reader says it doesn't know any of the three, which proves it starts blank: in the owner's projects these are a reviewer agent and two internal names.",
+      "files": ["evals/files/blank-probe.md"],
+      "kind": "pull request",
+      "expect_pass": false,
+      "labels": [
+        { "label": "Karen", "verdict": "fair", "match": ["karen"], "why": "The reader should not know this name." },
+        { "label": "Atlas", "verdict": "fair", "match": ["atlas"], "why": "The reader should not know this name." },
+        { "label": "Hermes", "verdict": "fair", "match": ["hermes"], "why": "The reader should not know this name." }
+      ],
+      "assertions": ["The verdict fails.", "Karen, Atlas and Hermes are each flagged as unknown."]
+    },
+    {
+      "id": 10,
+      "name": "code-names-in-technical-detail",
+      "prompt": "Cold-read the pull request description in evals/files/code-names-in-technical-detail.md.",
+      "expected_output": "Passes. The change is explained in plain words; the code names sit in the technical detail section.",
+      "files": ["evals/files/code-names-in-technical-detail.md"],
+      "kind": "pull request",
+      "expect_pass": true,
+      "labels": [
+        { "label": "code names in the technical detail section", "verdict": "noise", "match": ["fieldErrorMessage", "signup-errors", "invalid-email", "generic-failure"], "why": "The technical detail section is for a developer reading the code." }
+      ],
+      "assertions": ["The verdict passes.", "No code name from the technical detail section is flagged."]
+    },
+    {
+      "id": 11,
+      "name": "unseen-meeting",
+      "prompt": "Cold-read the text in evals/files/unseen-meeting.md.",
+      "expected_output": "Fails. The text depends on a meeting and an 'option B' the reader never sees.",
+      "files": ["evals/files/unseen-meeting.md"],
+      "kind": "pull request",
+      "expect_pass": false,
+      "labels": [
+        { "label": "the meeting and option B", "verdict": "fair", "match": ["meeting", "agreed", "option b"], "why": "Depends on a discussion the reader can't see." }
+      ],
+      "assertions": ["The verdict fails.", "The meeting or option B is flagged."]
+    }
+  ]
+}

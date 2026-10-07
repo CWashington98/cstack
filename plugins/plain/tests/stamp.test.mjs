@@ -6,7 +6,9 @@ import { join, dirname, basename } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { makeRepo, git } from "../../../tests/helpers.mjs";
-import { writeStamp, hasStamp, plainDir, logOverride } from "../scripts/plain-stamp.mjs";
+import { writeStamp, hasStamp, stampStatus, plainDir, logOverride, fingerprint } from "../scripts/plain-stamp.mjs";
+import { CHECKER_VERSION } from "../scripts/lib/version.mjs";
+import { READER_VERSION } from "../skills/cold-reader/scripts/version.mjs";
 
 const script = join(dirname(fileURLToPath(import.meta.url)), "..", "scripts", "plain-stamp.mjs");
 
@@ -41,8 +43,8 @@ test("the stamp command refuses text that fails the checker or the reader", () =
     ".claude/plain.json": "{}",
     "bad.md": "BLUF works.\n",
     "good.md": "This adds the map page. It loads and passes its tests.\n",
-    "fail.json": JSON.stringify({ pass: false, unclear_terms: ["Karen"] }),
-    "pass.json": JSON.stringify({ pass: true, unclear_terms: [], missing_context: [] }),
+    "fail.json": JSON.stringify({ pass: false, unclear_terms: ["Karen"], missing_context: [], readerVersion: READER_VERSION }),
+    "pass.json": JSON.stringify({ pass: true, unclear_terms: [], missing_context: [], readerVersion: READER_VERSION }),
   });
   const run = (...args) => spawnSync(process.execPath, [script, ...args], { cwd: dir, encoding: "utf8" });
   assert.equal(run("write", "bad.md", "--verdict", "pass.json").status, 1);
@@ -60,4 +62,78 @@ test("a stamp made by an older checker version no longer counts", async () => {
   mkdirSync(stamps, { recursive: true });
   writeFileSync(join(stamps, `${fingerprint("Old text.")}.json`), JSON.stringify({ checkerVersion: "0" }));
   assert.equal(hasStamp(dir, "Old text."), false);
+});
+
+test("a stamp made under an older reader version no longer counts", async () => {
+  const { writeFileSync, mkdirSync, readFileSync } = await import("node:fs");
+  const dir = makeRepo();
+  writeStamp(dir, "New text.", { pass: true });
+  const stamps = join(plainDir(dir), "stamps");
+  assert.equal(JSON.parse(readFileSync(join(stamps, `${fingerprint("New text.")}.json`), "utf8")).readerVersion, READER_VERSION);
+  mkdirSync(stamps, { recursive: true });
+  writeFileSync(join(stamps, `${fingerprint("Old text.")}.json`), JSON.stringify({ checkerVersion: CHECKER_VERSION, readerVersion: "0" }));
+  writeFileSync(join(stamps, `${fingerprint("Older text.")}.json`), JSON.stringify({ checkerVersion: CHECKER_VERSION }));
+  assert.equal(hasStamp(dir, "Old text."), false);
+  assert.equal(hasStamp(dir, "Older text."), false);
+  assert.equal(hasStamp(dir, "New text."), true);
+});
+
+test("the stamp command refuses a verdict made by an older reader version", () => {
+  const dir = makeRepo({
+    ".claude/plain.json": "{}",
+    "good.md": "This adds the map page. It loads and passes its tests.\n",
+    "old.json": JSON.stringify({ pass: true, unclear_terms: [], missing_context: [], readerVersion: "0" }),
+    "none.json": JSON.stringify({ pass: true, unclear_terms: [], missing_context: [] }),
+  });
+  const run = (...args) => spawnSync(process.execPath, [script, ...args], { cwd: dir, encoding: "utf8" });
+  const old = run("write", "good.md", "--verdict", "old.json");
+  assert.equal(old.status, 1);
+  assert.match(old.stderr, /older version of the cold reader/);
+  assert.equal(run("write", "good.md", "--verdict", "none.json").status, 1);
+});
+
+test("for a spec or plan in a watched folder, the reader's flags are advice, but the reader must have run", () => {
+  const spec = "docs/superpowers/specs/map.md";
+  const dir = makeRepo({
+    ".claude/plain.json": "{}",
+    [spec]: "This spec adds the map page. It loads and passes its tests.\n",
+    "post.md": "This adds the map page. It loads and passes its tests.\n",
+    "flagged.json": JSON.stringify({ pass: false, unclear_terms: ["Atlas"], missing_context: [], restatement: "x", ask: "y", readerVersion: READER_VERSION }),
+    "error.json": JSON.stringify({ pass: false, error: "The reader did not return JSON.", readerVersion: READER_VERSION }),
+  });
+  const run = (...args) => spawnSync(process.execPath, [script, ...args], { cwd: dir, encoding: "utf8" });
+  assert.equal(run("write", "post.md", "--verdict", "flagged.json").status, 1, "a post must pass the reader");
+  assert.equal(run("write", spec, "--verdict", "error.json").status, 1, "a reader that failed to run is never a pass");
+  const ok = run("write", spec, "--verdict", "flagged.json");
+  assert.equal(ok.status, 0, ok.stderr);
+  assert.match(ok.stdout, /advice/);
+  assert.equal(run("has", spec).status, 0);
+});
+
+test("a stamp made under an older checker version no longer counts, even with the current reader version", async () => {
+  const { writeFileSync, mkdirSync } = await import("node:fs");
+  const dir = makeRepo();
+  const stamps = join(plainDir(dir), "stamps");
+  mkdirSync(stamps, { recursive: true });
+  writeFileSync(join(stamps, `${fingerprint("Old checker.")}.json`), JSON.stringify({ checkerVersion: "0", readerVersion: READER_VERSION, reader: { pass: true } }));
+  assert.equal(hasStamp(dir, "Old checker."), false);
+  writeFileSync(join(stamps, `${fingerprint("Both current.")}.json`), JSON.stringify({ checkerVersion: CHECKER_VERSION, readerVersion: READER_VERSION, reader: { pass: true } }));
+  assert.equal(hasStamp(dir, "Both current."), true);
+});
+
+test("only files inside a watched folder count as specs or plans, not folders whose names start the same way", async () => {
+  const { isWatchedSpec } = await import("../scripts/plain-stamp.mjs");
+  const dir = makeRepo({ ".claude/plain.json": "{}", "docs/superpowers/specs/x.md": "x", "docs/superpowers/specs-old/x.md": "x" });
+  assert.equal(isWatchedSpec(dir, "docs/superpowers/specs/x.md"), true);
+  assert.equal(isWatchedSpec(dir, "docs/superpowers/specs-old/x.md"), false);
+});
+
+test("an advice-only stamp is recorded as advice and doesn't count as a pass for a post", () => {
+  const dir = makeRepo();
+  writeStamp(dir, "Spec text.", { pass: false, unclear_terms: ["Atlas"], missing_context: [] });
+  assert.equal(stampStatus(dir, "Spec text."), "advice");
+  assert.equal(hasStamp(dir, "Spec text."), false);
+  assert.equal(hasStamp(dir, "Spec text.", { adviceOk: true }), true);
+  writeStamp(dir, "Post text.", { pass: true, unclear_terms: [], missing_context: [] });
+  assert.equal(stampStatus(dir, "Post text."), "current");
 });

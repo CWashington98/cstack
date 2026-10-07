@@ -33,6 +33,15 @@ test("the plain plugin is listed", () => {
   assert.ok(market.plugins.some((p) => p.name === "plain" && p.source === "./plugins/plain"));
 });
 
+test("a version in the marketplace matches the plugin's own manifest, and plain lists one", () => {
+  const plain = market.plugins.find((p) => p.name === "plain");
+  assert.ok(plain.version, "plain lists its version in the marketplace");
+  for (const p of market.plugins.filter((p) => typeof p.source === "string" && p.version)) {
+    const manifest = JSON.parse(readFileSync(join(root, p.source, ".claude-plugin", "plugin.json"), "utf8"));
+    assert.equal(p.version, manifest.version, `${p.name}: marketplace says ${p.version}, plugin.json says ${manifest.version}`);
+  }
+});
+
 import { readdirSync } from "node:fs";
 
 test("the core plugin ships only our own skills plus the web design guidelines", () => {

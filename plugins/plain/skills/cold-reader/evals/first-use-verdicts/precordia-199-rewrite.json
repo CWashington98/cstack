@@ -1,0 +1,36 @@
+{
+  "pass": false,
+  "unclear_terms": [
+    "Clerk (described as the login service, but how it relates to the app's own user records is not explained)",
+    "the labeling app",
+    "review panel / panel seats",
+    "seat / seating / 'Seat now'",
+    "viewer (role)",
+    "admin console",
+    "organization page",
+    "Karen (automated reviewer)",
+    "the new standard (for pull requests)",
+    "spec scenarios",
+    "emailErrorCode",
+    "already-has-account",
+    "clerkAccountExists",
+    "inviteMember",
+    "viewer-cannot-hold-seat",
+    "the two invitation tables",
+    "(site)/sign-in (placeholder, actual URL not given)",
+    "deliberate breaks (apparently mutation testing, not explained)"
+  ],
+  "missing_context": [
+    "Pull request 197 (configurable panel seats) and its 'third review' fixes that were merged late are not described.",
+    "What a review panel is for, what a seat grants, and how the labeling app, doctors, admins and organizations relate.",
+    "The 'new standard' requiring screenshots is not defined or linked, and no screenshots are provided.",
+    "How the four production doctors were identified and whether they have been contacted or seated.",
+    "Which 2 of the 30 deliberate breaks slipped through and the details of the 'missing test' that was added.",
+    "What 'the old wording' on previously failed invites is, and how admins resend them.",
+    "Where the 10-person panel limit comes from.",
+    "What 'Karen' is and what her review notes were.",
+    "Why the live check is missing and whether it blocks merging."
+  ],
+  "restatement": "Doctors who have a Clerk login but have never opened the labeling app used to get a failed invite while the admin console wrongly promised an invite link; now the console says no email was sent and tells the admin to ask the doctor to sign in, which seats them automatically. The change also blocks inviting viewer accounts to panels, adds an optional field recording the error, and reports passing tests, with screenshots of the new behavior still missing.",
+  "ask": "Nothing"
+}

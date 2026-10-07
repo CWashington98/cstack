@@ -1,0 +1,569 @@
+{
+  "readerVersion": "3",
+  "totals": {
+    "cases": 11,
+    "fairCaught": 28,
+    "fairTotal": 32,
+    "noiseRaised": 3,
+    "noiseTotal": 17,
+    "unlabeled": 60,
+    "restatements": 11,
+    "verdictsRight": 11,
+    "errors": 0
+  },
+  "results": [
+    {
+      "name": "precordia-199-rewrite",
+      "expectPass": false,
+      "fairTotal": 3,
+      "noiseTotal": 5,
+      "pass": false,
+      "fairCaught": 3,
+      "fairMissed": [],
+      "noiseRaised": 0,
+      "noiseFlags": [],
+      "unlabeled": [
+        "labeling app",
+        "viewer",
+        "Not sent",
+        "The text does not say what the reader should do about the missing live check (screenshots)."
+      ],
+      "matched": {
+        "pull request 197": [
+          "The pull request 197 that made panel seats configurable is referenced but not described, and the 'third review' fixes that were missed are not specified."
+        ],
+        "the new standard": [
+          "the new standard",
+          "The 'new standard' requiring screenshots is not described, so it is unclear who set it or why this pull request falls short of it."
+        ],
+        "review panel, seat and 'Seat now'": [
+          "panel",
+          "seat",
+          "Seat now"
+        ]
+      },
+      "restatement": true,
+      "verdictRight": true,
+      "reader": {
+        "unclear_terms": [
+          "labeling app",
+          "panel",
+          "seat",
+          "viewer",
+          "Not sent",
+          "Seat now",
+          "the new standard"
+        ],
+        "missing_context": [
+          "The pull request 197 that made panel seats configurable is referenced but not described, and the 'third review' fixes that were missed are not specified.",
+          "The 'new standard' requiring screenshots is not described, so it is unclear who set it or why this pull request falls short of it.",
+          "The text does not say what the reader should do about the missing live check (screenshots)."
+        ],
+        "restatement": "Doctors who have a Clerk sign-in but have never opened the labeling app could not be invited to a review panel, yet the admin console wrongly promised an invite link. Now the console says no email was sent and tells the admin to have the doctor sign in, which seats them automatically, and it also blocks inviting viewer accounts to panels.",
+        "ask": "Nothing"
+      }
+    },
+    {
+      "name": "onehearthealth-868-rewrite",
+      "expectPass": false,
+      "fairTotal": 3,
+      "noiseTotal": 5,
+      "pass": false,
+      "fairCaught": 2,
+      "fairMissed": [
+        "murmur probability versus confidence"
+      ],
+      "noiseRaised": 1,
+      "noiseFlags": [
+        "the scoring service"
+      ],
+      "unlabeled": [
+        "sync-v2",
+        "signal-quality confidence",
+        "guardrails",
+        "The decision to change only the dashboard is recorded in the sync-v2 backend task list, which is not described or visible here.",
+        "The text says this changes a default rather than a guardrail, but it does not say what the guardrails or the default are."
+      ],
+      "matched": {
+        "the new standard": [
+          "new standard",
+          "The \"new standard\" requiring a screenshot of the recording card on dev is not described, so it is unclear whether the missing live check blocks merging."
+        ],
+        "Crishon": [
+          "Crishon"
+        ],
+        "the scoring service": [
+          "heart-sound scoring service"
+        ]
+      },
+      "restatement": true,
+      "verdictRight": true,
+      "reader": {
+        "unclear_terms": [
+          "sync-v2",
+          "heart-sound scoring service",
+          "signal-quality confidence",
+          "new standard",
+          "guardrails",
+          "Crishon"
+        ],
+        "missing_context": [
+          "The decision to change only the dashboard is recorded in the sync-v2 backend task list, which is not described or visible here.",
+          "The \"new standard\" requiring a screenshot of the recording card on dev is not described, so it is unclear whether the missing live check blocks merging.",
+          "The text says this changes a default rather than a guardrail, but it does not say what the guardrails or the default are."
+        ],
+        "restatement": "The dashboard's recording card showed a murmur \"Confidence\" line that only repeated the probability, because the server copies the probability into that field. This pull request removes that line and the dashboard's fetching of the field, leaving the stored field, server code, analytics, mobile app and ML data export unchanged.",
+        "ask": "Nothing"
+      }
+    },
+    {
+      "name": "smsmarketing-1630-rewrite",
+      "expectPass": false,
+      "fairTotal": 5,
+      "noiseTotal": 5,
+      "pass": false,
+      "fairCaught": 4,
+      "fairMissed": [
+        "how a ZIP code times texts"
+      ],
+      "noiseRaised": 2,
+      "noiseFlags": [
+        "why 42 tests for 38 scenarios",
+        "Karen and the security reviewer"
+      ],
+      "unlabeled": [
+        "the prototype",
+        "the AI form helper",
+        "membership forms",
+        "The prototype that was clicked through and removed is mentioned without saying what it was or where it ran."
+      ],
+      "matched": {
+        "why 42 tests for 38 scenarios": [
+          "The \"spec\" with its scenarios (42 acceptance tests vs 38 scenarios) is a document the text refers to but does not show or describe."
+        ],
+        "Karen and the security reviewer": [
+          "The two medium issues found by the security and compliance reviewer in the privacy sentence are not described."
+        ],
+        "the new standard": [
+          "the new standard",
+          "\"Under the new standard\" refers to a screenshot/verification rule that is not described."
+        ],
+        "Codex": [
+          "Codex"
+        ],
+        "Opus": [
+          "Opus"
+        ],
+        "owner": [
+          "owner"
+        ]
+      },
+      "restatement": true,
+      "verdictRight": true,
+      "reader": {
+        "unclear_terms": [
+          "owner",
+          "Opus",
+          "Codex",
+          "the prototype",
+          "the new standard",
+          "the AI form helper",
+          "membership forms"
+        ],
+        "missing_context": [
+          "The \"spec\" with its scenarios (42 acceptance tests vs 38 scenarios) is a document the text refers to but does not show or describe.",
+          "\"Under the new standard\" refers to a screenshot/verification rule that is not described.",
+          "The prototype that was clicked through and removed is mentioned without saying what it was or where it ran.",
+          "The two medium issues found by the security and compliance reviewer in the privacy sentence are not described."
+        ],
+        "restatement": "ZIP code used to be turned on by a separate switch and always sat under the phone number; now it is a normal optional field that the owner adds from the form builder's field list and places anywhere. Any ZIP a customer enters is used to time texts for their area, never blocks signup, is not part of consent, and the privacy page mentions ZIP when an active form asks for it.",
+        "ask": "Nothing"
+      }
+    },
+    {
+      "name": "precordia-199-original",
+      "expectPass": false,
+      "fairTotal": 4,
+      "noiseTotal": 0,
+      "pass": false,
+      "fairCaught": 4,
+      "fairMissed": [],
+      "noiseRaised": 0,
+      "noiseFlags": [],
+      "unlabeled": [
+        "Seat now",
+        "seat",
+        "seated",
+        "panelDetail",
+        "orgDetail",
+        "inviteMember",
+        "Resend",
+        "openspec",
+        "viewer",
+        "users row",
+        "platform-row",
+        "LIMIT+1",
+        "capped",
+        "isolation-checks.sh",
+        "panel",
+        "no-account",
+        "Clerk",
+        "The ambiguity check and the 'capped ||' guard (equivalent at a cap of 10) are mentioned without explaining what is being checked or what is capped.",
+        "The 'disjointness rollback' test refers to a constraint that is not described.",
+        "The 'panels/seating import cycle' comment is mentioned without saying what changed.",
+        "It is unclear how the 'four real prod doctors' cases map to behavior, and what 'seat them instead' means for older failed invites."
+      ],
+      "matched": {
+        "#197 round 3": [
+          "The PR depends on #197 (configurable seats per panel), which is not described, so what a seat or panel seat limit is cannot be determined.",
+          "The 'third review' and earlier review rounds by Karen are referenced without their findings, so the original blocker context is missing."
+        ],
+        "J1": [
+          "J1",
+          "Design decision J1 in design.md is referenced as having an exception, but its content is not given."
+        ],
+        "HANDOFF section 8": [
+          "HANDOFF §8",
+          "HANDOFF §8 is said to explain rows written before this change, but what it says is not shown."
+        ],
+        "Karen": [
+          "Karen"
+        ]
+      },
+      "restatement": true,
+      "verdictRight": true,
+      "reader": {
+        "unclear_terms": [
+          "Karen",
+          "Seat now",
+          "seat",
+          "seated",
+          "J1",
+          "HANDOFF §8",
+          "panelDetail",
+          "orgDetail",
+          "inviteMember",
+          "Resend",
+          "openspec",
+          "viewer",
+          "users row",
+          "platform-row",
+          "LIMIT+1",
+          "capped",
+          "isolation-checks.sh",
+          "panel",
+          "no-account",
+          "Clerk"
+        ],
+        "missing_context": [
+          "The PR depends on #197 (configurable seats per panel), which is not described, so what a seat or panel seat limit is cannot be determined.",
+          "The 'third review' and earlier review rounds by Karen are referenced without their findings, so the original blocker context is missing.",
+          "Design decision J1 in design.md is referenced as having an exception, but its content is not given.",
+          "HANDOFF §8 is said to explain rows written before this change, but what it says is not shown.",
+          "The ambiguity check and the 'capped ||' guard (equivalent at a cap of 10) are mentioned without explaining what is being checked or what is capped.",
+          "The 'disjointness rollback' test refers to a constraint that is not described.",
+          "The 'panels/seating import cycle' comment is mentioned without saying what changed.",
+          "It is unclear how the 'four real prod doctors' cases map to behavior, and what 'seat them instead' means for older failed invites."
+        ],
+        "restatement": "This PR fixes issues found in a third review of the earlier PR #197. Doctors who have a Clerk login but have never opened the app now see an invite row marked 'Not sent' telling them to sign in, viewer-role panel invites are refused, and the 'no invite email was sent' message shows only when the email truly failed. It also adds tests, docs and spec updates, and notes that older failed invites still show the old wording until re-sent.",
+        "ask": "Nothing"
+      }
+    },
+    {
+      "name": "onehearthealth-868-original",
+      "expectPass": false,
+      "fairTotal": 6,
+      "noiseTotal": 0,
+      "pass": false,
+      "fairCaught": 5,
+      "fairMissed": [
+        "Crishon"
+      ],
+      "noiseRaised": 0,
+      "noiseFlags": [],
+      "unlabeled": [
+        "signal quality confidence",
+        "hestia-v1",
+        "pia",
+        "the scoring service",
+        "default, not a guardrail",
+        "The stale-number problem on dev after a re-score is mentioned without saying how it happens or how it relates to the stack that hasn't reached dev yet."
+      ],
+      "matched": {
+        "D3": [
+          "The decision (option C, D3) and the alternatives A and B are on a decision page whose link was removed, so I can't see what the options were."
+        ],
+        "option C": [
+          "option C"
+        ],
+        "ADR-0010": [
+          "ADR-0010",
+          "The 'default, not a guardrail' rule and ADR-0010 are referenced as the reason no new ADR is needed, but they are not explained."
+        ],
+        "pull request 849": [
+          "#849",
+          "The change depends on #849's branch and its 'sync-protocol-v2-backend' stack, which is not described, so I can't tell how this PR relates to it or when it reaches dev."
+        ],
+        "Karen": [
+          "Karen"
+        ]
+      },
+      "restatement": true,
+      "verdictRight": true,
+      "reader": {
+        "unclear_terms": [
+          "option C",
+          "Karen",
+          "signal quality confidence",
+          "#849",
+          "ADR-0010",
+          "hestia-v1",
+          "pia",
+          "the scoring service",
+          "default, not a guardrail"
+        ],
+        "missing_context": [
+          "The decision (option C, D3) and the alternatives A and B are on a decision page whose link was removed, so I can't see what the options were.",
+          "The change depends on #849's branch and its 'sync-protocol-v2-backend' stack, which is not described, so I can't tell how this PR relates to it or when it reaches dev.",
+          "The 'default, not a guardrail' rule and ADR-0010 are referenced as the reason no new ADR is needed, but they are not explained.",
+          "The stale-number problem on dev after a re-score is mentioned without saying how it happens or how it relates to the stack that hasn't reached dev yet."
+        ],
+        "restatement": "The dashboard recording card showed a 'Confidence' line for murmurs that just repeated the probability, because the server copies the probability into that field. This PR removes that line and the unused query field, leaving the probability display, the signal quality confidence, stored data, exports and the mobile app unchanged.",
+        "ask": "Nothing"
+      }
+    },
+    {
+      "name": "smsmarketing-1630-original",
+      "expectPass": false,
+      "fairTotal": 6,
+      "noiseTotal": 0,
+      "pass": false,
+      "fairCaught": 5,
+      "fairMissed": [
+        "BLUF"
+      ],
+      "noiseRaised": 0,
+      "noiseFlags": [],
+      "unlabeled": [
+        "quiet-hours timing",
+        "OpenSpec",
+        "interview.md",
+        "forms/zip-field",
+        "security-compliance-expert",
+        "the wall",
+        "AI form helper",
+        "phone-verified",
+        "LocationCard",
+        "consent boxes",
+        "askZip",
+        "owner",
+        "The text says the 'forms/zip-field' living spec is modified (4 modified, 5 added, 1 removed requirements) but does not say what those requirements are.",
+        "The text does not explain how ZIP codes feed quiet-hours timing, or what quiet-hours timing is.",
+        "The migration is 'not run anywhere' and PROD has 0 affected forms, but the text does not say when or whether it will be run.",
+        "The follow-ups mention a 'handover rule for archived owner slugs' and a 'wall' flipping to enforce without describing either.",
+        "The 'Verify it yourself' and 'Deliberately excluded / known limits' sections are empty, so there are no verification steps or stated limits.",
+        "The text does not say what specific review or decision it wants from the reader, since 'Decisions needed' is blank."
+      ],
+      "matched": {
+        "Q1-Q6": [
+          "The operator's answers Q1-Q6 live in interview.md and the OpenSpec change, which the text does not show, so the decisions behind the design are unknown."
+        ],
+        "high zone": [
+          "high zone"
+        ],
+        "Karen": [
+          "karen"
+        ],
+        "Codex": [
+          "Codex"
+        ],
+        "operator": [
+          "operator"
+        ]
+      },
+      "restatement": true,
+      "verdictRight": true,
+      "reader": {
+        "unclear_terms": [
+          "quiet-hours timing",
+          "OpenSpec",
+          "high zone",
+          "operator",
+          "interview.md",
+          "forms/zip-field",
+          "karen",
+          "security-compliance-expert",
+          "the wall",
+          "Codex",
+          "AI form helper",
+          "phone-verified",
+          "LocationCard",
+          "consent boxes",
+          "askZip",
+          "owner"
+        ],
+        "missing_context": [
+          "The operator's answers Q1-Q6 live in interview.md and the OpenSpec change, which the text does not show, so the decisions behind the design are unknown.",
+          "The text says the 'forms/zip-field' living spec is modified (4 modified, 5 added, 1 removed requirements) but does not say what those requirements are.",
+          "The text does not explain how ZIP codes feed quiet-hours timing, or what quiet-hours timing is.",
+          "The migration is 'not run anywhere' and PROD has 0 affected forms, but the text does not say when or whether it will be run.",
+          "The follow-ups mention a 'handover rule for archived owner slugs' and a 'wall' flipping to enforce without describing either.",
+          "The 'Verify it yourself' and 'Deliberately excluded / known limits' sections are empty, so there are no verification steps or stated limits.",
+          "The text does not say what specific review or decision it wants from the reader, since 'Decisions needed' is blank."
+        ],
+        "restatement": "This change replaces the separate 'Ask for ZIP code' switch with a ZIP code field that the owner adds from the form builder's field list like any other field. The field is always optional, never blocks a signup, sits outside the consent boxes, and every ZIP collected is saved and used to time texts, with the privacy page mentioning ZIP when a form asks for it.",
+        "ask": "Nothing"
+      }
+    },
+    {
+      "name": "karen-unexplained",
+      "expectPass": false,
+      "fairTotal": 1,
+      "noiseTotal": 0,
+      "pass": false,
+      "fairCaught": 1,
+      "fairMissed": [],
+      "noiseRaised": 0,
+      "noiseFlags": [],
+      "unlabeled": [],
+      "matched": {
+        "Karen": [
+          "Karen"
+        ]
+      },
+      "restatement": true,
+      "verdictRight": true,
+      "reader": {
+        "unclear_terms": [
+          "Karen"
+        ],
+        "missing_context": [],
+        "restatement": "The pull request swaps the order of two fields on the sign-up page so the email box comes before the password box, matching what people expect. It has been approved by Karen and is ready to merge.",
+        "ask": "Nothing"
+      }
+    },
+    {
+      "name": "karen-explained",
+      "expectPass": true,
+      "fairTotal": 0,
+      "noiseTotal": 1,
+      "pass": true,
+      "fairCaught": 0,
+      "fairMissed": [],
+      "noiseRaised": 0,
+      "noiseFlags": [],
+      "unlabeled": [],
+      "matched": {},
+      "restatement": true,
+      "verdictRight": true,
+      "reader": {
+        "unclear_terms": [],
+        "missing_context": [],
+        "restatement": "This pull request changes the sign-up page so the email field appears above the password field, matching the order people expect. Karen, the automated code reviewer, has approved it and it can be merged.",
+        "ask": "Nothing"
+      }
+    },
+    {
+      "name": "blank-probe",
+      "expectPass": false,
+      "fairTotal": 3,
+      "noiseTotal": 0,
+      "pass": false,
+      "fairCaught": 3,
+      "fairMissed": [],
+      "noiseRaised": 0,
+      "noiseFlags": [],
+      "unlabeled": [],
+      "matched": {
+        "Karen": [
+          "Karen",
+          "The text does not say what Karen is, such as a person or an automated reviewer, or what approving means here."
+        ],
+        "Atlas": [
+          "Atlas",
+          "the Atlas change",
+          "The text does not say what the Atlas change is or what it modifies, so what changed and why is unknown."
+        ],
+        "Hermes": [
+          "Hermes",
+          "The text does not say what Hermes is or what 'next' means for it (a review, a deploy, another change)."
+        ]
+      },
+      "restatement": true,
+      "verdictRight": true,
+      "reader": {
+        "unclear_terms": [
+          "Karen",
+          "Atlas",
+          "Hermes",
+          "the Atlas change"
+        ],
+        "missing_context": [
+          "The text does not say what the Atlas change is or what it modifies, so what changed and why is unknown.",
+          "The text does not say what Hermes is or what 'next' means for it (a review, a deploy, another change).",
+          "The text does not say what Karen is, such as a person or an automated reviewer, or what approving means here."
+        ],
+        "restatement": "Someone named Karen approved a change related to something called Atlas, and something called Hermes is the next item. The text then asks what Karen, Atlas and Hermes are, without explaining them.",
+        "ask": "Nothing"
+      }
+    },
+    {
+      "name": "code-names-in-technical-detail",
+      "expectPass": true,
+      "fairTotal": 0,
+      "noiseTotal": 1,
+      "pass": true,
+      "fairCaught": 0,
+      "fairMissed": [],
+      "noiseRaised": 0,
+      "noiseFlags": [],
+      "unlabeled": [],
+      "matched": {},
+      "restatement": true,
+      "verdictRight": true,
+      "reader": {
+        "unclear_terms": [],
+        "missing_context": [],
+        "restatement": "The sign-up page used to show only a generic \"Something went wrong\" message when an email was mistyped. It now shows a message naming the field and how to fix it, and new tests check this for a bad email and a short password.",
+        "ask": "Nothing"
+      }
+    },
+    {
+      "name": "unseen-meeting",
+      "expectPass": false,
+      "fairTotal": 1,
+      "noiseTotal": 0,
+      "pass": false,
+      "fairCaught": 1,
+      "fairMissed": [],
+      "noiseRaised": 0,
+      "noiseFlags": [],
+      "unlabeled": [
+        "the old layout",
+        "It is unclear which monthly reports (what content, for whom) are affected and what the old layout was."
+      ],
+      "matched": {
+        "the meeting and option B": [
+          "option B",
+          "What option B is and what the alternatives were is not described; it was decided in Tuesday's meeting, which I cannot see.",
+          "The reason for choosing option B and what the monthly reports looked like before and after are not stated."
+        ]
+      },
+      "restatement": true,
+      "verdictRight": true,
+      "reader": {
+        "unclear_terms": [
+          "option B",
+          "the old layout"
+        ],
+        "missing_context": [
+          "What option B is and what the alternatives were is not described; it was decided in Tuesday's meeting, which I cannot see.",
+          "The reason for choosing option B and what the monthly reports looked like before and after are not stated.",
+          "It is unclear which monthly reports (what content, for whom) are affected and what the old layout was."
+        ],
+        "restatement": "The change switches the monthly reports to a layout called option B, which was agreed in a meeting on Tuesday. The previous layout is deleted as part of this change.",
+        "ask": "Nothing"
+      }
+    }
+  ]
+}
