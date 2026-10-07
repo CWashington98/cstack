@@ -1,0 +1,27 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["verdict", "summary", "findings"],
+  "properties": {
+    "verdict": { "type": "string", "enum": ["ready", "not ready"] },
+    "summary": { "type": "string" },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "angle", "claim", "file", "line", "severity", "trigger", "how_to_reproduce"],
+        "properties": {
+          "id": { "type": "string" },
+          "angle": { "type": "string", "enum": ["skeptic", "architect", "minimalist", "security"] },
+          "claim": { "type": "string" },
+          "file": { "type": "string" },
+          "line": { "type": ["integer", "null"] },
+          "severity": { "type": "string", "enum": ["blocking", "note"] },
+          "trigger": { "type": "string" },
+          "how_to_reproduce": { "type": "string" }
+        }
+      }
+    }
+  }
+}

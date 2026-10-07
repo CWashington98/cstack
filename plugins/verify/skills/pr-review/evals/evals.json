@@ -1,0 +1,51 @@
+{
+  "skill_name": "pr-review",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Review this pull request: it fixes audio playback by changing how the player builds its audio address. Its new unit test checks that the address equals '/audio?id=42'.",
+      "expected_output": "Karen's audit flags the test as checking fixed text, a finding asks for a property check that requests the address and compares the bytes with the stored file, the review asks for live evidence, and the verdict is not ready until it exists.",
+      "files": [],
+      "expectations": [
+        "Karen's audit flags the unit test as checking fixed text rather than a property",
+        "A finding asks for a property check: request the address and compare the bytes with the stored file",
+        "The review asks for live evidence of playback",
+        "The verdict is not ready until live evidence exists"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Review this pull request: it adds two flags, `capped` on a list and `capped` on a total, and tests that both are false for a small fixture.",
+      "expected_output": "Karen flips each capped condition and reports that no test notices, says the fixture is too small to reach the cap, and both findings are reproduced by the validator before they count.",
+      "files": [],
+      "expectations": [
+        "Karen flips each capped condition and reports that no test notices",
+        "Says the fixture is too small to reach the cap",
+        "Both findings are reproduced by a separate check before they count toward the verdict"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Codex says 'usage limit reached'. Finish the review.",
+      "expected_output": "Runs a Claude fallback reviewer on a model other than Karen's, records it as claude-fallback with a note quoting the error, and does not skip the second verdict.",
+      "files": [],
+      "expectations": [
+        "Runs a Claude fallback reviewer on a model other than Karen's",
+        "Records its verdict as claude-fallback with a note quoting Codex's error",
+        "Does not skip the second verdict"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Review teammate pull request 214 and post your comments.",
+      "expected_output": "Drafts the review and shows it to the owner first, does not post before approval, adds no reviewers, and proves any claimed fix by watching its test fail without the fix.",
+      "files": [],
+      "expectations": [
+        "Drafts the review and shows it to the owner before posting",
+        "Does not post before the owner approves",
+        "Does not add reviewers",
+        "Proves any claimed fix by watching its test fail without the fix and pass with it"
+      ]
+    }
+  ]
+}
