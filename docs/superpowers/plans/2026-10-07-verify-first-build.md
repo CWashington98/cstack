@@ -143,7 +143,7 @@ Paths are relative to the repository root, or start with `~/`. When an item is t
 
 Branch `feat/verify-plan` into `main`, in `~/Source/cstack-wt-verify`.
 
-- [ ] **Verify unit:** `npm test` passes with every new test. Evidence: log `.verify/logs/npm-test.log` "fail 0"
+- [x] **Verify unit:** `npm test` passes with every new test. Evidence: log `.verify/logs/npm-test.log` "fail 0"
 - [ ] **Verify live:** `verify-setup` produced the labeling skill and its full run finished "verified live" (Tasks 15 and 16). Evidence: run `~/Source/precordia-wt-verify/.verify/runs/labeling`
 
 ### Task 1: Plugin shell and skill tests
@@ -159,11 +159,11 @@ Branch `feat/verify-plan` into `main`, in `~/Source/cstack-wt-verify`.
 **Interfaces:**
 - Produces: `plugins/verify/tests/skills.test.mjs` checks every folder in `plugins/verify/skills/`. Each needs a `SKILL.md` whose frontmatter `name` equals the folder name, and an `evals/evals.json` in skill-creator's shape with at least three test prompts. No file under `skills/` or `scripts/` may name a project. Later tasks add skills, and this test checks them without changes.
 
-- [ ] **Step 1: Check the branch starts from the right commit.** Evidence: file `docs/specs/2026-10-06-verify-design.md`
+- [x] **Step 1: Check the branch starts from the right commit.** Evidence: file `docs/specs/2026-10-06-verify-design.md`
 
 Run `git -C ~/Source/cstack-wt-verify merge-base --is-ancestor 31319f6 HEAD && echo ok`. Expected: `ok`. If it prints nothing, the worktree is on the stale branch `feat/verify` (commit `33ac50b`): stop and run `git -C ~/Source/cstack-wt-verify switch feat/verify-plan`.
 
-- [ ] **Step 2: Write the failing tests.** Evidence: test `tests/marketplace.test.mjs` "the verify plugin is listed"; test `plugins/verify/tests/skills.test.mjs` "nothing in the plugin names a project"
+- [x] **Step 2: Write the failing tests.** Evidence: test `tests/marketplace.test.mjs` "the verify plugin is listed"; test `plugins/verify/tests/skills.test.mjs` "nothing in the plugin names a project"
 
 Add to `tests/marketplace.test.mjs`:
 
@@ -233,11 +233,11 @@ test("nothing in the plugin names a project", () => {
 });
 ```
 
-- [ ] **Step 3: Run the tests to see them fail, and commit the failing test.** Evidence: commit
+- [x] **Step 3: Run the tests to see them fail, and commit the failing test.** Evidence: commit fa147e5
 
 Run: `npm test`. Expected: fails on "the verify plugin is listed". Then `git add tests/marketplace.test.mjs plugins/verify/tests/skills.test.mjs && git commit -m "test(verify): the plugin is listed and its skills are checked"` (with the trailer).
 
-- [ ] **Step 4: Add the plugin shell, the marketplace entry and the credit file.** Evidence: file `plugins/verify/THIRD_PARTY.md`
+- [x] **Step 4: Add the plugin shell, the marketplace entry and the credit file.** Evidence: file `plugins/verify/THIRD_PARTY.md`
 
 `plugins/verify/.claude-plugin/plugin.json`:
 
@@ -263,7 +263,7 @@ Add to the `plugins` list in `.claude-plugin/marketplace.json`, after `plain`:
 
 `plugins/verify/THIRD_PARTY.md`: a short note saying that `skills/verify-setup` and `skills/verify-upkeep` adapt Lauren Tan's `create-verification-skill` and `maintain-verification-skill` from pstack 0.15.13 (repository `cursor/plugins`, folder `pstack/skills`, commit `e5a8186d7b43be8d6ac4452440fbead5f1a51c70`), followed by the full MIT license text from that repository. Find it with `gh api 'repos/cursor/plugins/contents/pstack?ref=e5a8186d7b43be8d6ac4452440fbead5f1a51c70' --jq '.[].name'`, then fetch the license file it lists (or the repository root's `LICENSE` if pstack has none) with `gh api ... --jq .content | base64 -d`.
 
-- [ ] **Step 5: Run the tests to see them pass, and commit.** Evidence: commit
+- [x] **Step 5: Run the tests to see them pass, and commit.** Evidence: commit 5501440
 
 Run: `npm test`. Expected: passes (no skills exist yet, so the skill tests check nothing). Add the line `.verify/` to `.gitignore`. Commit `plugin.json`, `THIRD_PARTY.md`, `marketplace.json` and `.gitignore` with `feat(verify): plugin shell, marketplace entry and credit`.
 
@@ -282,7 +282,7 @@ Run: `npm test`. Expected: passes (no skills exist yet, so the skill tests check
 - Produces: `hold(line: number, message: string): Finding` where `Finding = { line, level: "hold", message }`, `checkScenarios(lines): { findings: Finding[], count: number }`, and `checkFile(raw: string, { file: string, root: string, since?: string }): { findings, scenarios: number, items: number, held: boolean }` from `lib/plan.mjs`. Task 3 extends `checkFile`.
 - Produces: the command `node verify-plan.mjs <file> [--since <ref>] [--json]`.
 
-- [ ] **Step 1: Write the failing tests.** Evidence: test `plugins/verify/tests/plan.test.mjs` "flags a scenario with no Proved by line"
+- [x] **Step 1: Write the failing tests.** Evidence: test `plugins/verify/tests/plan.test.mjs` "flags a scenario with no Proved by line"
 
 `plugins/verify/tests/plan.test.mjs`:
 
@@ -366,11 +366,11 @@ test("the command exits 0 on a pass, 1 on a hold and 2 on a missing file", () =>
 });
 ```
 
-- [ ] **Step 2: Run the tests to see them fail, and commit the failing test.** Evidence: commit
+- [x] **Step 2: Run the tests to see them fail, and commit the failing test.** Evidence: commit 599ea5d
 
 Run: `node --test plugins/verify/tests/plan.test.mjs`. Expected: fails with "Cannot find module". Commit with `test(verify): verify-plan checks spec scenarios name their proof`.
 
-- [ ] **Step 3: Write the implementation.** Evidence: file `plugins/verify/scripts/verify-plan.mjs`
+- [x] **Step 3: Write the implementation.** Evidence: file `plugins/verify/scripts/verify-plan.mjs`
 
 `plugins/verify/scripts/lib/args.mjs`:
 
@@ -530,7 +530,7 @@ function main(argv) {
 if (import.meta.url === pathToFileURL(process.argv[1]).href) process.exit(main(process.argv));
 ```
 
-- [ ] **Step 4: Run the tests to see them pass, and commit.** Evidence: test `plugins/verify/tests/plan.test.mjs` "a file with nothing to check is held rather than passed"; commit
+- [x] **Step 4: Run the tests to see them pass, and commit.** Evidence: test `plugins/verify/tests/plan.test.mjs` "a file with nothing to check is held rather than passed"; commit 3d15786
 
 Run: `node --test plugins/verify/tests/plan.test.mjs`. Expected: all 9 tests pass. Commit with `feat(verify): verify-plan checks spec scenarios name their proof`.
 
@@ -545,7 +545,7 @@ Run: `node --test plugins/verify/tests/plan.test.mjs`. Expected: all 9 tests pas
 - Produces: `parseEvidence(text: string): Evidence[] | null` where `Evidence = { raw, kind, target, quoted }`, `checkEvidence(ev: Evidence, ticked: boolean, root: string): string[]` (problems, empty when fine), `checkItems(lines, root): { findings, count, items: { line, ticked, title }[] }`. `checkFile` now runs scenarios and items, and returns the item count.
 - Evidence kinds: `test`, `file`, `screenshot`, `log`, `commit`, `run`, `link`, as described in "How evidence is written in this plan" above.
 
-- [ ] **Step 1: Write the failing tests.** Evidence: test `plugins/verify/tests/plan.test.mjs` "a ticked plan item whose evidence file doesn't exist is held"
+- [x] **Step 1: Write the failing tests.** Evidence: test `plugins/verify/tests/plan.test.mjs` "a ticked plan item whose evidence file doesn't exist is held"
 
 Add to `plugins/verify/tests/plan.test.mjs`:
 
@@ -615,11 +615,11 @@ test("checkbox examples inside fenced code are not plan items", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to see them fail, and commit the failing test.** Evidence: commit
+- [x] **Step 2: Run the tests to see them fail, and commit the failing test.** Evidence: commit c0c3225
 
 Run: `node --test plugins/verify/tests/plan.test.mjs`. Expected: the new tests fail (no item checks yet). Commit with `test(verify): verify-plan checks plan items name evidence that exists`.
 
-- [ ] **Step 3: Write the implementation.** Evidence: file `plugins/verify/scripts/lib/plan.mjs`
+- [x] **Step 3: Write the implementation.** Evidence: file `plugins/verify/scripts/lib/plan.mjs`
 
 In `plugins/verify/scripts/lib/plan.mjs`, add these imports at the top:
 
@@ -737,7 +737,7 @@ export function checkFile(raw, { file, root, since } = {}) {
 }
 ```
 
-- [ ] **Step 4: Run the tests to see them pass, and commit.** Evidence: test `plugins/verify/tests/plan.test.mjs` "evidence paths resolve from the repository root, and ~/ means the home folder"; commit
+- [x] **Step 4: Run the tests to see them pass, and commit.** Evidence: test `plugins/verify/tests/plan.test.mjs` "evidence paths resolve from the repository root, and ~/ means the home folder"; commit 9640c33
 
 Run: `node --test plugins/verify/tests/plan.test.mjs`. Expected: all tests pass. Commit with `feat(verify): verify-plan checks plan items name evidence that exists`.
 
@@ -752,7 +752,7 @@ Run: `node --test plugins/verify/tests/plan.test.mjs`. Expected: all tests pass.
 - Produces: `checkProofBoxes(lines): Finding[]` and `checkDone(lines, { file, root, since }): Finding[]`. `checkFile` runs both whenever a document has plan items.
 - Rules: each section whose heading starts with "Pull request" needs a checkbox starting "Verify unit" and one starting "Verify live". A plan with no such heading is one pull request and needs them once. "Verify live: none" needs a reason. The plan needs a "Done when:" line containing a number. With `--since <ref>`, that line must be unchanged since the ref.
 
-- [ ] **Step 1: Write the failing tests.** Evidence: test `plugins/verify/tests/plan.test.mjs` "a done condition relaxed after work started is held"
+- [x] **Step 1: Write the failing tests.** Evidence: test `plugins/verify/tests/plan.test.mjs` "a done condition relaxed after work started is held"
 
 Add to `plugins/verify/tests/plan.test.mjs`:
 
@@ -797,11 +797,11 @@ test("a spec with only scenarios needs no proof boxes or done line", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to see them fail, and commit the failing test.** Evidence: commit
+- [x] **Step 2: Run the tests to see them fail, and commit the failing test.** Evidence: commit 7dd8c0b
 
 Run: `node --test plugins/verify/tests/plan.test.mjs`. Expected: the five new plan tests fail. Commit with `test(verify): verify-plan checks proof boxes and a fixed done condition`.
 
-- [ ] **Step 3: Write the implementation.** Evidence: file `plugins/verify/scripts/lib/plan.mjs`
+- [x] **Step 3: Write the implementation.** Evidence: file `plugins/verify/scripts/lib/plan.mjs`
 
 Add to `plugins/verify/scripts/lib/plan.mjs` (add `relative` to the `node:path` import):
 
@@ -863,7 +863,7 @@ In `checkFile`, after `const findings = [...sc.findings, ...it.findings];`, add:
   if (it.count) findings.push(...checkProofBoxes(lines), ...checkDone(lines, { file, root, since }));
 ```
 
-- [ ] **Step 4: Run the tests to see them pass, and commit.** Evidence: test `plugins/verify/tests/plan.test.mjs` "each pull request section needs its own proof boxes"; commit
+- [x] **Step 4: Run the tests to see them pass, and commit.** Evidence: test `plugins/verify/tests/plan.test.mjs` "each pull request section needs its own proof boxes"; commit 4d1b5cf
 
 Run: `node --test plugins/verify/tests/plan.test.mjs`. Expected: all tests pass. Commit with `feat(verify): verify-plan checks proof boxes and a fixed done condition`.
 
@@ -881,7 +881,7 @@ Run: `node --test plugins/verify/tests/plan.test.mjs`. Expected: all tests pass.
 - Consumes: `verify-plan.mjs` from Tasks 2 to 4.
 - Produces: the `verify` skill, which later skills point to for the proof standard (`proof-standard.md`), the five verification statuses, and the "Proved by" and `Evidence:` formats (`planning.md`).
 
-- [ ] **Step 1: Write the skill with skill-creator.** Evidence: file `plugins/verify/skills/verify/SKILL.md`; file `plugins/verify/skills/verify/proof-standard.md`; file `plugins/verify/skills/verify/planning.md`
+- [x] **Step 1: Write the skill with skill-creator.** Evidence: file `plugins/verify/skills/verify/SKILL.md`; file `plugins/verify/skills/verify/proof-standard.md`; file `plugins/verify/skills/verify/planning.md`
 
 Invoke `skill-creator:skill-creator` and use its drafting guidance. The content is fixed by the design, so the job is wording and a description that triggers well. Write these files.
 
@@ -1023,7 +1023,7 @@ End the file with a short "Where evidence goes" note: each app skill names its e
 ```
 
 
-- [ ] **Step 2: Point the pull request layout at the proof standard.** Evidence: file `plugins/plain/skills/plain/pr-layout.md`
+- [x] **Step 2: Point the pull request layout at the proof standard.** Evidence: file `plugins/plain/skills/plain/pr-layout.md`
 
 In `plugins/plain/skills/plain/pr-layout.md`, replace the "Proof it works" block inside the layout with:
 
@@ -1041,7 +1041,7 @@ After: screenshot, passing test or new output.
 
 and replace the paragraph after the layout that begins "Screenshots are the best proof" with: "Screenshots are the best proof when the change is visual. Test results come next. The status and the three boxes follow the proof standard in the `verify` plugin's `verify` skill. Tests alone never verify a user-facing change." Set `"version": "0.2.1"` in `plugins/plain/.claude-plugin/plugin.json`.
 
-- [ ] **Step 3: Check the text and run the tests, then commit.** Evidence: log `.verify/logs/npm-test.log` "fail 0"; commit
+- [x] **Step 3: Check the text and run the tests, then commit.** Evidence: log `.verify/logs/npm-test.log` "fail 0"; commit 1133794
 
 Run `node plugins/plain/scripts/plain-check.mjs` on each of the three skill files and on `pr-layout.md`. Expected: "Passes" for each (advice lines are fine). Run `mkdir -p .verify/logs && npm test 2>&1 | tee .verify/logs/npm-test.log`. Expected: passes, "fail 0", including the skill tests now checking `verify`. Commit with `feat(verify): the proof standard, statuses and proof planning`.
 
@@ -1069,7 +1069,7 @@ Run `node plugins/plain/scripts/plain-check.mjs` on each of the three skill file
   - optional: `testData` (named fixtures) and `readBack` (named commands that read stored data).
 - `.claude/verify.json` fields: `integrationBranch` (required) and `highRisk` (optional list of path patterns).
 
-- [ ] **Step 1: Write the failing tests.** Evidence: test `plugins/verify/tests/app-skill.test.mjs` "a complete web app skill passes"
+- [x] **Step 1: Write the failing tests.** Evidence: test `plugins/verify/tests/app-skill.test.mjs` "a complete web app skill passes"
 
 `plugins/verify/tests/app-skill.test.mjs`:
 
@@ -1160,11 +1160,11 @@ test("the command exits 0 on a pass, 1 on a hold and 2 on a missing folder", () 
 });
 ```
 
-- [ ] **Step 2: Run the tests to see them fail, and commit the failing test.** Evidence: commit
+- [x] **Step 2: Run the tests to see them fail, and commit the failing test.** Evidence: commit 3c30b43
 
 Run: `node --test plugins/verify/tests/app-skill.test.mjs`. Expected: fails with "Cannot find module". Commit with `test(verify): check-app-skill checks sections, facts and feature map`.
 
-- [ ] **Step 3: Write the implementation.** Evidence: file `plugins/verify/scripts/lib/app-skill.mjs`; file `plugins/verify/scripts/check-app-skill.mjs`
+- [x] **Step 3: Write the implementation.** Evidence: file `plugins/verify/scripts/lib/app-skill.mjs`; file `plugins/verify/scripts/check-app-skill.mjs`
 
 `plugins/verify/scripts/lib/app-skill.mjs`:
 
@@ -1326,7 +1326,7 @@ function main(argv) {
 if (import.meta.url === pathToFileURL(process.argv[1]).href) process.exit(main(process.argv));
 ```
 
-- [ ] **Step 4: Run the tests to see them pass, and commit.** Evidence: test `plugins/verify/tests/app-skill.test.mjs` "the feature map index must match its files"; commit
+- [x] **Step 4: Run the tests to see them pass, and commit.** Evidence: test `plugins/verify/tests/app-skill.test.mjs` "the feature map index must match its files"; commit 41ff5d8
 
 Run: `node --test plugins/verify/tests/app-skill.test.mjs`. Expected: all 9 tests pass. Commit with `feat(verify): check-app-skill checks sections, facts and feature map`.
 
@@ -1350,7 +1350,7 @@ Run: `node --test plugins/verify/tests/app-skill.test.mjs`. Expected: all 9 test
 - `runFlow` counts as neither an action nor a check, because its contents vary. A file with no `---` line is a subflow fragment and is skipped. An app ID written as `${...}` can't be checked and is skipped. The workspace `config.yaml` gets the app ID check only.
 - Rules for a browser test listed in `replays`: no `waitForTimeout(` and no `mouse.click(<number>`, outside comments.
 
-- [ ] **Step 1: Write the failing tests.** Evidence: test `plugins/verify/tests/maestro.test.mjs` "a flow that never acts is held"
+- [x] **Step 1: Write the failing tests.** Evidence: test `plugins/verify/tests/maestro.test.mjs` "a flow that never acts is held"
 
 `plugins/verify/tests/maestro.test.mjs`:
 
@@ -1450,11 +1450,11 @@ test("replays listed in facts.json are checked", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to see them fail, and commit the failing test.** Evidence: commit
+- [x] **Step 2: Run the tests to see them fail, and commit the failing test.** Evidence: commit d956f77
 
 Run: `node --test plugins/verify/tests/maestro.test.mjs plugins/verify/tests/app-skill.test.mjs`. Expected: the Maestro tests fail with "Cannot find module"; the three new app-skill tests fail. Commit with `test(verify): check-app-skill checks flows and replays`.
 
-- [ ] **Step 3: Write the implementation.** Evidence: file `plugins/verify/scripts/lib/maestro.mjs`; file `plugins/verify/scripts/lib/playwright.mjs`
+- [x] **Step 3: Write the implementation.** Evidence: file `plugins/verify/scripts/lib/maestro.mjs`; file `plugins/verify/scripts/lib/playwright.mjs`
 
 `plugins/verify/scripts/lib/maestro.mjs`:
 
@@ -1579,7 +1579,7 @@ with
 
 and return `flows: replays.count` instead of `flows: 0`. The two modules import each other; that is fine in JavaScript modules because neither uses the other at load time.
 
-- [ ] **Step 4: Run the tests to see them pass, and commit.** Evidence: test `plugins/verify/tests/maestro.test.mjs` "no false holds: subflows, templated IDs, runFlow last, and the workspace config"; commit
+- [x] **Step 4: Run the tests to see them pass, and commit.** Evidence: test `plugins/verify/tests/maestro.test.mjs` "no false holds: subflows, templated IDs, runFlow last, and the workspace config"; commit f965955
 
 Run: `node --test plugins/verify/tests/maestro.test.mjs plugins/verify/tests/app-skill.test.mjs`. Expected: all pass. Commit with `feat(verify): check-app-skill checks flows and replays`.
 
@@ -1608,7 +1608,7 @@ Run: `node --test plugins/verify/tests/maestro.test.mjs plugins/verify/tests/app
   - `--head` holds evidence from another commit or from a working copy with uncommitted changes;
   - `--cover` holds any feature in the map that was neither driven nor reported unreachable.
 
-- [ ] **Step 1: Write the failing tests.** Evidence: test `plugins/verify/tests/evidence.test.mjs` "a clean-up that deletes the evidence never passes"
+- [x] **Step 1: Write the failing tests.** Evidence: test `plugins/verify/tests/evidence.test.mjs` "a clean-up that deletes the evidence never passes"
 
 `plugins/verify/tests/evidence.test.mjs`:
 
@@ -1783,11 +1783,11 @@ test("fingerprints computed in the browser can be compared directly", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to see them fail, and commit the failing test.** Evidence: commit
+- [x] **Step 2: Run the tests to see them fail, and commit the failing test.** Evidence: commit 13a8205
 
 Run: `node --test plugins/verify/tests/evidence.test.mjs plugins/verify/tests/match-bytes.test.mjs`. Expected: fails with "Cannot find module". Commit with `test(verify): evidence runs and byte matching`.
 
-- [ ] **Step 3: Write the implementation.** Evidence: file `plugins/verify/scripts/lib/evidence.mjs`; file `plugins/verify/scripts/evidence.mjs`; file `plugins/verify/scripts/match-bytes.mjs`
+- [x] **Step 3: Write the implementation.** Evidence: file `plugins/verify/scripts/lib/evidence.mjs`; file `plugins/verify/scripts/evidence.mjs`; file `plugins/verify/scripts/match-bytes.mjs`
 
 `plugins/verify/scripts/lib/evidence.mjs`:
 
@@ -2032,7 +2032,7 @@ function main(argv) {
 if (import.meta.url === pathToFileURL(process.argv[1]).href) process.exit(main(process.argv));
 ```
 
-- [ ] **Step 4: Run the tests to see them pass, and commit.** Evidence: test `plugins/verify/tests/evidence.test.mjs` "evidence from uncommitted changes or another commit is stale"; commit
+- [x] **Step 4: Run the tests to see them pass, and commit.** Evidence: test `plugins/verify/tests/evidence.test.mjs` "evidence from uncommitted changes or another commit is stale"; commit e36b3c6
 
 Run: `node --test plugins/verify/tests/evidence.test.mjs plugins/verify/tests/match-bytes.test.mjs`. Expected: all pass. Commit with `feat(verify): evidence runs and byte matching`.
 
@@ -2048,7 +2048,7 @@ Run: `node --test plugins/verify/tests/evidence.test.mjs plugins/verify/tests/ma
 - Consumes: `evidence.mjs`, `match-bytes.mjs` (Task 8), `check-app-skill.mjs` (Tasks 6 and 7), the proof standard (Task 5).
 - Produces: two skills that every app skill loads before driving. An app skill's `## Drive` section starts with "Load the `drive-web` skill first" or "Load the `drive-expo` skill first", and then gives only facts.
 
-- [ ] **Step 1: Write the web guide with skill-creator.** Evidence: file `plugins/verify/skills/drive-web/SKILL.md`
+- [x] **Step 1: Write the web guide with skill-creator.** Evidence: file `plugins/verify/skills/drive-web/SKILL.md`
 
 Invoke `skill-creator:skill-creator` for drafting help. Frontmatter:
 
@@ -2109,7 +2109,7 @@ try {
 2. "The dev server on port 3000 is already running, just use it." Expectations: checks that the listening process's working folder is this checkout before trusting it. When it isn't, refuses to drive it or starts its own server.
 3. "Check that the download button returns the real report file." Expectations: captures the response body and compares it with the stored file using `match-bytes.mjs`. Does not accept a 200 status alone.
 
-- [ ] **Step 2: Write the Expo guide with skill-creator.** Evidence: file `plugins/verify/skills/drive-expo/SKILL.md`
+- [x] **Step 2: Write the Expo guide with skill-creator.** Evidence: file `plugins/verify/skills/drive-expo/SKILL.md`
 
 Frontmatter:
 
@@ -2149,7 +2149,7 @@ Sections, in this order:
 2. "The Maestro flows all fail with 'app not installed'." Expectations: compares the flows' `appId` with the bundle identifier and package in `app.json`, and reports the mismatch instead of reinstalling.
 3. "Just tap at 50%,80% to hit the button." Expectations: uses the button's text or test ID instead, and explains why positions break.
 
-- [ ] **Step 3: Check the text and run the tests, then commit.** Evidence: log `.verify/logs/npm-test.log` "fail 0"; commit
+- [x] **Step 3: Check the text and run the tests, then commit.** Evidence: log `.verify/logs/npm-test.log` "fail 0"; commit 765f388
 
 Run `node plugins/plain/scripts/plain-check.mjs` on both skill files. Expected: "Passes" (advice lines are fine). Run `mkdir -p .verify/logs && npm test 2>&1 | tee .verify/logs/npm-test.log`. Expected: passes, including the project-name test for both new skills. Commit with `feat(verify): shared guides for driving web and Expo apps`.
 
@@ -2171,7 +2171,7 @@ Run `node plugins/plain/scripts/plain-check.mjs` on both skill files. Expected: 
 - Produces: the `verify-setup` skill. Run as `/verify-setup <app>` (inside the plugin its full name is `verify:verify-setup`). Its output is a project's `.claude/skills/verify-<app>/` folder that passes `check-app-skill.mjs` and has one finished evidence run, plus `.claude/verify.json` and a `.verify/` line in `.gitignore` when they are missing.
 - Produces: `example/verify-notes/`, a complete example app skill for a made-up notes app. It is the layout reference for generated skills, and a test runs `check-app-skill` on it.
 
-- [ ] **Step 1: Write the failing test.** Evidence: test `plugins/verify/tests/skills.test.mjs` "the example app skill passes check-app-skill"
+- [x] **Step 1: Write the failing test.** Evidence: test `plugins/verify/tests/skills.test.mjs` "the example app skill passes check-app-skill"
 
 Add to `plugins/verify/tests/skills.test.mjs`:
 
@@ -2191,11 +2191,11 @@ test("the example app skill passes check-app-skill", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to see it fail, and commit the failing test.** Evidence: commit
+- [x] **Step 2: Run the test to see it fail, and commit the failing test.** Evidence: commit 1b99e42
 
 Run: `node --test plugins/verify/tests/skills.test.mjs`. Expected: fails (the example folder does not exist). Commit with `test(verify): the verify-setup example passes check-app-skill`.
 
-- [ ] **Step 3: Write the skill with skill-creator, adapting poteto's.** Evidence: file `plugins/verify/skills/verify-setup/SKILL.md`; file `plugins/verify/skills/verify-setup/facts-schema.md`
+- [x] **Step 3: Write the skill with skill-creator, adapting poteto's.** Evidence: file `plugins/verify/skills/verify-setup/SKILL.md`; file `plugins/verify/skills/verify-setup/facts-schema.md`
 
 Read Lauren Tan's `create-verification-skill/SKILL.md` and its `references/feature-map-example/` first. They are in the plugin cache: `ls ~/.claude-*/plugins/cache/cstack/pstack-picks/*/create-verification-skill/`. Invoke `skill-creator:skill-creator` for drafting help. Keep her structure and rigor. Change what Claude Code and this design need:
 
@@ -2249,7 +2249,7 @@ End with: "Adapted from Lauren Tan's `create-verification-skill` (pstack, MIT li
 - `testData`: an object of named fixtures, such as a test account or a kit code, with how to create or reset each one;
 - `readBack`: an object of named commands that read stored data, printing IDs and counts only.
 
-- [ ] **Step 4: Write the example app skill.** Evidence: file `plugins/verify/skills/verify-setup/example/verify-notes/features/create-note.md`
+- [x] **Step 4: Write the example app skill.** Evidence: file `plugins/verify/skills/verify-setup/example/verify-notes/features/create-note.md`
 
 Adapt Lauren Tan's notes example (her `feature-map-example/` files) to our layout. `facts.json`:
 
@@ -2279,7 +2279,7 @@ Adapt Lauren Tan's notes example (her `feature-map-example/` files) to our layou
 
 `features/README.md`, `features/create-note.md` and `features/search.md` follow her files. Replace her `control-notes` commands with Playwright calls, such as `page.getByRole("button", { name: "New note" }).click()`, and with the read-back command from `facts.json`. Keep her rule lines, including "Do not report a skipped entry point as verified through a different path."
 
-- [ ] **Step 5: Write the test prompts.** Evidence: file `plugins/verify/skills/verify-setup/evals/evals.json`
+- [x] **Step 5: Write the test prompts.** Evidence: file `plugins/verify/skills/verify-setup/evals/evals.json`
 
 `evals/evals.json`, four prompts in skill-creator's shape:
 1. "Set up verification for the admin web app in this repository." Expectations:
@@ -2296,7 +2296,7 @@ Adapt Lauren Tan's notes example (her `feature-map-example/` files) to our layou
    - changes no product code.
 4. "Set up verification for web." with an existing `.claude/skills/verify-web/`. Expectations: does not overwrite the existing skill; offers `verify-upkeep` instead.
 
-- [ ] **Step 6: Check the text, run the tests and commit.** Evidence: test `plugins/verify/tests/skills.test.mjs` "the example app skill passes check-app-skill"; commit
+- [x] **Step 6: Check the text, run the tests and commit.** Evidence: test `plugins/verify/tests/skills.test.mjs` "the example app skill passes check-app-skill"; commit 7babcfd
 
 Run `node plugins/plain/scripts/plain-check.mjs plugins/verify/skills/verify-setup/SKILL.md`. Expected: "Passes". Run `node --test plugins/verify/tests/skills.test.mjs`. Expected: all pass. Commit with `feat(verify): verify-setup creates an app's verification skill`.
 
@@ -2322,7 +2322,7 @@ Run `node plugins/plain/scripts/plain-check.mjs plugins/verify/skills/verify-set
 - Verdict records live in `<git common folder>/verify/verdicts/<commit>.<reviewer>.json`. They are never committed, and every worktree of the repository sees them.
 - Produces from `review-prep.mjs`: `makeCopy(repo, mergeBase, head, dest)` and `prepare({ repo, base, head, specs, prBody, copies, out }): Meta`, where `Meta = { base, mergeBase, head, patchId, copies: { [name]: path } }`. The commands are in each script's first comment.
 
-- [ ] **Step 1: Write the failing tests.** Evidence: test `plugins/verify/tests/verdict.test.mjs` "a rebase that keeps the change identical keeps the verdict"
+- [x] **Step 1: Write the failing tests.** Evidence: test `plugins/verify/tests/verdict.test.mjs` "a rebase that keeps the change identical keeps the verdict"
 
 `plugins/verify/tests/verdict.test.mjs`:
 
@@ -2508,11 +2508,11 @@ test("prepare refuses to write into a folder that already has files", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to see them fail, and commit the failing test.** Evidence: commit
+- [x] **Step 2: Run the tests to see them fail, and commit the failing test.** Evidence: commit 412e766
 
 Run: `node --test plugins/verify/tests/verdict.test.mjs plugins/verify/tests/review-prep.test.mjs`. Expected: fails with "Cannot find module". Commit with `test(verify): verdicts tied to the commit, and what reviewers see`.
 
-- [ ] **Step 3: Write the implementation.** Evidence: file `plugins/verify/scripts/lib/verdict.mjs`; file `plugins/verify/scripts/verdict.mjs`; file `plugins/verify/scripts/review-prep.mjs`
+- [x] **Step 3: Write the implementation.** Evidence: file `plugins/verify/scripts/lib/verdict.mjs`; file `plugins/verify/scripts/verdict.mjs`; file `plugins/verify/scripts/review-prep.mjs`
 
 `plugins/verify/scripts/lib/verdict.mjs`:
 
@@ -2785,7 +2785,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) process.exit(main(p
 ```
 
 
-- [ ] **Step 4: Run the tests to see them pass, and commit.** Evidence: test `plugins/verify/tests/verdict.test.mjs` "merging the base branch into the branch keeps the verdict"; commit
+- [x] **Step 4: Run the tests to see them pass, and commit.** Evidence: test `plugins/verify/tests/verdict.test.mjs` "merging the base branch into the branch keeps the verdict"; commit b9bac09
 
 Run: `node --test plugins/verify/tests/verdict.test.mjs plugins/verify/tests/review-prep.test.mjs`. Expected: all pass. Commit with `feat(verify): verdicts tied to the commit, and what reviewers see`.
 
@@ -2809,7 +2809,7 @@ Run: `node --test plugins/verify/tests/verdict.test.mjs plugins/verify/tests/rev
 - Produces: the `pr-review` skill, with two modes: the owner's own pull requests, and teammates' pull requests.
 - Codex is called directly with `codex exec`, not through the Codex plugin's `/codex:adversarial-review` command. That command is marked `disable-model-invocation`, so a skill can't run it.
 
-- [ ] **Step 1: Write the failing test.** Evidence: test `plugins/verify/tests/skills.test.mjs` "the Codex answer format is strict"
+- [x] **Step 1: Write the failing test.** Evidence: test `plugins/verify/tests/skills.test.mjs` "the Codex answer format is strict"
 
 Add to `plugins/verify/tests/skills.test.mjs`:
 
@@ -2831,11 +2831,11 @@ test("the Codex answer format is strict", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to see it fail, and commit the failing test.** Evidence: commit
+- [x] **Step 2: Run the test to see it fail, and commit the failing test.** Evidence: commit 9a101da
 
 Run: `node --test plugins/verify/tests/skills.test.mjs`. Expected: fails with "no such file". Commit with `test(verify): the Codex answer format is strict`.
 
-- [ ] **Step 3: Write the answer format and the three briefs.** Evidence: file `plugins/verify/skills/pr-review/codex-schema.json`; file `plugins/verify/skills/pr-review/karen-brief.md`
+- [x] **Step 3: Write the answer format and the three briefs.** Evidence: file `plugins/verify/skills/pr-review/codex-schema.json`; file `plugins/verify/skills/pr-review/karen-brief.md`
 
 `codex-schema.json`:
 
@@ -2885,7 +2885,7 @@ Run: `node --test plugins/verify/tests/skills.test.mjs`. Expected: fails with "n
 
 `validator-brief.md`: the text for the validator, a fresh Claude agent working in `OUT/validator/repo`. It receives only the combined list of findings (`id`, `claim`, `file`, `line`, `trigger`, `how_to_reproduce`), never the reviewers' reasoning. For each finding it tries to reproduce the problem by running something: a test, a command, a small script. It writes `OUT/validation.json`, a list of `{ id, reproduced, reproduction }`, where `reproduction` says exactly what it ran and saw. A security finding counts as reproduced only with the exact line, the trigger, the data flow and proof. Unclear means not reproduced.
 
-- [ ] **Step 4: Write `SKILL.md` with skill-creator.** Evidence: file `plugins/verify/skills/pr-review/SKILL.md`
+- [x] **Step 4: Write `SKILL.md` with skill-creator.** Evidence: file `plugins/verify/skills/pr-review/SKILL.md`
 
 Invoke `skill-creator:skill-creator` for drafting help. Frontmatter:
 
@@ -2931,7 +2931,7 @@ Body, in this order. Below, `<plugin>` means this skill's folder `/../..`.
 12. **Clean up.** `node <plugin>/scripts/review-prep.mjs --remove "$OUT"`. Verdict files stay in the repository's git folder.
 13. **Learning loop.** When a finding keeps coming back, propose an automatic check for it. When a bug gets past review, add it to this skill's `evals/evals.json` as a new case.
 
-- [ ] **Step 5: Write the test prompts, seeded with bugs reviews have missed before.** Evidence: file `plugins/verify/skills/pr-review/evals/evals.json`
+- [x] **Step 5: Write the test prompts, seeded with bugs reviews have missed before.** Evidence: file `plugins/verify/skills/pr-review/evals/evals.json`
 
 `evals/evals.json`, four prompts in skill-creator's shape. Two are the design's starting cases for the reviewers' own test set, described without project names:
 1. "Review this pull request: it fixes audio playback by changing how the player builds its audio address. Its new unit test checks that the address equals '/audio?id=42'." Expectations:
@@ -2943,7 +2943,7 @@ Body, in this order. Below, `<plugin>` means this skill's folder `/../..`.
 3. "Codex says 'usage limit reached'. Finish the review." Expectations: runs a Claude fallback reviewer on a model other than Karen's; records it as `claude-fallback` with a note quoting the error; does not skip the second verdict.
 4. "Review teammate pull request 214 and post your comments." Expectations: drafts the review and shows it to the owner first; does not post before approval; does not add reviewers; proves any claimed fix by watching its test fail without the fix.
 
-- [ ] **Step 6: Check the text, run the tests and commit.** Evidence: test `plugins/verify/tests/skills.test.mjs` "the Codex answer format is strict"; commit
+- [x] **Step 6: Check the text, run the tests and commit.** Evidence: test `plugins/verify/tests/skills.test.mjs` "the Codex answer format is strict"; commit ecb48ad
 
 Run `node plugins/plain/scripts/plain-check.mjs` on `SKILL.md` and the three briefs. Expected: "Passes". Run `npm test`. Expected: passes. Commit with `feat(verify): pr-review, two verdicts tied to the commit`.
 
@@ -2960,7 +2960,7 @@ Run `node plugins/plain/scripts/plain-check.mjs` on `SKILL.md` and the three bri
 - Consumes: `check-app-skill.mjs`, `evidence.mjs` with `--cover`, the driving guides, `pr-review`.
 - Produces: the `verify-upkeep` skill, with three outcomes (clean, changed, blocked), and the full skill list test.
 
-- [ ] **Step 1: Write the failing test.** Evidence: test `plugins/verify/tests/skills.test.mjs` "the verify plugin ships exactly its six skills"
+- [x] **Step 1: Write the failing test.** Evidence: test `plugins/verify/tests/skills.test.mjs` "the verify plugin ships exactly its six skills"
 
 Add to `plugins/verify/tests/skills.test.mjs`:
 
@@ -2970,11 +2970,11 @@ test("the verify plugin ships exactly its six skills", () => {
 });
 ```
 
-- [ ] **Step 2: Run the test to see it fail, and commit the failing test.** Evidence: commit
+- [x] **Step 2: Run the test to see it fail, and commit the failing test.** Evidence: commit 9198c47
 
 Run: `node --test plugins/verify/tests/skills.test.mjs`. Expected: fails, because `verify-upkeep` is missing. Commit with `test(verify): the plugin ships exactly six skills`.
 
-- [ ] **Step 3: Write the skill with skill-creator, adapting poteto's.** Evidence: file `plugins/verify/skills/verify-upkeep/SKILL.md`; file `plugins/verify/skills/verify-upkeep/evals/evals.json`
+- [x] **Step 3: Write the skill with skill-creator, adapting poteto's.** Evidence: file `plugins/verify/skills/verify-upkeep/SKILL.md`; file `plugins/verify/skills/verify-upkeep/evals/evals.json`
 
 Read Lauren Tan's `maintain-verification-skill/SKILL.md` first, from the same cache folder as in Task 10. Keep her outcomes, edit scope, and pass structure. Change three things:
 - the paths, to `.claude/skills/verify-*/`;
@@ -3014,11 +3014,11 @@ End with the same credit line as `verify-setup`, naming `maintain-verification-s
 3. "During upkeep, saving a note no longer stores it." Expectations: calls it a broken product; reports it to the owner; changes no product code; leaves it out of the pull request.
 4. "Run verify upkeep." in a repository with no `.claude/skills/verify-*/`. Expectations: stops and points to `verify-setup`; invents nothing.
 
-- [ ] **Step 4: Point cstack's monthly upkeep at it.** Evidence: file `plugins/core/skills/upkeep/SKILL.md`
+- [x] **Step 4: Point cstack's monthly upkeep at it.** Evidence: file `plugins/core/skills/upkeep/SKILL.md`
 
 In `plugins/core/skills/upkeep/SKILL.md`, add to the end of the "Then" section: "In each repository that has app verification skills (`.claude/skills/verify-*/`), also offer `verify-upkeep`, which re-drives every feature live." Raise the patch version in `plugins/core/.claude-plugin/plugin.json` by one.
 
-- [ ] **Step 5: Check the text, run the tests and commit.** Evidence: test `plugins/verify/tests/skills.test.mjs` "the verify plugin ships exactly its six skills"; commit
+- [x] **Step 5: Check the text, run the tests and commit.** Evidence: test `plugins/verify/tests/skills.test.mjs` "the verify plugin ships exactly its six skills"; commit 058d449
 
 Run `node plugins/plain/scripts/plain-check.mjs plugins/verify/skills/verify-upkeep/SKILL.md`. Expected: "Passes". Run `npm test`. Expected: passes. Commit with `feat(verify): verify-upkeep, and a monthly pointer from upkeep`.
 
@@ -3032,21 +3032,21 @@ Run `node plugins/plain/scripts/plain-check.mjs plugins/verify/skills/verify-upk
 - Consumes: every skill and script from Tasks 1 to 13.
 - Produces: a skill-creator benchmark for each of the six skills, a passing `npm test`, and a passing `verify-plan` on this plan.
 
-- [ ] **Step 1: Run each skill's test prompts with skill-creator.** Evidence: file `.verify/logs/evals/verify/benchmark.json`; file `.verify/logs/evals/drive-web/benchmark.json`; file `.verify/logs/evals/drive-expo/benchmark.json`; file `.verify/logs/evals/verify-setup/benchmark.json`; file `.verify/logs/evals/verify-upkeep/benchmark.json`; file `.verify/logs/evals/pr-review/benchmark.json`
+- [x] **Step 1: Run each skill's test prompts with skill-creator.** Evidence: file `.verify/logs/evals/verify/benchmark.json`; file `.verify/logs/evals/drive-web/benchmark.json`; file `.verify/logs/evals/drive-expo/benchmark.json`; file `.verify/logs/evals/verify-setup/benchmark.json`; file `.verify/logs/evals/verify-upkeep/benchmark.json`; file `.verify/logs/evals/pr-review/benchmark.json`
 
 Invoke `skill-creator:skill-creator` and follow its evaluation workflow for each skill in turn: run each prompt in `evals/evals.json` with the skill and without it, grade the expectations, and write the benchmark into `.verify/logs/evals/<skill>/`. Prompts that need a real repository (`verify-setup`, `verify-upkeep`) run against a small fixture repository made in the scratch directory from the `verify-notes` example. Expected: with the skill, every expectation passes; without it, fewer do. Where an expectation fails with the skill, fix the skill text and run that skill again, at most two rounds. If it still fails, stop and show the owner the prompt, the expectation and the output.
 
-- [ ] **Step 2: Check every skill file with plain, and run all tests.** Evidence: log `.verify/logs/npm-test.log` "fail 0"
+- [x] **Step 2: Check every skill file with plain, and run all tests.** Evidence: log `.verify/logs/npm-test.log` "fail 0"
 
 Run `for f in $(find plugins/verify/skills -name '*.md' -not -path '*/example/*'); do node plugins/plain/scripts/plain-check.mjs "$f" || echo "held: $f"; done`. Expected: no "held:" lines.
 
 Run `mkdir -p .verify/logs && npm test 2>&1 | tee .verify/logs/npm-test.log`. Expected: passes, "fail 0".
 
-- [ ] **Step 3: Check this plan with its own checker.** Evidence: log `.verify/logs/verify-plan.log` "Passes"
+- [x] **Step 3: Check this plan with its own checker.** Evidence: log `.verify/logs/verify-plan.log` "Passes"
 
 Run `node plugins/verify/scripts/verify-plan.mjs docs/superpowers/plans/2026-10-07-verify-first-build.md --since <the commit that added this plan> | tee .verify/logs/verify-plan.log`. Expected: "Passes", counting every plan item. Ticked items must point to evidence that exists. Fix the plan's evidence lines if they don't; never change its "Done when" line.
 
-- [ ] **Step 4: Commit any fixes.** Evidence: commit
+- [x] **Step 4: Commit any fixes.** Evidence: commit 058d449
 
 Commit fixes from steps 1 to 3 with `fix(verify): skill wording from the test prompts`. If there were none, record the last commit from Task 13 instead.
 
