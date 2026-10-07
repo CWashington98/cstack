@@ -130,3 +130,74 @@ test("the command records a run end to end", () => {
   rmSync(join(dir, "b.png"));
   assert.equal(ev("check", dir).status, 1);
 });
+
+test("a finished run is final: no new status and no new steps", () => {
+  const dir = startRun(repo(), "web");
+  addStep(dir, { kind: "health", ok: false, note: "port taken" });
+  finishRun(dir, "failed");
+  assert.throws(() => finishRun(dir, "verified by tests"), /already finished as "failed"/);
+  assert.throws(() => addStep(dir, { kind: "health", ok: true }), /finished/);
+});
+
+test("untracked files make the run dirty; the evidence folder does not", () => {
+  const root = repo();
+  startRun(root, "web");
+  const clean = startRun(root, "web");
+  assert.equal(checkRun(clean).run.dirty, false, "an earlier run's folder is not a change to the app");
+  writeFileSync(join(root, "new-app-file.js"), "console.log(1)\n");
+  const dir = startRun(root, "web", new Date(Date.now() + 1000));
+  assert.equal(checkRun(dir).run.dirty, true);
+});
+
+test("coverage counts a feature driven by one of its sub-feature IDs", () => {
+  const root = repo();
+  const features = join(root, "features");
+  mkdirSync(features);
+  writeFileSync(join(features, "README.md"), "# Map\n");
+  writeFileSync(join(features, "create-note.md"), "# Create a note\n\n## Sub-features\n\n- `create-open` opens.\n- `create-save` saves.\n\n## How to get to it (user view)\n\n- `n` key\n");
+  writeFileSync(join(features, "search.md"), "# Search\n\n## Sub-features\n\n- `search-match` finds.\n");
+  const dir = startRun(root, "web");
+  touch(dir, "a.png", "b.png");
+  addStep(dir, { kind: "health", ok: true });
+  addStep(dir, { kind: "drive", feature: "create-save", trigger: "a.png", end: "b.png", sideEffects: "none: test", ok: true });
+  addStep(dir, { kind: "drive", feature: "search/search-match", trigger: "a.png", end: "b.png", sideEffects: "none: test", ok: true });
+  assert.deepEqual(checkRun(dir, { cover: features }).coverage, { covered: 2, total: 2 });
+  const dir2 = startRun(root, "web");
+  touch(dir2, "a.png", "b.png");
+  addStep(dir2, { kind: "health", ok: true });
+  addStep(dir2, { kind: "drive", feature: "n", trigger: "a.png", end: "b.png", sideEffects: "none: test", ok: true });
+  assert.deepEqual(checkRun(dir2, { cover: features }).coverage, { covered: 0, total: 2 }, "only IDs from the Sub-features section count");
+});
+
+test("verified live is refused when any read-back failed, even if a later one passed", () => {
+  const dir = startRun(repo(), "web");
+  touch(dir, "a.png", "b.png", "r.txt");
+  addStep(dir, { kind: "start", ok: true });
+  addStep(dir, { kind: "health", ok: true });
+  addStep(dir, { kind: "drive", feature: "play", trigger: "a.png", end: "b.png", ok: true });
+  addStep(dir, { kind: "readback", feature: "play", artifacts: ["r.txt"], ok: false, note: "served bytes match no stored file" });
+  addStep(dir, { kind: "readback", feature: "play", artifacts: ["r.txt"], ok: true });
+  addStep(dir, { kind: "cleanup", ok: true });
+  assert.throws(() => finishRun(dir, "verified live"), /failed drive or read-back/);
+});
+
+test("a read-back of another feature, or one taken before the drive, does not count", () => {
+  const other = startRun(repo(), "web");
+  touch(other, "a.png", "b.png");
+  addStep(other, { kind: "health", ok: true });
+  addStep(other, { kind: "drive", feature: "save", trigger: "a.png", end: "b.png", ok: true });
+  addStep(other, { kind: "readback", feature: "search", ok: true });
+  assert.match(checkRun(other).problems.join("\n"), /drove save but nothing read back/);
+  const before = startRun(repo(), "web");
+  touch(before, "a.png", "b.png");
+  addStep(before, { kind: "health", ok: true });
+  addStep(before, { kind: "readback", feature: "save", ok: true });
+  addStep(before, { kind: "drive", feature: "save", trigger: "a.png", end: "b.png", ok: true });
+  assert.match(checkRun(before).problems.join("\n"), /drove save but nothing read back/);
+});
+
+test("a full run that was never finished is held", () => {
+  const root = repo();
+  const dir = goodRun(root);
+  assert.match(checkRun(dir, { fullRun: true }).problems.join("\n"), /no final status/);
+});
