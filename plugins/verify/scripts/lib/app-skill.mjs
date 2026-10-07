@@ -3,6 +3,8 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, basename } from "node:path";
 import { proseLines } from "./markdown.mjs";
+import { checkFlowFile } from "./maestro.mjs";
+import { checkPlaywrightFile } from "./playwright.mjs";
 
 const SECTIONS = ["Start", "Health check", "Drive", "Evidence", "Clean up", "Helpers", "Feature map"];
 const FEATURE_SECTIONS = ["Sub-features", "How to get to it", "Driving it", "Gotchas"];
@@ -93,6 +95,32 @@ export function checkRepoSettings(repoRoot) {
   return out;
 }
 
+const isYaml = (p) => /\.ya?ml$/.test(p);
+
+export function checkReplays(f, repoRoot) {
+  const findings = [];
+  let count = 0;
+  if (f.surface === "expo" && f.expo?.appConfig && existsSync(join(repoRoot, f.expo.appConfig))) {
+    const cfgFile = join(repoRoot, f.expo.appConfig);
+    const cfg = JSON.parse(readFileSync(cfgFile, "utf8")).expo ?? {};
+    const ids = [cfg.ios?.bundleIdentifier, cfg.android?.package].filter(Boolean);
+    if (ids.length && !ids.every((id) => id === f.expo.appId)) {
+      findings.push(appHold(cfgFile, 0, `facts.json says the app ID is "${f.expo.appId}", but ${f.expo.appConfig} says ${ids.map((i) => `"${i}"`).join(" and ")}.`));
+    }
+    for (const file of (f.expo.flows ? walk(join(repoRoot, f.expo.flows)) : []).filter(isYaml)) {
+      count++;
+      findings.push(...checkFlowFile(file, f.expo.appId, f.expo.appConfig));
+    }
+  }
+  for (const r of f.replays ?? []) {
+    const p = join(repoRoot, r);
+    if (!existsSync(p)) continue;
+    count++;
+    findings.push(...(isYaml(p) ? checkFlowFile(p, f.expo?.appId, f.expo?.appConfig) : checkPlaywrightFile(p)));
+  }
+  return { findings, count };
+}
+
 export function checkAppSkill(skillDir, repoRoot) {
   const findings = [];
   const folder = basename(skillDir);
@@ -105,10 +133,12 @@ export function checkAppSkill(skillDir, repoRoot) {
   if (!fm || !/^description: \S/m.test(fm[1])) findings.push(appHold(skillFile, 1, "The frontmatter needs a description naming the app, its surface and when to use the skill."));
   const h2 = proseLines(raw).filter((l) => /^## /.test(l.text)).map((l) => l.text.slice(3).trim());
   for (const s of SECTIONS) if (!h2.includes(s)) findings.push(appHold(skillFile, 0, `SKILL.md has no "## ${s}" section.`));
-  const { findings: factFindings } = readFacts(skillDir, folder, repoRoot);
+  const { facts, findings: factFindings } = readFacts(skillDir, folder, repoRoot);
   findings.push(...factFindings);
+  const replays = facts ? checkReplays(facts, repoRoot) : { findings: [], count: 0 };
+  findings.push(...replays.findings);
   const map = checkFeatureMap(skillDir);
   findings.push(...map.findings);
   for (const f of walk(skillDir).filter((p) => p.endsWith(".md"))) findings.push(...checkPositions(f));
-  return { findings, features: map.count, flows: 0 };
+  return { findings, features: map.count, flows: replays.count };
 }
