@@ -1,0 +1,35 @@
+{
+  "pass": false,
+  "unclear_terms": [
+    "Codex",
+    "Opus agent",
+    "Karen",
+    "the AI form helper",
+    "askZip",
+    "updateLegalContent",
+    "admin/migrations/zipFieldInBuilder.ts",
+    "the prototype",
+    "the new standard",
+    "the forms ZIP field spec (38 scenarios)",
+    "membership forms",
+    "form builder (as a specific product feature)",
+    "owner (which user role: business owner/customer of the product?)",
+    "security and compliance reviewer"
+  ],
+  "missing_context": [
+    "The spec of 38 scenarios is referenced but not shown; also unclear why there are 42 acceptance tests vs 38 scenarios in the spec",
+    "The prototype that was clicked through and removed is not described or linked",
+    "The 'new standard' requiring a screenshot of the real builder and public form is not explained",
+    "The two medium issues found by the security and compliance reviewer in the privacy sentence are not described",
+    "Owner approval on 2 October as a 'high-risk change' refers to an approval process that is not explained",
+    "How ZIP is used to time texts (e.g., time zone derivation) and what 'consent' rules apply are not explained",
+    "The one-time data migration: what exactly it converts, and the claim that production has no forms needing it, is not backed up",
+    "The workflow of agents writing tests before the build (separate agent, quota issue) assumes knowledge of the team's process",
+    "Which environment the 'Full local check' and live check refer to, and whether the live check has been done on the real builder is unclear",
+    "Details of the bug where dragging fields to reorder did not save the order are missing",
+    "Follow-ups are listed without owners, tickets or timing",
+    "Statement 'Easy to undo: mostly' is not explained: what part cannot be undone"
+  ],
+  "restatement": "The ZIP code question on signup forms is no longer a separate on/off switch but a normal optional field that owners add from the form builder; any valid ZIP customers enter is saved and used to time texts, and the privacy page mentions ZIP when an active form asks for it. The change was tested with 42 acceptance tests plus the full local suite and reviews, includes a not-yet-run migration for existing forms, and leaves the old askZip database field to be removed in a follow-up.",
+  "ask": "Nothing"
+}
