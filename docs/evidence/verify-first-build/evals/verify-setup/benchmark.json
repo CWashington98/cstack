@@ -1,0 +1,316 @@
+{
+  "metadata": {
+    "skill_name": "verify-setup",
+    "skill_path": "plugins/verify/skills/verify-setup",
+    "executor_model": "sonnet",
+    "grader_model": "sonnet",
+    "timestamp": "2026-10-07T14:07:59.277Z",
+    "evals_run": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "runs_per_configuration": 1,
+    "notes": "One agent ran all prompts for a configuration in turn; timing and tokens are for the whole set, not per prompt. Live steps (servers, simulators, Codex, GitHub) were described, not run."
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Reads package scripts, routes and existing tests before asking anything",
+          "passed": true,
+          "evidence": "Actions: read package.json files, app code, tests, .env.example; reply 'What I found by reading the repository first'"
+        },
+        {
+          "text": "Asks the owner at most once, in one batch",
+          "passed": true,
+          "evidence": "'The questions I would ask you in one batch' listed once; AskUserQuestion not called"
+        },
+        {
+          "text": "Writes facts.json, a SKILL.md with the seven sections, and a feature map with three to five features",
+          "passed": true,
+          "evidence": "Wrote facts.json, SKILL.md with seven sections, three features (search users, invite a user, team settings)"
+        },
+        {
+          "text": "Runs check-app-skill.mjs on the new skill",
+          "passed": true,
+          "evidence": "check-app-skill.mjs run twice, exit 1 with one hold in users.spec.ts:5"
+        },
+        {
+          "text": "Does a full recorded run with evidence.mjs and checks it with --full-run",
+          "passed": false,
+          "evidence": "Run recorded as blocked; 'check --full-run --head HEAD -> exit 1 (no start/health/cleanup/drive steps)'; no full run done"
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Explains that a never-run skill is a draft, not a deliverable",
+          "passed": true,
+          "evidence": "'a skill that was never run is a draft, not a deliverable'"
+        },
+        {
+          "text": "Labels the skill a draft in the handover",
+          "passed": true,
+          "evidence": "Existing skill 'a draft at best'; 'Whatever I write or repair will be labeled \"DRAFT, never run\" in the handover'. No new skill written, so borderline"
+        },
+        {
+          "text": "Offers to run it end to end",
+          "passed": true,
+          "evidence": "'Say the word and I will run it' with start, health, drive, cleanup, --full-run listed"
+        }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Takes the app ID from app.json, not from the flows",
+          "passed": true,
+          "evidence": "'The app ID is com.example.mobile. I took it from apps/mobile/app.json'"
+        },
+        {
+          "text": "Reports each flow with the wrong app ID, using check-app-skill",
+          "passed": true,
+          "evidence": "check-app-skill holds: home.yaml:1 and record.yaml:1 target com.old.app"
+        },
+        {
+          "text": "Proposes fixing the test files in a separate commit, with the owner's agreement",
+          "passed": true,
+          "evidence": "'Proposed fix, as its own commit and only if you agree'"
+        },
+        {
+          "text": "Changes no product code",
+          "passed": true,
+          "evidence": "'confirmed the commit touches no files outside .claude/ and .gitignore'"
+        }
+      ]
+    },
+    {
+      "eval_id": 4,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 2,
+        "failed": 0,
+        "total": 2,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Does not overwrite the existing .claude/skills/verify-web/ folder",
+          "passed": true,
+          "evidence": "'I stopped and did not overwrite anything'; git status clean"
+        },
+        {
+          "text": "Offers verify-upkeep to update the existing skill",
+          "passed": true,
+          "evidence": "'Use the verify-upkeep skill instead... Want me to run verify-upkeep on it?'"
+        }
+      ]
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.4,
+        "passed": 2,
+        "failed": 3,
+        "total": 5,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Reads package scripts, routes and existing tests before asking anything",
+          "passed": true,
+          "evidence": "'I read the README, package scripts, .env.example, the three admin routes and the Playwright test'"
+        },
+        {
+          "text": "Asks the owner at most once, in one batch",
+          "passed": true,
+          "evidence": "One batch of three questions with assumed answers in the reply"
+        },
+        {
+          "text": "Writes facts.json, a SKILL.md with the seven sections, and a feature map with three to five features",
+          "passed": false,
+          "evidence": "Only SKILL.md written; no facts.json; seven sections not shown"
+        },
+        {
+          "text": "Runs check-app-skill.mjs on the new skill",
+          "passed": false,
+          "evidence": "Not mentioned in actions"
+        },
+        {
+          "text": "Does a full recorded run with evidence.mjs and checks it with --full-run",
+          "passed": false,
+          "evidence": "'any recorded run' listed under Not run"
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Explains that a never-run skill is a draft, not a deliverable",
+          "passed": true,
+          "evidence": "'a skill that has never been run is a draft; I cannot tell whether its commands work'"
+        },
+        {
+          "text": "Labels the skill a draft in the handover",
+          "passed": true,
+          "evidence": "'I labelled it DRAFT'"
+        },
+        {
+          "text": "Offers to run it end to end",
+          "passed": true,
+          "evidence": "'Want me to run the draft end to end'"
+        }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "failed": 1,
+        "total": 4,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Takes the app ID from app.json, not from the flows",
+          "passed": true,
+          "evidence": "'taken from apps/mobile/app.json... not from the flows'"
+        },
+        {
+          "text": "Reports each flow with the wrong app ID, using check-app-skill",
+          "passed": false,
+          "evidence": "Both flows reported but via grep, not check-app-skill"
+        },
+        {
+          "text": "Proposes fixing the test files in a separate commit, with the owner's agreement",
+          "passed": true,
+          "evidence": "'With your OK, I would fix both in a separate commit, test files only'"
+        },
+        {
+          "text": "Changes no product code",
+          "passed": true,
+          "evidence": "'No product code was changed'"
+        }
+      ]
+    },
+    {
+      "eval_id": 4,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.5,
+        "passed": 1,
+        "failed": 1,
+        "total": 2,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Does not overwrite the existing .claude/skills/verify-web/ folder",
+          "passed": true,
+          "evidence": "'I did not overwrite it'; no files written"
+        },
+        {
+          "text": "Offers verify-upkeep to update the existing skill",
+          "passed": false,
+          "evidence": "Suggests updating the existing skill but never names verify-upkeep"
+        }
+      ]
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 0.95,
+        "stddev": 0.087,
+        "min": 0.8,
+        "max": 1
+      },
+      "expectations_passed": 13,
+      "expectations_total": 14,
+      "set_tokens": 114305,
+      "set_duration_seconds": 206.6
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.662,
+        "stddev": 0.233,
+        "min": 0.4,
+        "max": 1
+      },
+      "expectations_passed": 9,
+      "expectations_total": 14,
+      "set_tokens": 76981,
+      "set_duration_seconds": 75.9
+    },
+    "delta": {
+      "pass_rate": "+0.29"
+    }
+  }
+}

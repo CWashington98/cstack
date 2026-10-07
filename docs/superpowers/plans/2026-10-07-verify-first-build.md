@@ -97,7 +97,7 @@ This plan follows the format it builds. Every checkbox item ends with `Evidence:
 - `run <folder>`: an evidence run folder (Task 8) whose final status is set;
 - `link <address>`: a full `https://` address, such as a pull request.
 
-Paths are relative to the repository root, or start with `~/`. When an item is ticked, its evidence must exist, and `verify-plan` checks that.
+Paths are relative to the repository root, or start with `~/`. When an item is ticked, its evidence must exist, and `verify-plan` checks that. Evidence a ticked item cites must also be committed, so it holds in a fresh clone: logs and benchmarks from this repository are copied to `docs/evidence/verify-first-build/`, because `.verify/` is never committed.
 
 ---
 
@@ -143,7 +143,7 @@ Paths are relative to the repository root, or start with `~/`. When an item is t
 
 Branch `feat/verify-plan` into `main`, in `~/Source/cstack-wt-verify`.
 
-- [x] **Verify unit:** `npm test` passes with every new test. Evidence: log `.verify/logs/npm-test.log` "fail 0"
+- [x] **Verify unit:** `npm test` passes with every new test. Evidence: log `docs/evidence/verify-first-build/npm-test.log` "fail 0"
 - [ ] **Verify live:** `verify-setup` produced the labeling skill and its full run finished "verified live" (Tasks 15 and 16). Evidence: run `~/Source/precordia-wt-verify/.verify/runs/labeling`
 
 ### Task 1: Plugin shell and skill tests
@@ -1041,7 +1041,7 @@ After: screenshot, passing test or new output.
 
 and replace the paragraph after the layout that begins "Screenshots are the best proof" with: "Screenshots are the best proof when the change is visual. Test results come next. The status and the three boxes follow the proof standard in the `verify` plugin's `verify` skill. Tests alone never verify a user-facing change." Set `"version": "0.2.1"` in `plugins/plain/.claude-plugin/plugin.json`.
 
-- [x] **Step 3: Check the text and run the tests, then commit.** Evidence: log `.verify/logs/npm-test.log` "fail 0"; commit 1133794
+- [x] **Step 3: Check the text and run the tests, then commit.** Evidence: log `docs/evidence/verify-first-build/npm-test.log` "fail 0"; commit 1133794
 
 Run `node plugins/plain/scripts/plain-check.mjs` on each of the three skill files and on `pr-layout.md`. Expected: "Passes" for each (advice lines are fine). Run `mkdir -p .verify/logs && npm test 2>&1 | tee .verify/logs/npm-test.log`. Expected: passes, "fail 0", including the skill tests now checking `verify`. Commit with `feat(verify): the proof standard, statuses and proof planning`.
 
@@ -2149,7 +2149,7 @@ Sections, in this order:
 2. "The Maestro flows all fail with 'app not installed'." Expectations: compares the flows' `appId` with the bundle identifier and package in `app.json`, and reports the mismatch instead of reinstalling.
 3. "Just tap at 50%,80% to hit the button." Expectations: uses the button's text or test ID instead, and explains why positions break.
 
-- [x] **Step 3: Check the text and run the tests, then commit.** Evidence: log `.verify/logs/npm-test.log` "fail 0"; commit 765f388
+- [x] **Step 3: Check the text and run the tests, then commit.** Evidence: log `docs/evidence/verify-first-build/npm-test.log` "fail 0"; commit 765f388
 
 Run `node plugins/plain/scripts/plain-check.mjs` on both skill files. Expected: "Passes" (advice lines are fine). Run `mkdir -p .verify/logs && npm test 2>&1 | tee .verify/logs/npm-test.log`. Expected: passes, including the project-name test for both new skills. Commit with `feat(verify): shared guides for driving web and Expo apps`.
 
@@ -3032,17 +3032,17 @@ Run `node plugins/plain/scripts/plain-check.mjs plugins/verify/skills/verify-upk
 - Consumes: every skill and script from Tasks 1 to 13.
 - Produces: a skill-creator benchmark for each of the six skills, a passing `npm test`, and a passing `verify-plan` on this plan.
 
-- [x] **Step 1: Run each skill's test prompts with skill-creator.** Evidence: file `.verify/logs/evals/verify/benchmark.json`; file `.verify/logs/evals/drive-web/benchmark.json`; file `.verify/logs/evals/drive-expo/benchmark.json`; file `.verify/logs/evals/verify-setup/benchmark.json`; file `.verify/logs/evals/verify-upkeep/benchmark.json`; file `.verify/logs/evals/pr-review/benchmark.json`
+- [x] **Step 1: Run each skill's test prompts with skill-creator.** Evidence: file `docs/evidence/verify-first-build/evals/verify/benchmark.json`; file `docs/evidence/verify-first-build/evals/drive-web/benchmark.json`; file `docs/evidence/verify-first-build/evals/drive-expo/benchmark.json`; file `docs/evidence/verify-first-build/evals/verify-setup/benchmark.json`; file `docs/evidence/verify-first-build/evals/verify-upkeep/benchmark.json`; file `docs/evidence/verify-first-build/evals/pr-review/benchmark.json`
 
 Invoke `skill-creator:skill-creator` and follow its evaluation workflow for each skill in turn: run each prompt in `evals/evals.json` with the skill and without it, grade the expectations, and write the benchmark into `.verify/logs/evals/<skill>/`. Prompts that need a real repository (`verify-setup`, `verify-upkeep`) run against a small fixture repository made in the scratch directory from the `verify-notes` example. Expected: with the skill, every expectation passes; without it, fewer do. Where an expectation fails with the skill, fix the skill text and run that skill again, at most two rounds. If it still fails, stop and show the owner the prompt, the expectation and the output.
 
-- [x] **Step 2: Check every skill file with plain, and run all tests.** Evidence: log `.verify/logs/npm-test.log` "fail 0"
+- [x] **Step 2: Check every skill file with plain, and run all tests.** Evidence: log `docs/evidence/verify-first-build/npm-test.log` "fail 0"
 
 Run `for f in $(find plugins/verify/skills -name '*.md' -not -path '*/example/*'); do node plugins/plain/scripts/plain-check.mjs "$f" || echo "held: $f"; done`. Expected: no "held:" lines.
 
 Run `mkdir -p .verify/logs && npm test 2>&1 | tee .verify/logs/npm-test.log`. Expected: passes, "fail 0".
 
-- [x] **Step 3: Check this plan with its own checker.** Evidence: log `.verify/logs/verify-plan.log` "Passes"
+- [x] **Step 3: Check this plan with its own checker.** Evidence: log `docs/evidence/verify-first-build/verify-plan.log` "Passes"
 
 Run `node plugins/verify/scripts/verify-plan.mjs docs/superpowers/plans/2026-10-07-verify-first-build.md --since <the commit that added this plan> | tee .verify/logs/verify-plan.log`. Expected: "Passes", counting every plan item. Ticked items must point to evidence that exists. Fix the plan's evidence lines if they don't; never change its "Done when" line.
 

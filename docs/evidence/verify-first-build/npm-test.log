@@ -1,0 +1,1232 @@
+
+> test
+> node --test "tests/*.test.mjs" "plugins/*/tests/*.test.mjs"
+
+TAP version 13
+# Subtest: profiles are the Claude config folders that have installed plugins, skipping backups
+ok 1 - profiles are the Claude config folders that have installed plugins, skipping backups
+  ---
+  duration_ms: 7.905042
+  type: 'test'
+  ...
+# Subtest: catalogs not refreshed for more than 14 days are flagged
+ok 2 - catalogs not refreshed for more than 14 days are flagged
+  ---
+  duration_ms: 0.163084
+  type: 'test'
+  ...
+# Subtest: installed plugins are compared with the catalog by version or pinned commit, and deprecated ones are flagged
+ok 3 - installed plugins are compared with the catalog by version or pinned commit, and deprecated ones are flagged
+  ---
+  duration_ms: 0.179125
+  type: 'test'
+  ...
+# Subtest: a project install at a different version from the main install is flagged, summarized per plugin
+ok 4 - a project install at a different version from the main install is flagged, summarized per plugin
+  ---
+  duration_ms: 0.402
+  type: 'test'
+  ...
+# Subtest: a pinned pointer is flagged only when the author changed the skills we picked
+ok 5 - a pinned pointer is flagged only when the author changed the skills we picked
+  ---
+  duration_ms: 0.284666
+  type: 'test'
+  ...
+# Subtest: skills copied into a repository that a plugin already provides are listed
+ok 6 - skills copied into a repository that a plugin already provides are listed
+  ---
+  duration_ms: 0.108792
+  type: 'test'
+  ...
+# Subtest: the report says plainly when everything is current
+ok 7 - the report says plainly when everything is current
+  ---
+  duration_ms: 1.654458
+  type: 'test'
+  ...
+# Subtest: the report gives a fix command for each problem
+ok 8 - the report gives a fix command for each problem
+  ---
+  duration_ms: 0.144458
+  type: 'test'
+  ...
+# Subtest: long lists of changed files are shortened
+ok 9 - long lists of changed files are shortened
+  ---
+  duration_ms: 0.21075
+  type: 'test'
+  ...
+# Subtest: the checker holds problem text with exit 1 and passes clean text with exit 0
+ok 10 - the checker holds problem text with exit 1 and passes clean text with exit 0
+  ---
+  duration_ms: 177.336625
+  type: 'test'
+  ...
+# Subtest: --json prints the findings for scripts
+ok 11 - --json prints the findings for scripts
+  ---
+  duration_ms: 88.421167
+  type: 'test'
+  ...
+# Subtest: the reader runs from an empty temporary folder with no settings, tools, skills or extra servers
+ok 12 - the reader runs from an empty temporary folder with no settings, tools, skills or extra servers
+  ---
+  duration_ms: 1.137458
+  type: 'test'
+  ...
+# Subtest: the reader's instructions are the cold-reader skill's own file
+ok 13 - the reader's instructions are the cold-reader skill's own file
+  ---
+  duration_ms: 0.249167
+  type: 'test'
+  ...
+# Subtest: the reader's instructions carry the calibration: what to report and what to leave out
+ok 14 - the reader's instructions carry the calibration: what to report and what to leave out
+  ---
+  duration_ms: 0.105125
+  type: 'test'
+  ...
+# Subtest: every verdict records the reader version that made it
+ok 15 - every verdict records the reader version that made it
+  ---
+  duration_ms: 0.571708
+  type: 'test'
+  ...
+# Subtest: unclear terms or missing context fail
+ok 16 - unclear terms or missing context fail
+  ---
+  duration_ms: 0.159
+  type: 'test'
+  ...
+# Subtest: output that isn't the expected JSON is an error, never a pass
+ok 17 - output that isn't the expected JSON is an error, never a pass
+  ---
+  duration_ms: 0.100625
+  type: 'test'
+  ...
+# Subtest: a failed reader run is an error, never a pass
+ok 18 - a failed reader run is an error, never a pass
+  ---
+  duration_ms: 0.400167
+  type: 'test'
+  ...
+# Subtest: live model calls run only when PLAIN_LIVE is exactly 1
+ok 19 - live model calls run only when PLAIN_LIVE is exactly 1
+  ---
+  duration_ms: 0.077375
+  type: 'test'
+  ...
+# Subtest: live probe: the reader knows nothing about our projects
+ok 20 - live probe: the reader knows nothing about our projects # SKIP
+  ---
+  duration_ms: 0.262542
+  type: 'test'
+  ...
+# Subtest: glossary terms and the words to avoid are read
+ok 21 - glossary terms and the words to avoid are read
+  ---
+  duration_ms: 1.681791
+  type: 'test'
+  ...
+# Subtest: a repository without plain settings has not opted in
+ok 22 - a repository without plain settings has not opted in
+  ---
+  duration_ms: 71.243458
+  type: 'test'
+  ...
+# Subtest: shared and personal settings merge, and personal values win
+ok 23 - shared and personal settings merge, and personal values win
+  ---
+  duration_ms: 51.11375
+  type: 'test'
+  ...
+# Subtest: a personal settings file alone is enough to opt in
+ok 24 - a personal settings file alone is enough to opt in
+  ---
+  duration_ms: 54.941084
+  type: 'test'
+  ...
+# Subtest: repositories without plain settings are never held
+ok 25 - repositories without plain settings are never held
+  ---
+  duration_ms: 90.73025
+  type: 'test'
+  ...
+# Subtest: inline pull request bodies are held with an instruction to use a file
+ok 26 - inline pull request bodies are held with an instruction to use a file
+  ---
+  duration_ms: 60.033792
+  type: 'test'
+  ...
+# Subtest: a body pulled in with $(cat file) or from standard input still counts as inline
+ok 27 - a body pulled in with $(cat file) or from standard input still counts as inline
+  ---
+  duration_ms: 73.14325
+  type: 'test'
+  ...
+# Subtest: a body file that fails the checker is held, and the problems are listed
+ok 28 - a body file that fails the checker is held, and the problems are listed
+  ---
+  duration_ms: 46.057917
+  type: 'test'
+  ...
+# Subtest: a clean body file needs a stamp, then goes ahead
+ok 29 - a clean body file needs a stamp, then goes ahead
+  ---
+  duration_ms: 123.376417
+  type: 'test'
+  ...
+# Subtest: a stamp made under an older cold reader version holds the post and says why
+ok 30 - a stamp made under an older cold reader version holds the post and says why
+  ---
+  duration_ms: 80.840834
+  type: 'test'
+  ...
+# Subtest: titles with planning codes are held
+ok 31 - titles with planning codes are held
+  ---
+  duration_ms: 83.603417
+  type: 'test'
+  ...
+# Subtest: issues and comments are checked the same way
+ok 32 - issues and comments are checked the same way
+  ---
+  duration_ms: 58.374209
+  type: 'test'
+  ...
+# Subtest: gh api: file bodies, inline bodies and JSON input are checked; reads are not
+ok 33 - gh api: file bodies, inline bodies and JSON input are checked; reads are not
+  ---
+  duration_ms: 78.638333
+  type: 'test'
+  ...
+# Subtest: Claude's usual heredoc commit message is read; codes in its first line are held
+ok 34 - Claude's usual heredoc commit message is read; codes in its first line are held
+  ---
+  duration_ms: 160.911375
+  type: 'test'
+  ...
+# Subtest: a spec file in a commit must pass and be stamped
+ok 35 - a spec file in a commit must pass and be stamped
+  ---
+  duration_ms: 221.282209
+  type: 'test'
+  ...
+# Subtest: an advice-only stamp lets a spec be committed, but never lets the same text go out as a post or page
+ok 36 - an advice-only stamp lets a spec be committed, but never lets the same text go out as a post or page
+  ---
+  duration_ms: 271.557959
+  type: 'test'
+  ...
+# Subtest: page publishes are checked; asset uploads are not
+ok 37 - page publishes are checked; asset uploads are not
+  ---
+  duration_ms: 34.003334
+  type: 'test'
+  ...
+# Subtest: an override with a reason goes ahead and is logged; without a reason it is held
+ok 38 - an override with a reason goes ahead and is logged; without a reason it is held
+  ---
+  duration_ms: 69.72325
+  type: 'test'
+  ...
+# Subtest: the hook holds with exit 2 and explains why on standard error
+ok 39 - the hook holds with exit 2 and explains why on standard error
+  ---
+  duration_ms: 60.588208
+  type: 'test'
+  ...
+# Subtest: unreadable hook input allows the action
+ok 40 - unreadable hook input allows the action
+  ---
+  duration_ms: 26.324167
+  type: 'test'
+  ...
+# Subtest: git add followed by git commit in one command checks the spec being added
+ok 41 - git add followed by git commit in one command checks the spec being added
+  ---
+  duration_ms: 182.034708
+  type: 'test'
+  ...
+# Subtest: commit -a and commit with paths include modified spec files; a plain commit does not
+ok 42 - commit -a and commit with paths include modified spec files; a plain commit does not
+  ---
+  duration_ms: 246.323208
+  type: 'test'
+  ...
+# Subtest: a leading cd and git -C are followed, even from a folder without plain settings
+ok 43 - a leading cd and git -C are followed, even from a folder without plain settings
+  ---
+  duration_ms: 101.039458
+  type: 'test'
+  ...
+# Subtest: a body file that can't be found is held
+ok 44 - a body file that can't be found is held
+  ---
+  duration_ms: 27.071167
+  type: 'test'
+  ...
+# Subtest: text sent through standard input is held, or read when it is a commit message
+ok 45 - text sent through standard input is held, or read when it is a commit message
+  ---
+  duration_ms: 131.526583
+  type: 'test'
+  ...
+# Subtest: the <<- heredoc form and $( in --body-file are handled
+ok 46 - the <<- heredoc form and $( in --body-file are handled
+  ---
+  duration_ms: 87.821167
+  type: 'test'
+  ...
+# Subtest: advice alone never holds a stamped post, and commit first lines ignore the other rules
+ok 47 - advice alone never holds a stamped post, and commit first lines ignore the other rules
+  ---
+  duration_ms: 114.8745
+  type: 'test'
+  ...
+# Subtest: an override without a reason is held even when the text would pass
+ok 48 - an override without a reason is held even when the text would pass
+  ---
+  duration_ms: 41.80075
+  type: 'test'
+  ...
+# Subtest: only page publishes are checked, not other page actions
+ok 49 - only page publishes are checked, not other page actions
+  ---
+  duration_ms: 29.012666
+  type: 'test'
+  ...
+# Subtest: plain settings that aren't valid JSON hold posts with a clear message, and leave other commands alone
+ok 50 - plain settings that aren't valid JSON hold posts with a clear message, and leave other commands alone
+  ---
+  duration_ms: 37.309667
+  type: 'test'
+  ...
+# Subtest: the scanned pull request style is held
+ok 51 - the scanned pull request style is held
+  ---
+  duration_ms: 2.165041
+  type: 'test'
+  ...
+# Subtest: an acronym spelled out at first use passes, and so do later uses
+ok 52 - an acronym spelled out at first use passes, and so do later uses
+  ---
+  duration_ms: 0.487917
+  type: 'test'
+  ...
+# Subtest: an acronym followed by its meaning passes
+ok 53 - an acronym followed by its meaning passes
+  ---
+  duration_ms: 0.361667
+  type: 'test'
+  ...
+# Subtest: an acronym explained only after its first use is held once
+ok 54 - an acronym explained only after its first use is held once
+  ---
+  duration_ms: 0.161292
+  type: 'test'
+  ...
+# Subtest: common words, glossary terms and plurals pass
+ok 55 - common words, glossary terms and plurals pass
+  ---
+  duration_ms: 0.190042
+  type: 'test'
+  ...
+# Subtest: never-publish words are held even when defined
+ok 56 - never-publish words are held even when defined
+  ---
+  duration_ms: 0.383042
+  type: 'test'
+  ...
+# Subtest: references to things the reader can't see are held
+ok 57 - references to things the reader can't see are held
+  ---
+  duration_ms: 0.173667
+  type: 'test'
+  ...
+# Subtest: sentences over 35 words are held, and 25 to 35 words get advice
+ok 58 - sentences over 35 words are held, and 25 to 35 words get advice
+  ---
+  duration_ms: 0.355875
+  type: 'test'
+  ...
+# Subtest: words the glossary says to avoid get advice
+ok 59 - words the glossary says to avoid get advice
+  ---
+  duration_ms: 0.428708
+  type: 'test'
+  ...
+# Subtest: filler words get advice
+ok 60 - filler words get advice
+  ---
+  duration_ms: 0.382167
+  type: 'test'
+  ...
+# Subtest: mixed case product names are not acronyms
+ok 61 - mixed case product names are not acronyms
+  ---
+  duration_ms: 0.140667
+  type: 'test'
+  ...
+# Subtest: a word that starts a multi-word glossary term passes inside that term
+ok 62 - a word that starts a multi-word glossary term passes inside that term
+  ---
+  duration_ms: 0.094125
+  type: 'test'
+  ...
+# Subtest: exactly 35 words is advice, not a hold, and exactly 25 words is advice
+ok 63 - exactly 35 words is advice, not a hold, and exactly 25 words is advice
+  ---
+  duration_ms: 0.19825
+  type: 'test'
+  ...
+# Subtest: each flag goes to the first label whose pattern matches, ignoring case; the rest are unlabeled
+ok 64 - each flag goes to the first label whose pattern matches, ignoring case; the rest are unlabeled
+  ---
+  duration_ms: 0.957708
+  type: 'test'
+  ...
+# Subtest: a case scores fair flags caught, noise flags raised, unlabeled flags, the restatement and the verdict
+ok 65 - a case scores fair flags caught, noise flags raised, unlabeled flags, the restatement and the verdict
+  ---
+  duration_ms: 0.418708
+  type: 'test'
+  ...
+# Subtest: a passing verdict on a text that should fail is counted as wrong, and a missing restatement is caught
+ok 66 - a passing verdict on a text that should fail is counted as wrong, and a missing restatement is caught
+  ---
+  duration_ms: 0.093042
+  type: 'test'
+  ...
+# Subtest: a reader that fails to run scores nothing and is reported as an error
+ok 67 - a reader that fails to run scores nothing and is reported as an error
+  ---
+  duration_ms: 0.123125
+  type: 'test'
+  ...
+# Subtest: the scorer reads each case's file through the reader and adds up the totals, with no model call
+ok 68 - the scorer reads each case's file through the reader and adds up the totals, with no model call
+  ---
+  duration_ms: 6.956
+  type: 'test'
+  ...
+# Subtest: the scorer can run only the cases named
+ok 69 - the scorer can run only the cases named
+  ---
+  duration_ms: 1.29125
+  type: 'test'
+  ...
+# Subtest: the table names every case and prints the totals
+ok 70 - the table names every case and prints the totals
+  ---
+  duration_ms: 0.37525
+  type: 'test'
+  ...
+# Subtest: the test set is well formed: skill-creator's fields, files that exist, unique ids, valid patterns
+ok 71 - the test set is well formed: skill-creator's fields, files that exist, unique ids, valid patterns
+  ---
+  duration_ms: 0.400708
+  type: 'test'
+  ...
+# Subtest: the labels match the flags the strict reader raised in first real use, the way the owner judged them
+ok 72 - the labels match the flags the strict reader raised in first real use, the way the owner judged them
+  ---
+  duration_ms: 2.92375
+  type: 'test'
+  ...
+# Subtest: without PLAIN_LIVE=1 the scorer refuses to call the model
+ok 73 - without PLAIN_LIVE=1 the scorer refuses to call the model
+  ---
+  duration_ms: 32.739375
+  type: 'test'
+  ...
+# Subtest: a stamp matches only the exact same text, and every worktree shares it
+ok 74 - a stamp matches only the exact same text, and every worktree shares it
+  ---
+  duration_ms: 280.299584
+  type: 'test'
+  ...
+# Subtest: outside git, stamps go to the cache folder
+ok 75 - outside git, stamps go to the cache folder
+  ---
+  duration_ms: 55.296584
+  type: 'test'
+  ...
+# Subtest: overrides are logged with their reason
+ok 76 - overrides are logged with their reason
+  ---
+  duration_ms: 61.067667
+  type: 'test'
+  ...
+# Subtest: the stamp command refuses text that fails the checker or the reader
+ok 77 - the stamp command refuses text that fails the checker or the reader
+  ---
+  duration_ms: 350.395875
+  type: 'test'
+  ...
+# Subtest: a stamp made by an older checker version no longer counts
+ok 78 - a stamp made by an older checker version no longer counts
+  ---
+  duration_ms: 54.00725
+  type: 'test'
+  ...
+# Subtest: a stamp made under an older reader version no longer counts
+ok 79 - a stamp made under an older reader version no longer counts
+  ---
+  duration_ms: 111.255375
+  type: 'test'
+  ...
+# Subtest: the stamp command refuses a verdict made by an older reader version
+ok 80 - the stamp command refuses a verdict made by an older reader version
+  ---
+  duration_ms: 124.825792
+  type: 'test'
+  ...
+# Subtest: for a spec or plan in a watched folder, the reader's flags are advice, but the reader must have run
+ok 81 - for a spec or plan in a watched folder, the reader's flags are advice, but the reader must have run
+  ---
+  duration_ms: 255.709542
+  type: 'test'
+  ...
+# Subtest: a stamp made under an older checker version no longer counts, even with the current reader version
+ok 82 - a stamp made under an older checker version no longer counts, even with the current reader version
+  ---
+  duration_ms: 61.655
+  type: 'test'
+  ...
+# Subtest: only files inside a watched folder count as specs or plans, not folders whose names start the same way
+ok 83 - only files inside a watched folder count as specs or plans, not folders whose names start the same way
+  ---
+  duration_ms: 48.457417
+  type: 'test'
+  ...
+# Subtest: an advice-only stamp is recorded as advice and doesn't count as a pass for a post
+ok 84 - an advice-only stamp is recorded as advice and doesn't count as a pass for a post
+  ---
+  duration_ms: 92.041083
+  type: 'test'
+  ...
+# Subtest: code, links and quoted lines are removed, and the line count is kept
+ok 85 - code, links and quoted lines are removed, and the line count is kept
+  ---
+  duration_ms: 0.919583
+  type: 'test'
+  ...
+# Subtest: file names and paths do not look like acronyms
+ok 86 - file names and paths do not look like acronyms
+  ---
+  duration_ms: 0.186583
+  type: 'test'
+  ...
+# Subtest: HTML pages lose styles, scripts and code, keep their text, and keep their line count
+ok 87 - HTML pages lose styles, scripts and code, keep their text, and keep their line count
+  ---
+  duration_ms: 0.642959
+  type: 'test'
+  ...
+# Subtest: prepare uses the HTML path only for .html files
+ok 88 - prepare uses the HTML path only for .html files
+  ---
+  duration_ms: 0.287458
+  type: 'test'
+  ...
+# Subtest: sentences are split and counted; list items, table cells and headings stand alone
+ok 89 - sentences are split and counted; list items, table cells and headings stand alone
+  ---
+  duration_ms: 0.695125
+  type: 'test'
+  ...
+# Subtest: Windows line endings are handled
+ok 90 - Windows line endings are handled
+  ---
+  duration_ms: 0.0625
+  type: 'test'
+  ...
+# Subtest: a sentence that starts in bold or italics is still a new sentence
+ok 91 - a sentence that starts in bold or italics is still a new sentence
+  ---
+  duration_ms: 0.120959
+  type: 'test'
+  ...
+# Subtest: sentences ending in a quote, or starting with a lowercase name, are still split
+ok 92 - sentences ending in a quote, or starting with a lowercase name, are still split
+  ---
+  duration_ms: 0.112833
+  type: 'test'
+  ...
+# Subtest: in HTML, table cells, list items and paragraphs count as separate pieces
+ok 93 - in HTML, table cells, list items and paragraphs count as separate pieces
+  ---
+  duration_ms: 0.3435
+  type: 'test'
+  ...
+# Subtest: a complete web app skill passes
+ok 94 - a complete web app skill passes
+  ---
+  duration_ms: 82.990541
+  type: 'test'
+  ...
+# Subtest: the frontmatter must name the folder
+ok 95 - the frontmatter must name the folder
+  ---
+  duration_ms: 43.881916
+  type: 'test'
+  ...
+# Subtest: a missing section is held
+ok 96 - a missing section is held
+  ---
+  duration_ms: 42.050125
+  type: 'test'
+  ...
+# Subtest: facts.json must be complete
+ok 97 - facts.json must be complete
+  ---
+  duration_ms: 160.345458
+  type: 'test'
+  ...
+# Subtest: the feature map index must match its files
+ok 98 - the feature map index must match its files
+  ---
+  duration_ms: 76.593458
+  type: 'test'
+  ...
+# Subtest: a feature file needs its four sections in order, and short IDs
+ok 99 - a feature file needs its four sections in order, and short IDs
+  ---
+  duration_ms: 49.44625
+  type: 'test'
+  ...
+# Subtest: screen positions are held anywhere in the skill
+ok 100 - screen positions are held anywhere in the skill
+  ---
+  duration_ms: 25.440584
+  type: 'test'
+  ...
+# Subtest: the repository's verify settings must name the integration branch
+ok 101 - the repository's verify settings must name the integration branch
+  ---
+  duration_ms: 69.628
+  type: 'test'
+  ...
+# Subtest: the command exits 0 on a pass, 1 on a hold and 2 on a missing folder
+ok 102 - the command exits 0 on a pass, 1 on a hold and 2 on a missing folder
+  ---
+  duration_ms: 173.816875
+  type: 'test'
+  ...
+# Subtest: an Expo skill checks every flow against the real app ID
+ok 103 - an Expo skill checks every flow against the real app ID
+  ---
+  duration_ms: 86.665667
+  type: 'test'
+  ...
+# Subtest: facts.json's app ID must match app.json
+ok 104 - facts.json's app ID must match app.json
+  ---
+  duration_ms: 24.801166
+  type: 'test'
+  ...
+# Subtest: replays listed in facts.json are checked
+ok 105 - replays listed in facts.json are checked
+  ---
+  duration_ms: 24.59675
+  type: 'test'
+  ...
+# Subtest: a flows folder that is set but missing, or not a folder, is held
+ok 106 - a flows folder that is set but missing, or not a folder, is held
+  ---
+  duration_ms: 50.772167
+  type: 'test'
+  ...
+# Subtest: an app.config file is read for the app ID instead of crashing
+ok 107 - an app.config file is read for the app ID instead of crashing
+  ---
+  duration_ms: 104.610375
+  type: 'test'
+  ...
+# Subtest: a full run passes and can be finished as verified live
+ok 108 - a full run passes and can be finished as verified live
+  ---
+  duration_ms: 227.165
+  type: 'test'
+  ...
+# Subtest: a drive with no health check first is held
+ok 109 - a drive with no health check first is held
+  ---
+  duration_ms: 121.687667
+  type: 'test'
+  ...
+# Subtest: a drive after a failed step needs a new health check
+ok 110 - a drive after a failed step needs a new health check
+  ---
+  duration_ms: 110.031625
+  type: 'test'
+  ...
+# Subtest: a successful drive needs trigger and end-state evidence
+ok 111 - a successful drive needs trigger and end-state evidence
+  ---
+  duration_ms: 108.684833
+  type: 'test'
+  ...
+# Subtest: a drive that changes data needs a read-back, unless it says why not
+ok 112 - a drive that changes data needs a read-back, unless it says why not
+  ---
+  duration_ms: 230.334042
+  type: 'test'
+  ...
+# Subtest: a clean-up that deletes the evidence never passes
+ok 113 - a clean-up that deletes the evidence never passes
+  ---
+  duration_ms: 112.017167
+  type: 'test'
+  ...
+# Subtest: evidence from uncommitted changes or another commit is stale
+ok 114 - evidence from uncommitted changes or another commit is stale
+  ---
+  duration_ms: 168.564792
+  type: 'test'
+  ...
+# Subtest: verified live is refused when the rules fail; blocked is always allowed
+ok 115 - verified live is refused when the rules fail; blocked is always allowed
+  ---
+  duration_ms: 183.958166
+  type: 'test'
+  ...
+# Subtest: coverage counts every feature in the map, driven or reported unreachable
+ok 116 - coverage counts every feature in the map, driven or reported unreachable
+  ---
+  duration_ms: 87.491875
+  type: 'test'
+  ...
+# Subtest: the command records a run end to end
+ok 117 - the command records a run end to end
+  ---
+  duration_ms: 337.995292
+  type: 'test'
+  ...
+# Subtest: a finished run is final: no new status and no new steps
+ok 118 - a finished run is final: no new status and no new steps
+  ---
+  duration_ms: 90.63025
+  type: 'test'
+  ...
+# Subtest: untracked files make the run dirty; the evidence folder does not
+ok 119 - untracked files make the run dirty; the evidence folder does not
+  ---
+  duration_ms: 135.044584
+  type: 'test'
+  ...
+# Subtest: coverage counts a feature driven by one of its sub-feature IDs
+ok 120 - coverage counts a feature driven by one of its sub-feature IDs
+  ---
+  duration_ms: 99.028833
+  type: 'test'
+  ...
+# Subtest: verified live is refused when any read-back failed, even if a later one passed
+ok 121 - verified live is refused when any read-back failed, even if a later one passed
+  ---
+  duration_ms: 73.937167
+  type: 'test'
+  ...
+# Subtest: a read-back of another feature, or one taken before the drive, does not count
+ok 122 - a read-back of another feature, or one taken before the drive, does not count
+  ---
+  duration_ms: 140.040417
+  type: 'test'
+  ...
+# Subtest: a full run that was never finished is held
+ok 123 - a full run that was never finished is held
+  ---
+  duration_ms: 84.750958
+  type: 'test'
+  ...
+# Subtest: parseFlow reads the app ID and top-level commands with line numbers
+ok 124 - parseFlow reads the app ID and top-level commands with line numbers
+  ---
+  duration_ms: 0.966541
+  type: 'test'
+  ...
+# Subtest: a flow that acts and then checks the end state passes
+ok 125 - a flow that acts and then checks the end state passes
+  ---
+  duration_ms: 78.907208
+  type: 'test'
+  ...
+# Subtest: a flow targeting the wrong app ID is held, naming both IDs
+ok 126 - a flow targeting the wrong app ID is held, naming both IDs
+  ---
+  duration_ms: 43.103208
+  type: 'test'
+  ...
+# Subtest: a flow that never acts is held
+ok 127 - a flow that never acts is held
+  ---
+  duration_ms: 43.459167
+  type: 'test'
+  ...
+# Subtest: a flow that acts but checks nothing afterwards is held
+ok 128 - a flow that acts but checks nothing afterwards is held
+  ---
+  duration_ms: 41.124667
+  type: 'test'
+  ...
+# Subtest: tapping a screen position is held
+ok 129 - tapping a screen position is held
+  ---
+  duration_ms: 30.124625
+  type: 'test'
+  ...
+# Subtest: no false holds: subflows, templated IDs, runFlow last, and the workspace config
+ok 130 - no false holds: subflows, templated IDs, runFlow last, and the workspace config
+  ---
+  duration_ms: 135.53375
+  type: 'test'
+  ...
+# Subtest: browser tests: fixed pauses and position clicks are held, comments are not
+ok 131 - browser tests: fixed pauses and position clicks are held, comments are not
+  ---
+  duration_ms: 24.167666
+  type: 'test'
+  ...
+# Subtest: bodies that equal a stored file match
+ok 132 - bodies that equal a stored file match
+  ---
+  duration_ms: 1.183
+  type: 'test'
+  ...
+# Subtest: a body that matches no stored file fails
+ok 133 - a body that matches no stored file fails
+  ---
+  duration_ms: 0.575625
+  type: 'test'
+  ...
+# Subtest: an empty body or an empty comparison fails rather than passes
+ok 134 - an empty body or an empty comparison fails rather than passes
+  ---
+  duration_ms: 0.422667
+  type: 'test'
+  ...
+# Subtest: fingerprints computed in the browser can be compared directly
+ok 135 - fingerprints computed in the browser can be compared directly
+  ---
+  duration_ms: 0.23075
+  type: 'test'
+  ...
+# Subtest: a scenario with a full Proved by line passes
+ok 136 - a scenario with a full Proved by line passes
+  ---
+  duration_ms: 78.307417
+  type: 'test'
+  ...
+# Subtest: flags a scenario with no Proved by line
+ok 137 - flags a scenario with no Proved by line
+  ---
+  duration_ms: 41.826792
+  type: 'test'
+  ...
+# Subtest: flags a Proved by line with no evidence or no pass condition
+ok 138 - flags a Proved by line with no evidence or no pass condition
+  ---
+  duration_ms: 40.467708
+  type: 'test'
+  ...
+# Subtest: a Proved by line under the next scenario does not count for this one
+ok 139 - a Proved by line under the next scenario does not count for this one
+  ---
+  duration_ms: 33.369333
+  type: 'test'
+  ...
+# Subtest: lines inside fenced code are ignored, including four-backtick fences around three-backtick ones
+ok 140 - lines inside fenced code are ignored, including four-backtick fences around three-backtick ones
+  ---
+  duration_ms: 27.130125
+  type: 'test'
+  ...
+# Subtest: Windows line endings are read the same way
+ok 141 - Windows line endings are read the same way
+  ---
+  duration_ms: 33.073084
+  type: 'test'
+  ...
+# Subtest: a file with nothing to check is held rather than passed
+ok 142 - a file with nothing to check is held rather than passed
+  ---
+  duration_ms: 25.830208
+  type: 'test'
+  ...
+# Subtest: parseArgs collects list options up to the next option, and repeated ones
+ok 143 - parseArgs collects list options up to the next option, and repeated ones
+  ---
+  duration_ms: 0.770916
+  type: 'test'
+  ...
+# Subtest: the command exits 0 on a pass, 1 on a hold and 2 on a missing file
+ok 144 - the command exits 0 on a pass, 1 on a hold and 2 on a missing file
+  ---
+  duration_ms: 150.759833
+  type: 'test'
+  ...
+# Subtest: flags a plan item that names no evidence
+ok 145 - flags a plan item that names no evidence
+  ---
+  duration_ms: 27.541167
+  type: 'test'
+  ...
+# Subtest: an unticked item may name evidence that does not exist yet
+ok 146 - an unticked item may name evidence that does not exist yet
+  ---
+  duration_ms: 23.337625
+  type: 'test'
+  ...
+# Subtest: a ticked plan item whose evidence file doesn't exist is held
+ok 147 - a ticked plan item whose evidence file doesn't exist is held
+  ---
+  duration_ms: 33.358875
+  type: 'test'
+  ...
+# Subtest: a ticked test item needs the file to contain the test name
+ok 148 - a ticked test item needs the file to contain the test name
+  ---
+  duration_ms: 26.727125
+  type: 'test'
+  ...
+# Subtest: a ticked commit item needs a commit ID that exists
+ok 149 - a ticked commit item needs a commit ID that exists
+  ---
+  duration_ms: 129.981334
+  type: 'test'
+  ...
+# Subtest: ticked screenshot, log, run and link items are checked
+ok 150 - ticked screenshot, log, run and link items are checked
+  ---
+  duration_ms: 24.372333
+  type: 'test'
+  ...
+# Subtest: evidence paths resolve from the repository root, and ~/ means the home folder
+ok 151 - evidence paths resolve from the repository root, and ~/ means the home folder
+  ---
+  duration_ms: 22.096917
+  type: 'test'
+  ...
+# Subtest: an unknown evidence kind is held
+ok 152 - an unknown evidence kind is held
+  ---
+  duration_ms: 31.641583
+  type: 'test'
+  ...
+# Subtest: checkbox examples inside fenced code are not plan items
+ok 153 - checkbox examples inside fenced code are not plan items
+  ---
+  duration_ms: 26.839584
+  type: 'test'
+  ...
+# Subtest: a plan with no proof boxes is held
+ok 154 - a plan with no proof boxes is held
+  ---
+  duration_ms: 26.025208
+  type: 'test'
+  ...
+# Subtest: each pull request section needs its own proof boxes
+ok 155 - each pull request section needs its own proof boxes
+  ---
+  duration_ms: 21.829334
+  type: 'test'
+  ...
+# Subtest: Verify live: none needs a reason
+ok 156 - Verify live: none needs a reason
+  ---
+  duration_ms: 21.829958
+  type: 'test'
+  ...
+# Subtest: a plan without a countable done condition is held
+ok 157 - a plan without a countable done condition is held
+  ---
+  duration_ms: 48.169916
+  type: 'test'
+  ...
+# Subtest: a done condition relaxed after work started is held
+ok 158 - a done condition relaxed after work started is held
+  ---
+  duration_ms: 134.93
+  type: 'test'
+  ...
+# Subtest: a spec with only scenarios needs no proof boxes or done line
+ok 159 - a spec with only scenarios needs no proof boxes or done line
+  ---
+  duration_ms: 23.078041
+  type: 'test'
+  ...
+# Subtest: a run that ended blocked or failed is never a pass
+ok 160 - a run that ended blocked or failed is never a pass
+  ---
+  duration_ms: 43.277209
+  type: 'test'
+  ...
+# Subtest: a ticked Verify live box needs a run that finished verified live
+ok 161 - a ticked Verify live box needs a run that finished verified live
+  ---
+  duration_ms: 43.070209
+  type: 'test'
+  ...
+# Subtest: a placeholder link with no path is not proof
+ok 162 - a placeholder link with no path is not proof
+  ---
+  duration_ms: 60.153083
+  type: 'test'
+  ...
+# Subtest: an unreadable --since ref is a usage error, not a missing plan
+ok 163 - an unreadable --since ref is a usage error, not a missing plan
+  ---
+  duration_ms: 186.27025
+  type: 'test'
+  ...
+# Subtest: a code block that is never closed is held, so it can't hide items
+ok 164 - a code block that is never closed is held, so it can't hide items
+  ---
+  duration_ms: 17.642709
+  type: 'test'
+  ...
+# Subtest: held item titles are cut at a word boundary, with an ellipsis
+ok 165 - held item titles are cut at a word boundary, with an ellipsis
+  ---
+  duration_ms: 16.606833
+  type: 'test'
+  ...
+# Subtest: prepare writes the change, the spec, the description and one copy per reviewer
+ok 166 - prepare writes the change, the spec, the description and one copy per reviewer
+  ---
+  duration_ms: 776.026667
+  type: 'test'
+  ...
+# Subtest: each copy holds the head code with the base as its only history, and no author messages
+ok 167 - each copy holds the head code with the base as its only history, and no author messages
+  ---
+  duration_ms: 472.514583
+  type: 'test'
+  ...
+# Subtest: prepare refuses to write into a folder that already has files
+ok 168 - prepare refuses to write into a folder that already has files
+  ---
+  duration_ms: 125.185333
+  type: 'test'
+  ...
+# Subtest: every skill has frontmatter naming its folder
+ok 169 - every skill has frontmatter naming its folder
+  ---
+  duration_ms: 1.42575
+  type: 'test'
+  ...
+# Subtest: every skill has test prompts in skill-creator's shape
+ok 170 - every skill has test prompts in skill-creator's shape
+  ---
+  duration_ms: 0.837167
+  type: 'test'
+  ...
+# Subtest: nothing in the plugin names a project
+ok 171 - nothing in the plugin names a project
+  ---
+  duration_ms: 3.646625
+  type: 'test'
+  ...
+# Subtest: the example app skill passes check-app-skill
+ok 172 - the example app skill passes check-app-skill
+  ---
+  duration_ms: 76.566708
+  type: 'test'
+  ...
+# Subtest: the Codex answer format is strict
+ok 173 - the Codex answer format is strict
+  ---
+  duration_ms: 0.522209
+  type: 'test'
+  ...
+# Subtest: the verify plugin ships exactly its six skills
+ok 174 - the verify plugin ships exactly its six skills
+  ---
+  duration_ms: 0.298333
+  type: 'test'
+  ...
+# Subtest: pr-review records each verdict against the reviewed commit from meta.json
+ok 175 - pr-review records each verdict against the reviewed commit from meta.json
+  ---
+  duration_ms: 0.310125
+  type: 'test'
+  ...
+# Subtest: both reviewers ready for the head commit passes
+ok 176 - both reviewers ready for the head commit passes
+  ---
+  duration_ms: 542.474083
+  type: 'test'
+  ...
+# Subtest: a missing reviewer fails
+ok 177 - a missing reviewer fails
+  ---
+  duration_ms: 334.674666
+  type: 'test'
+  ...
+# Subtest: a new commit clears the verdicts
+ok 178 - a new commit clears the verdicts
+  ---
+  duration_ms: 407.116583
+  type: 'test'
+  ...
+# Subtest: a rebase that keeps the change identical keeps the verdict
+ok 179 - a rebase that keeps the change identical keeps the verdict
+  ---
+  duration_ms: 430.046667
+  type: 'test'
+  ...
+# Subtest: a rebase that changes the change clears the verdict
+ok 180 - a rebase that changes the change clears the verdict
+  ---
+  duration_ms: 430.922209
+  type: 'test'
+  ...
+# Subtest: merging the base branch into the branch keeps the verdict
+ok 181 - merging the base branch into the branch keeps the verdict
+  ---
+  duration_ms: 394.512916
+  type: 'test'
+  ...
+# Subtest: every finding needs a reproduction result before the verdict is recorded
+ok 182 - every finding needs a reproduction result before the verdict is recorded
+  ---
+  duration_ms: 99.727042
+  type: 'test'
+  ...
+# Subtest: only reproduced blocking findings decide the verdict
+ok 183 - only reproduced blocking findings decide the verdict
+  ---
+  duration_ms: 0.083
+  type: 'test'
+  ...
+# Subtest: the validator's results are merged into the report by finding id
+ok 184 - the validator's results are merged into the report by finding id
+  ---
+  duration_ms: 0.259833
+  type: 'test'
+  ...
+# Subtest: when the reviewers disagree, the owner decides
+ok 185 - when the reviewers disagree, the owner decides
+  ---
+  duration_ms: 267.971375
+  type: 'test'
+  ...
+# Subtest: a fallback reviewer must say why Codex could not review
+ok 186 - a fallback reviewer must say why Codex could not review
+  ---
+  duration_ms: 279.614333
+  type: 'test'
+  ...
+# Subtest: the comment carries the commit, the change fingerprint and the dropped findings
+ok 187 - the comment carries the commit, the change fingerprint and the dropped findings
+  ---
+  duration_ms: 147.6315
+  type: 'test'
+  ...
+# Subtest: a verdict must name the reviewed commit by its full commit ID
+ok 188 - a verdict must name the reviewed commit by its full commit ID
+  ---
+  duration_ms: 85.554958
+  type: 'test'
+  ...
+# Subtest: a verdict written after a new commit still lands on the reviewed commit
+ok 189 - a verdict written after a new commit still lands on the reviewed commit
+  ---
+  duration_ms: 392.320417
+  type: 'test'
+  ...
+# Subtest: the write command takes the reviewed commit from meta.json and refuses a mismatch
+ok 190 - the write command takes the reviewed commit from meta.json and refuses a mismatch
+  ---
+  duration_ms: 347.699875
+  type: 'test'
+  ...
+# Subtest: a whitespace-only change to the change clears the verdict
+ok 191 - a whitespace-only change to the change clears the verdict
+  ---
+  duration_ms: 283.029542
+  type: 'test'
+  ...
+# Subtest: an exact fallback verdict for this commit wins over a carried Codex verdict
+ok 192 - an exact fallback verdict for this commit wins over a carried Codex verdict
+  ---
+  duration_ms: 469.108041
+  type: 'test'
+  ...
+# Subtest: the newest exact verdict for the commit wins
+ok 193 - the newest exact verdict for the commit wins
+  ---
+  duration_ms: 490.696291
+  type: 'test'
+  ...
+# Subtest: any not-ready verdict blocks, including two that agree
+ok 194 - any not-ready verdict blocks, including two that agree
+  ---
+  duration_ms: 307.879584
+  type: 'test'
+  ...
+# Subtest: every local plugin has a manifest with the same name
+ok 195 - every local plugin has a manifest with the same name
+  ---
+  duration_ms: 1.116292
+  type: 'test'
+  ...
+# Subtest: every outside plugin is pinned to an exact commit
+ok 196 - every outside plugin is pinned to an exact commit
+  ---
+  duration_ms: 0.337334
+  type: 'test'
+  ...
+# Subtest: pointers into part of someone else's repository list the skills they pick
+ok 197 - pointers into part of someone else's repository list the skills they pick
+  ---
+  duration_ms: 0.112625
+  type: 'test'
+  ...
+# Subtest: the plain plugin is listed
+ok 198 - the plain plugin is listed
+  ---
+  duration_ms: 0.192708
+  type: 'test'
+  ...
+# Subtest: a version in the marketplace matches the plugin's own manifest, and plain lists one
+ok 199 - a version in the marketplace matches the plugin's own manifest, and plain lists one
+  ---
+  duration_ms: 0.2665
+  type: 'test'
+  ...
+# Subtest: the core plugin ships only our own skills plus the web design guidelines
+ok 200 - the core plugin ships only our own skills plus the web design guidelines
+  ---
+  duration_ms: 0.45525
+  type: 'test'
+  ...
+# Subtest: the plain skill and its reference files exist
+ok 201 - the plain skill and its reference files exist
+  ---
+  duration_ms: 0.375125
+  type: 'test'
+  ...
+# Subtest: the verify plugin is listed
+ok 202 - the verify plugin is listed
+  ---
+  duration_ms: 0.062417
+  type: 'test'
+  ...
+# Subtest: ticked plan items in this repository cite committed evidence, never ignored files
+ok 203 - ticked plan items in this repository cite committed evidence, never ignored files
+  ---
+  duration_ms: 1136.914166
+  type: 'test'
+  ...
+1..203
+# tests 203
+# suites 0
+# pass 202
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 5767.78375

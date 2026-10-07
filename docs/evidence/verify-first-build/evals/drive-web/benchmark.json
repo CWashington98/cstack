@@ -1,0 +1,253 @@
+{
+  "metadata": {
+    "skill_name": "drive-web",
+    "skill_path": "plugins/verify/skills/drive-web",
+    "executor_model": "sonnet",
+    "grader_model": "sonnet",
+    "timestamp": "2026-10-07T14:07:59.276Z",
+    "evals_run": [
+      1,
+      2,
+      3
+    ],
+    "runs_per_configuration": 1,
+    "notes": "One agent ran all prompts for a configuration in turn; timing and tokens are for the whole set, not per prompt. Live steps (servers, simulators, Codex, GitHub) were described, not run."
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 5,
+        "failed": 0,
+        "total": 5,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Runs the health check before driving",
+          "passed": true,
+          "evidence": "Plan step 2 health check precedes step 3 drive"
+        },
+        {
+          "text": "Takes a screenshot before the action and another after the end state",
+          "passed": true,
+          "evidence": "create-save-before.png / create-save-after.png in plan"
+        },
+        {
+          "text": "Reads the saved value back from a second view, such as the backend's command line tool or a fresh page load",
+          "passed": true,
+          "evidence": "sqlite3 read-back plus reopen via All notes"
+        },
+        {
+          "text": "Never uses waitForTimeout or a fixed pause",
+          "passed": true,
+          "evidence": "wait for 'Note saved' status (no fixed pause)"
+        },
+        {
+          "text": "Records the steps with evidence.mjs",
+          "passed": true,
+          "evidence": "evidence.mjs start run; 'evidence.mjs add after each step'"
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Checks that the listening process's working folder is inside this checkout, for example with lsof",
+          "passed": true,
+          "evidence": "lsof -a -p <pid> -d cwd compared with repo root"
+        },
+        {
+          "text": "When it is not this checkout, refuses to drive it or starts its own server",
+          "passed": true,
+          "evidence": "refuse to drive and start own on 4173"
+        },
+        {
+          "text": "Does not stop a server this run did not start",
+          "passed": true,
+          "evidence": "'I will not stop a server I didn't start'"
+        }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Captures the response body or the downloaded file",
+          "passed": true,
+          "evidence": "CAPTURE saves response bodies to body-N.bin and download saved"
+        },
+        {
+          "text": "Compares it with the stored file using match-bytes.mjs",
+          "passed": true,
+          "evidence": "match-bytes.mjs --source ... --body ..."
+        },
+        {
+          "text": "Says a 200 status alone does not prove the file is right",
+          "passed": true,
+          "evidence": "A 200 response alone does not prove this"
+        }
+      ]
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.8,
+        "passed": 4,
+        "failed": 1,
+        "total": 5,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Runs the health check before driving",
+          "passed": true,
+          "evidence": "Plan step 2 health check before drive"
+        },
+        {
+          "text": "Takes a screenshot before the action and another after the end state",
+          "passed": true,
+          "evidence": "screenshot before and after in plan"
+        },
+        {
+          "text": "Reads the saved value back from a second view, such as the backend's command line tool or a fresh page load",
+          "passed": true,
+          "evidence": "sqlite3 read-back then reload"
+        },
+        {
+          "text": "Never uses waitForTimeout or a fixed pause",
+          "passed": true,
+          "evidence": "'no fixed sleeps'"
+        },
+        {
+          "text": "Records the steps with evidence.mjs",
+          "passed": false,
+          "evidence": "No evidence.mjs mentioned; plan saved nowhere"
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 3,
+        "failed": 0,
+        "total": 3,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Checks that the listening process's working folder is inside this checkout, for example with lsof",
+          "passed": true,
+          "evidence": "lsof -a -p <pid> -d cwd, drive only if inside checkout"
+        },
+        {
+          "text": "When it is not this checkout, refuses to drive it or starts its own server",
+          "passed": true,
+          "evidence": "'Otherwise I won't drive it... start my own copy'"
+        },
+        {
+          "text": "Does not stop a server this run did not start",
+          "passed": true,
+          "evidence": "won't kill it since I didn't start it"
+        }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.667,
+        "passed": 2,
+        "failed": 1,
+        "total": 3,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Captures the response body or the downloaded file",
+          "passed": true,
+          "evidence": "download.saveAs and waitForResponse"
+        },
+        {
+          "text": "Compares it with the stored file using match-bytes.mjs",
+          "passed": false,
+          "evidence": "Uses cmp/shasum, not match-bytes.mjs"
+        },
+        {
+          "text": "Says a 200 status alone does not prove the file is right",
+          "passed": true,
+          "evidence": "a 200 status alone would not prove it"
+        }
+      ]
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0,
+        "min": 1,
+        "max": 1
+      },
+      "expectations_passed": 11,
+      "expectations_total": 11,
+      "set_tokens": 80919,
+      "set_duration_seconds": 84.5
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.822,
+        "stddev": 0.137,
+        "min": 0.6666666666666666,
+        "max": 1
+      },
+      "expectations_passed": 9,
+      "expectations_total": 11,
+      "set_tokens": 73145,
+      "set_duration_seconds": 65.3
+    },
+    "delta": {
+      "pass_rate": "+0.18"
+    }
+  }
+}

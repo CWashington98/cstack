@@ -1,0 +1,336 @@
+{
+  "metadata": {
+    "skill_name": "verify",
+    "skill_path": "plugins/verify/skills/verify",
+    "executor_model": "sonnet",
+    "grader_model": "sonnet",
+    "timestamp": "2026-10-07T14:07:59.275Z",
+    "evals_run": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "runs_per_configuration": 1,
+    "notes": "One agent ran all prompts for a configuration in turn; timing and tokens are for the whole set, not per prompt. Live steps (servers, simulators, Codex, GitHub) were described, not run."
+  },
+  "runs": [
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Adds a line starting 'Proved by:' under the scenario",
+          "passed": true,
+          "evidence": "Spec has '- Proved by: live in the reports app...'"
+        },
+        {
+          "text": "The line contains 'evidence:' and 'pass when'",
+          "passed": true,
+          "evidence": "Line contains 'evidence:' and 'pass when'"
+        },
+        {
+          "text": "The pass condition is a property (the file has 3 data rows matching the reports), not an exact file name or fixed text",
+          "passed": true,
+          "evidence": "'exactly 3 data rows ... each row matches one of the user's 3 stored reports'"
+        },
+        {
+          "text": "Runs verify-plan.mjs on the file and reports that it passes",
+          "passed": true,
+          "evidence": "verify-plan.mjs exit 0, 'Passes: 1 scenario(s)'"
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Does not give the status 'verified live' or 'verified by tests'",
+          "passed": true,
+          "evidence": "Status given: 'type check only / blocked', not verified live"
+        },
+        {
+          "text": "Explains that tests alone never verify a user-facing change",
+          "passed": true,
+          "evidence": "'tests alone never verify it'"
+        },
+        {
+          "text": "Points to the app's verification skill, or to verify-setup if there is none",
+          "passed": true,
+          "evidence": "'.claude/skills/verify-<app>/ ... create one with verify-setup'"
+        },
+        {
+          "text": "Names the trigger (changing a field) and the end state (the button becomes enabled) the live check must show",
+          "passed": true,
+          "evidence": "trigger: changing a field; end state: save button becoming enabled"
+        }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Says the test does not prove playback works",
+          "passed": true,
+          "evidence": "'No. It does not prove playback works.'"
+        },
+        {
+          "text": "Cites the rule to test properties, not exact values",
+          "passed": true,
+          "evidence": "'rule 6 of the proof standard: test properties, not exact values'"
+        },
+        {
+          "text": "Proposes requesting what the page plays and comparing it with the stored file's bytes",
+          "passed": true,
+          "evidence": "'compare the response bytes with the stored file'"
+        },
+        {
+          "text": "Asks what would make the test fail, and answers that only changing the text would",
+          "passed": true,
+          "evidence": "'Only changing the text of the string would make it fail'"
+        }
+      ]
+    },
+    {
+      "eval_id": 4,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1,
+        "passed": 4,
+        "failed": 0,
+        "total": 4,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Does not edit the Done when line",
+          "passed": true,
+          "evidence": "'I haven't changed the Done when line'"
+        },
+        {
+          "text": "Explains that the done condition is never relaxed to declare victory",
+          "passed": true,
+          "evidence": "'never relaxed to declare victory'"
+        },
+        {
+          "text": "Mentions that verify-plan with --since would hold the change",
+          "passed": true,
+          "evidence": "'verify-plan.mjs <plan> --since ... holds a changed done condition'"
+        },
+        {
+          "text": "Offers to raise the decision to the owner",
+          "passed": true,
+          "evidence": "'Have the owner decide explicitly'; offers to draft note for owner"
+        }
+      ]
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.25,
+        "passed": 1,
+        "failed": 3,
+        "total": 4,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Adds a line starting 'Proved by:' under the scenario",
+          "passed": false,
+          "evidence": "Uses 'Acceptance check:' not 'Proved by:'"
+        },
+        {
+          "text": "The line contains 'evidence:' and 'pass when'",
+          "passed": false,
+          "evidence": "Uses 'Evidence:' and 'Passes when:'; no 'Proved by' line, literal 'pass when' absent"
+        },
+        {
+          "text": "The pass condition is a property (the file has 3 data rows matching the reports), not an exact file name or fixed text",
+          "passed": true,
+          "evidence": "Header plus 3 rows matched by id; not file name or header text"
+        },
+        {
+          "text": "Runs verify-plan.mjs on the file and reports that it passes",
+          "passed": false,
+          "evidence": "'I did not run any spec-checking script'"
+        }
+      ]
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "failed": 1,
+        "total": 4,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Does not give the status 'verified live' or 'verified by tests'",
+          "passed": true,
+          "evidence": "Says 'unit tests pass, not verified live'; no verified status given"
+        },
+        {
+          "text": "Explains that tests alone never verify a user-facing change",
+          "passed": true,
+          "evidence": "Refuses; user-facing change needs live check beyond unit tests"
+        },
+        {
+          "text": "Points to the app's verification skill, or to verify-setup if there is none",
+          "passed": false,
+          "evidence": "Only mentions 'an existing Playwright/Maestro flow'; no verification skill or verify-setup"
+        },
+        {
+          "text": "Names the trigger (changing a field) and the end state (the button becomes enabled) the live check must show",
+          "passed": true,
+          "evidence": "Open Settings, change a field, Save becomes enabled"
+        }
+      ]
+    },
+    {
+      "eval_id": 3,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "failed": 1,
+        "total": 4,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Says the test does not prove playback works",
+          "passed": true,
+          "evidence": "'No. It only proves the function returns that string.'"
+        },
+        {
+          "text": "Cites the rule to test properties, not exact values",
+          "passed": false,
+          "evidence": "No rule cited; only 'assert a property of the real result'"
+        },
+        {
+          "text": "Proposes requesting what the page plays and comparing it with the stored file's bytes",
+          "passed": true,
+          "evidence": "bytes equal the stored file's bytes"
+        },
+        {
+          "text": "Asks what would make the test fail, and answers that only changing the text would",
+          "passed": true,
+          "evidence": "'Only editing the string format. Nothing about playback.'"
+        }
+      ]
+    },
+    {
+      "eval_id": 4,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.75,
+        "passed": 3,
+        "failed": 1,
+        "total": 4,
+        "time_seconds": null,
+        "tokens": null,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "Does not edit the Done when line",
+          "passed": true,
+          "evidence": "'I left the plan file untouched.'"
+        },
+        {
+          "text": "Explains that the done condition is never relaxed to declare victory",
+          "passed": true,
+          "evidence": "'moving the goalposts'"
+        },
+        {
+          "text": "Mentions that verify-plan with --since would hold the change",
+          "passed": false,
+          "evidence": "No mention of verify-plan --since"
+        },
+        {
+          "text": "Offers to raise the decision to the owner",
+          "passed": true,
+          "evidence": "'the owner makes that call explicitly and we record it'"
+        }
+      ]
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1,
+        "stddev": 0,
+        "min": 1,
+        "max": 1
+      },
+      "expectations_passed": 16,
+      "expectations_total": 16,
+      "set_tokens": 73415,
+      "set_duration_seconds": 68.7
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.625,
+        "stddev": 0.217,
+        "min": 0.25,
+        "max": 0.75
+      },
+      "expectations_passed": 10,
+      "expectations_total": 16,
+      "set_tokens": 68113,
+      "set_duration_seconds": 54.9
+    },
+    "delta": {
+      "pass_rate": "+0.38"
+    }
+  }
+}
