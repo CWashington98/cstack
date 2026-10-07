@@ -137,3 +137,42 @@ test("checkbox examples inside fenced code are not plan items", () => {
   const r = check(plan("````markdown\n- [ ] **Step 1: example.**\n````\n" + item(false, "commit")));
   assert.equal(r.items, 3); // the two proof boxes and the one real item
 });
+
+test("a plan with no proof boxes is held", () => {
+  const r = check("**Done when:** all 2 tasks merged.\n" + item(false, "commit"));
+  assert.match(messages(r), /no "Verify unit" box/);
+  assert.match(messages(r), /no "Verify live" box/);
+});
+
+test("each pull request section needs its own proof boxes", () => {
+  const raw = [
+    "**Done when:** all 2 pull requests merged.", "",
+    "## Pull request 1: backend", DONE.split("\n").slice(1).join("\n"), item(false, "commit"),
+    "## Pull request 2: screens", item(false, "commit"),
+  ].join("\n");
+  assert.match(messages(check(raw)), /Pull request section "Pull request 2: screens" has no "Verify unit" box/);
+});
+
+test("Verify live: none needs a reason", () => {
+  const raw = "**Done when:** all 1 tasks merged.\n- [ ] **Verify unit:** tests. Evidence: commit\n- [ ] **Verify live:** none. Evidence: commit\n";
+  assert.match(messages(check(raw)), /says none without a reason/);
+});
+
+test("a plan without a countable done condition is held", () => {
+  const body = DONE.split("\n").slice(1).join("\n") + item(false, "commit");
+  assert.match(messages(check(body)), /has no "Done when:" line/);
+  assert.match(messages(check("**Done when:** everything works.\n" + body)), /has no count/);
+});
+
+test("a done condition relaxed after work started is held", () => {
+  const root = makeRepo({ "plan.md": plan(item(false, "commit")) });
+  git(root, "add", "."); git(root, "commit", "-qm", "plan");
+  const relaxed = plan(item(false, "commit")).replace("all 1 tasks merged", "most of the 1 tasks merged");
+  const r = checkFile(relaxed, { file: join(root, "plan.md"), root, since: "HEAD" });
+  assert.match(messages(r), /done condition changed since HEAD/);
+  assert.equal(checkFile(plan(item(false, "commit")), { file: join(root, "plan.md"), root, since: "HEAD" }).held, false);
+});
+
+test("a spec with only scenarios needs no proof boxes or done line", () => {
+  assert.equal(check(GOOD_SCENARIO).held, false);
+});
