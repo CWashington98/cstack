@@ -73,6 +73,7 @@ In precordia's labeling app, every audio request failed, and the player quietly 
 - Never put patient data in evidence: use IDs and counts. Seeded demo data and synthetic recordings only.
 - Commit after each task, and commit each failing test before its fix. Every commit message ends with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 - Push and open pull requests only in Task 20, as drafts. The owner marks them ready.
+- Nothing here waits on GitHub Actions in precordia, which is not running at the moment because of a billing failure. Every check runs locally, and the dev backend is deployed by hand from the command line when a run needs it.
 - Use `gh api` (GitHub's API) to open pull requests and post comments. `gh pr create` and `gh pr edit` fail in precordia because of a retired GitHub Projects feature.
 
 ## Review focus
