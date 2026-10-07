@@ -210,3 +210,38 @@ test("any not-ready verdict blocks, including two that agree", () => {
   assert.equal(r.ok, false);
   assert.match(r.problems.join(), /not ready/);
 });
+
+test("an exact verdict for this commit beats a newer one carried from an identical change", () => {
+  const root = branchRepo();
+  const before = sha(root);
+  rebaseOntoNewMain(root);
+  const t = (s) => new Date(Date.UTC(2026, 0, 1, 0, 0, s));
+  writeVerdict(root, { reviewer: "karen", report: { ...NOT_READY, findings: [finding({ id: "karen-1" })] }, head: sha(root), base: "main", now: t(1) });
+  writeVerdict(root, { reviewer: "karen", report: READY, head: before, base: "main", now: t(2) });
+  writeVerdict(root, { reviewer: "codex", report: READY, head: sha(root), base: "main" });
+  const r = checkVerdicts(root, { base: "main" });
+  assert.equal(r.karen.head, sha(root));
+  assert.equal(r.karen.carriedFrom, undefined);
+  assert.equal(r.ok, false);
+});
+
+test("write refuses a meta.json whose change is not the one at that commit", () => {
+  const root = branchRepo();
+  const meta = prepare({ repo: root, base: "main", copies: [], out: join(mkdtempSync(join(tmpdir(), "review-")), "r") });
+  assert.throws(() => writeVerdict(root, { reviewer: "karen", report: READY, head: meta.head, base: "main", meta: { ...meta, patchId: "0".repeat(40) } }), /does not match the reviewed change/);
+});
+
+test("the write command names a --head or --base that is not the reviewed one", () => {
+  const root = branchRepo();
+  const out = join(mkdtempSync(join(tmpdir(), "review-")), "r");
+  prepare({ repo: root, base: "main", copies: [], out });
+  writeFileSync(join(root, "report.json"), JSON.stringify(READY));
+  git(root, "branch", "other", "main");
+  const run = (...a) => spawnSync("node", [script, "write", "--reviewer", "karen", "--report", "report.json", "--meta", join(out, "meta.json"), ...a], { cwd: root, encoding: "utf8" });
+  const head = run("--head", "main");
+  assert.equal(head.status, 2);
+  assert.match(head.stderr, /--head main is not the reviewed commit/);
+  const base = run("--base", "other");
+  assert.equal(base.status, 2);
+  assert.match(base.stderr, /--base other is not the reviewed base main/);
+});

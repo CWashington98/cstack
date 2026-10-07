@@ -221,3 +221,24 @@ test("a sub-feature ID listed by two feature files covers neither until the file
   assert.match(bare.problems.join("\n"), /"save" is listed by more than one feature file \(notes, settings\)\. Record it as notes\/save or settings\/save/);
   assert.deepEqual(drive("notes/save").coverage, { covered: 1, total: 2 });
 });
+
+test("a failed drive does not count toward coverage", () => {
+  const root = repo();
+  const features = join(root, "features");
+  mkdirSync(features);
+  touch(features, "README.md", "search.md");
+  const dir = startRun(root, "web");
+  addStep(dir, { kind: "health", ok: true });
+  addStep(dir, { kind: "drive", feature: "search", ok: false, note: "button missing" });
+  assert.deepEqual(checkRun(dir, { cover: features }).coverage, { covered: 0, total: 1 });
+});
+
+test("a full run with clean-up before the last drive is held", () => {
+  const dir = startRun(repo(), "web");
+  touch(dir, "a.png", "b.png");
+  addStep(dir, { kind: "start", ok: true });
+  addStep(dir, { kind: "health", ok: true });
+  addStep(dir, { kind: "cleanup", ok: true });
+  addStep(dir, { kind: "drive", feature: "view", trigger: "a.png", end: "b.png", sideEffects: "none: read only", ok: true });
+  assert.match(checkRun(dir, { fullRun: true }).problems.join("\n"), /clean-up ran before the last drive/);
+});

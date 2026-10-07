@@ -232,3 +232,16 @@ test("a proof link may end with a slash, as long as it has a real path", () => {
   assert.equal(check(plan(item(true, "link https://ci.example.com/runs/123/"))).held, false);
   assert.match(messages(check(plan(item(true, "link https://ci.example.com/")))), /full https:\/\/ address/);
 });
+
+test("a ticked Verify live box needs a run or a reason for none; tests alone never verify", () => {
+  const root = makeRepo({ "a.txt": "hi\n", "shot.png": "x" });
+  for (const ev of ['test a.txt "hi"', "screenshot shot.png", "file a.txt"]) {
+    assert.match(messages(check(liveBox(ev), root)), /"Verify live" box needs a run that finished "verified live", or "none: <reason>"/, ev);
+  }
+  const none = "**Done when:** all 1 tasks merged.\n- [ ] **Verify unit:** tests. Evidence: commit\n- [x] **Verify live:** none: no user-facing behavior. Evidence: file a.txt\n";
+  assert.equal(check(none, root).held, false);
+});
+
+test("an unfinished run is held for an ordinary ticked item", () => {
+  assert.match(messages(check(plan(item(true, "run runs")), runRepo(null))), /has no final status/);
+});
