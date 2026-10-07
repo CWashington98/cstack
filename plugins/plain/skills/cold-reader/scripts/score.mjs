@@ -44,7 +44,7 @@ export function scoreCase(evalCase, verdict) {
   const noise = evalCase.labels.filter((l) => l.verdict === "noise");
   const base = { name: evalCase.name, expectPass: evalCase.expect_pass, fairTotal: fair.length, noiseTotal: noise.length };
   if (verdict.error) {
-    return { ...base, error: verdict.error, pass: null, fairCaught: 0, fairMissed: fair.map((l) => l.label), noiseRaised: 0, noiseFlags: [], unlabeled: [], restatement: false, verdictRight: false };
+    return { ...base, error: verdict.error, pass: null, fairCaught: 0, fairMissed: fair.map((l) => l.label), noiseRaised: 0, noiseFlags: [], unlabeled: [], matched: {}, restatement: false, verdictRight: false };
   }
   const { byLabel, unlabeled } = assignFlags(evalCase.labels, [...verdict.unclear_terms, ...verdict.missing_context]);
   const fairMissed = fair.filter((l) => byLabel.get(l.label).length === 0).map((l) => l.label);
@@ -57,6 +57,7 @@ export function scoreCase(evalCase, verdict) {
     noiseRaised: noiseFlags.length,
     noiseFlags,
     unlabeled,
+    matched: Object.fromEntries([...byLabel].filter(([, flags]) => flags.length)),
     restatement: typeof verdict.restatement === "string" && verdict.restatement.trim().length > 0,
     verdictRight: verdict.pass === evalCase.expect_pass,
   };
@@ -64,7 +65,11 @@ export function scoreCase(evalCase, verdict) {
 
 export function scoreAll(evals, { run, model = "sonnet", only } = {}) {
   const chosen = only?.length ? evals.filter((e) => only.includes(e.name)) : evals;
-  const results = chosen.map((e) => scoreCase(e, coldRead(e.text, run ? { model, run } : { model })));
+  const results = chosen.map((e) => {
+    const verdict = coldRead(e.text, run ? { model, run } : { model });
+    const { unclear_terms, missing_context, restatement, ask } = verdict;
+    return { ...scoreCase(e, verdict), reader: { unclear_terms, missing_context, restatement, ask } };
+  });
   const sum = (key) => results.reduce((n, r) => n + r[key], 0);
   const totals = {
     cases: results.length,

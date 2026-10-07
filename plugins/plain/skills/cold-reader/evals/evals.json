@@ -41,7 +41,7 @@
         { "label": "whether the field will be removed later", "verdict": "noise", "match": ["removed later", "later need", "will be removed", "removed in the future"], "why": "Nice to know, not needed to follow this change." },
         { "label": "the new standard", "verdict": "fair", "match": ["new standard"], "why": "Mentioned without saying what it is." },
         { "label": "Crishon", "verdict": "fair", "match": ["crishon"], "why": "A person named with no role; say 'the product owner, Crishon'." },
-        { "label": "murmur probability versus confidence", "verdict": "fair", "match": ["murmur (probability|confidence)", "probability.*confidence", "confidence.*probability"], "why": "One clause on what each means would let a newcomer follow the change." },
+        { "label": "murmur probability versus confidence", "verdict": "fair", "match": ["\\bmurmur", "probability.*confidence", "confidence.*probability"], "why": "One clause on what each means would let a newcomer follow the change." },
         { "label": "Karen", "verdict": "noise", "match": ["karen"], "why": "Explained: our automated reviewer." },
         { "label": "the scoring service", "verdict": "noise", "match": ["scoring service"], "why": "Explained: the heart-sound scoring service." }
       ],
@@ -56,7 +56,7 @@
       "id": 3,
       "name": "smsmarketing-1630-rewrite",
       "prompt": "Cold-read the pull request description in evals/files/smsmarketing-1630-rewrite.md.",
-      "expected_output": "Fails. Flags 'owner' (business owner or someone else?), Codex and Opus, and how a ZIP code times texts. Does not flag Karen or the security reviewer, which the text explains, the code names in the technical detail section, or questions about follow-up owners and test counts.",
+      "expected_output": "Fails. Flags 'owner' (business owner or someone else?), Codex and Opus, the undefined 'new standard', and how a ZIP code times texts. Does not flag Karen or the security reviewer, which the text explains, the code names in the technical detail section, or questions about follow-up owners and test counts.",
       "files": ["evals/files/smsmarketing-1630-rewrite.md"],
       "kind": "pull request",
       "expect_pass": false,
@@ -66,6 +66,7 @@
         { "label": "why 42 tests for 38 scenarios", "verdict": "noise", "match": ["\\b42\\b", "\\b38\\b"], "why": "Nice to know, not needed to follow the change." },
         { "label": "the owner's approval as a high-risk change", "verdict": "noise", "match": ["approv", "high-risk"], "why": "Technical detail section." },
         { "label": "Karen and the security reviewer", "verdict": "noise", "match": ["karen", "security"], "why": "Explained in the text." },
+        { "label": "the new standard", "verdict": "fair", "match": ["new standard"], "why": "Mentioned without saying what it is; the owner judged this fair in the other two rewrites." },
         { "label": "Codex", "verdict": "fair", "match": ["codex"], "why": "Never explained; one clause would do." },
         { "label": "Opus", "verdict": "fair", "match": ["\\bopus\\b"], "why": "Never explained; one clause would do." },
         { "label": "how a ZIP code times texts", "verdict": "fair", "match": ["time ?zone", "time texts", "timing", "quiet hours", "how (a )?zip", "zip .*(used|time)"], "why": "One clause: it sets the customer's time zone for quiet hours." },
@@ -73,7 +74,7 @@
       ],
       "assertions": [
         "The verdict fails.",
-        "Owner, Codex, Opus and how ZIP times texts are each flagged.",
+        "Owner, Codex, Opus, the new standard and how ZIP times texts are each flagged.",
         "Karen, the security reviewer and the technical detail code names are not flagged.",
         "The restatement is present."
       ]
@@ -103,8 +104,8 @@
       "kind": "pull request",
       "expect_pass": false,
       "labels": [
-        { "label": "option C", "verdict": "fair", "match": ["option c"], "why": "A choice from a list the reader can't see." },
         { "label": "D3", "verdict": "fair", "match": ["\\bD3\\b", "3\\.3"], "why": "A planning code." },
+        { "label": "option C", "verdict": "fair", "match": ["option c"], "why": "A choice from a list the reader can't see." },
         { "label": "ADR-0010", "verdict": "fair", "match": ["\\bADR"], "why": "An unexplained acronym and a document the reader can't see." },
         { "label": "pull request 849", "verdict": "fair", "match": ["849"], "why": "Another pull request, never described." },
         { "label": "Karen", "verdict": "fair", "match": ["karen"], "why": "Never explained in this version." },

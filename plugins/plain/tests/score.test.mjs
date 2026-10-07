@@ -41,6 +41,7 @@ test("a case scores fair flags caught, noise flags raised, unlabeled flags, the 
   assert.deepEqual(r.unlabeled, ["admin console"]);
   assert.equal(r.restatement, true);
   assert.equal(r.verdictRight, true);
+  assert.deepEqual(r.matched, { "the panel limit": ["the panel limit"], Karen: ["Karen"], panel: ["review panel"] }, "the result keeps which reader flag matched which label");
 });
 
 test("a passing verdict on a text that should fail is counted as wrong, and a missing restatement is caught", () => {
@@ -74,6 +75,7 @@ test("the scorer reads each case's file through the reader and adds up the total
   assert.equal(totals.cases, evals.length);
   assert.equal(totals.restatements, evals.length);
   assert.equal(totals.fairTotal, evals.flatMap((e) => e.labels).filter((l) => l.verdict === "fair").length);
+  assert.deepEqual(results[0].reader.unclear_terms, ["Karen"], "each result keeps the reader's own reply, so it can be scored again offline");
 });
 
 test("the scorer can run only the cases named", () => {
@@ -120,7 +122,7 @@ test("the labels match the flags the strict reader raised in first real use, the
   const expected = {
     "precordia-199-rewrite": { fair: ["pull request 197", "the new standard", "review panel, seat and 'Seat now'"], noise: ["Karen", "Clerk", "code names in the technical detail section", "which deliberate breaks slipped through", "where the 10-person panel limit comes from"] },
     "onehearthealth-868-rewrite": { fair: ["Crishon", "murmur probability versus confidence", "the new standard"], noise: ["Karen", "code names in the technical detail section", "why the export keeps the column, and who uses it", "whether the field will be removed later"] },
-    "smsmarketing-1630-rewrite": { fair: ["Codex", "Opus", "owner"], noise: ["Karen and the security reviewer", "code names in the technical detail section", "follow-ups have no owners or tickets", "why 42 tests for 38 scenarios"] },
+    "smsmarketing-1630-rewrite": { fair: ["Codex", "Opus", "owner", "the new standard"], noise: ["Karen and the security reviewer", "code names in the technical detail section", "follow-ups have no owners or tickets", "why 42 tests for 38 scenarios"] },
   };
   for (const [name, want] of Object.entries(expected)) {
     const old = JSON.parse(readFileSync(join(skillDir, "evals", "first-use-verdicts", `${name}.json`), "utf8"));

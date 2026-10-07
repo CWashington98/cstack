@@ -38,6 +38,16 @@ test("the reader's instructions are the cold-reader skill's own file", () => {
   assert.ok(existsSync(join(skillDir, "SKILL.md")));
 });
 
+test("the reader's instructions carry the calibration: what to report and what to leave out", () => {
+  const prompt = readFileSync(join(skillDir, "reader-prompt.md"), "utf8");
+  assert.match(prompt, /never explains/);
+  assert.match(prompt, /A term the text explains/);
+  assert.match(prompt, /Technical detail/);
+  assert.match(prompt, /curious reader/);
+  assert.match(prompt, /Do not guess/);
+  assert.notEqual(READER_VERSION, "1", "the calibrated instructions are a new reader version");
+});
+
 test("every verdict records the reader version that made it", () => {
   assert.match(READER_VERSION, /^\d+$/);
   const v = coldRead("Hello.", { run: () => reply({ unclear_terms: [], missing_context: [], restatement: "A greeting.", ask: "Nothing" }) });
