@@ -15,7 +15,7 @@ import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { loadConfig } from "./lib/config.mjs";
 import { checkString } from "./plain-check.mjs";
-import { hasStamp, logOverride, logError } from "./plain-stamp.mjs";
+import { stampStatus, logOverride, logError } from "./plain-stamp.mjs";
 
 const COMMIT_RULES = new Set(["capitals", "planning-code", "never-publish"]);
 const GH_VERBS = { pr: ["create", "edit", "comment", "review"], issue: ["create", "edit", "comment"] };
@@ -266,7 +266,11 @@ function evaluate(check, config) {
   if (holds.length) {
     return [`${check.label} has ${holds.length} problem(s):`, ...holds.slice(0, 8).map((f) => `  line ${f.line}: ${f.message}`), ...(check.name ? [`  Fix them with /plain on ${check.name}.`] : [])];
   }
-  if (check.stamp && !hasStamp(check.cwd, check.text)) return [`${check.label} has no pass stamp for this exact text. Run /plain on ${check.name} first.`];
+  if (check.stamp) {
+    const status = stampStatus(check.cwd, check.text);
+    if (status === "stale") return [`${check.label} was stamped by an older version of the checker or the cold reader. Run /plain on ${check.name} again.`];
+    if (status !== "current") return [`${check.label} has no pass stamp for this exact text. Run /plain on ${check.name} first.`];
+  }
   return [];
 }
 

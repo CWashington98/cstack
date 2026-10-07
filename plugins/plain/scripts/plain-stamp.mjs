@@ -1,15 +1,20 @@
 #!/usr/bin/env node
 // Pass stamps: proof that an exact text passed the checker and the cold reader.
+// A stamp counts only under the current checker and reader versions. For a
+// spec or plan in a watched folder, the reader's flags are advice: the reader
+// must have run, but it doesn't have to pass.
 // Stored in the repository's shared git folder, so they are never committed
 // and every worktree sees them.
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync, existsSync, readFileSync, appendFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { mkdirSync, writeFileSync, existsSync, readFileSync, appendFileSync, realpathSync } from "node:fs";
+import { join, resolve, relative } from "node:path";
 import { homedir } from "node:os";
 import { pathToFileURL } from "node:url";
 import { CHECKER_VERSION } from "./lib/version.mjs";
 import { checkString } from "./plain-check.mjs";
+import { loadConfig } from "./lib/config.mjs";
+import { READER_VERSION } from "../skills/cold-reader/scripts/version.mjs";
 
 export function fingerprint(text) {
   const normal = text.replace(/\r\n?/g, "\n").replace(/\s+$/, "");
@@ -29,24 +34,36 @@ export function writeStamp(cwd, text, verdict) {
   const dir = join(plainDir(cwd), "stamps");
   mkdirSync(dir, { recursive: true });
   const fp = fingerprint(text);
-  writeFileSync(join(dir, `${fp}.json`), JSON.stringify({ fingerprint: fp, checkerVersion: CHECKER_VERSION, reader: verdict, at: new Date().toISOString() }, null, 2));
+  writeFileSync(join(dir, `${fp}.json`), JSON.stringify({ fingerprint: fp, checkerVersion: CHECKER_VERSION, readerVersion: READER_VERSION, reader: verdict, at: new Date().toISOString() }, null, 2));
   return fp;
 }
 
-export function hasStamp(cwd, text) {
+// "none" when this exact text was never stamped, "stale" when it was stamped
+// under an older checker or reader version, "current" otherwise.
+export function stampStatus(cwd, text) {
   const path = join(plainDir(cwd), "stamps", `${fingerprint(text)}.json`);
-  if (!existsSync(path)) return false;
+  if (!existsSync(path)) return "none";
   try {
-    return JSON.parse(readFileSync(path, "utf8")).checkerVersion === CHECKER_VERSION;
+    const stamp = JSON.parse(readFileSync(path, "utf8"));
+    return stamp.checkerVersion === CHECKER_VERSION && stamp.readerVersion === READER_VERSION ? "current" : "stale";
   } catch {
-    return false;
+    return "none";
   }
 }
+
+export const hasStamp = (cwd, text) => stampStatus(cwd, text) === "current";
 
 function appendLog(cwd, name, entry) {
   const dir = plainDir(cwd);
   mkdirSync(dir, { recursive: true });
   appendFileSync(join(dir, name), JSON.stringify({ at: new Date().toISOString(), ...entry }) + "\n");
+}
+
+export function isWatchedSpec(cwd, file) {
+  const config = loadConfig(cwd);
+  const full = resolve(cwd, file);
+  const rel = relative(config.root, existsSync(full) ? realpathSync(full) : full).split("\\").join("/");
+  return config.watchFolders.some((w) => rel.startsWith(w.replace(/\/$/, "") + "/"));
 }
 
 export const logOverride = (cwd, entry) => appendLog(cwd, "overrides.log", entry);
@@ -74,11 +91,21 @@ function main(argv) {
     return 1;
   }
   const verdict = JSON.parse(readFileSync(verdictPath, "utf8"));
-  if (verdict.pass !== true) {
+  if (verdict.readerVersion !== READER_VERSION) {
+    console.error(`plain-stamp: this verdict was made by an older version of the cold reader (${verdict.readerVersion ?? "none"}, now ${READER_VERSION}). Run the cold reader again.`);
+    return 1;
+  }
+  if (verdict.error || !Array.isArray(verdict.unclear_terms) || !Array.isArray(verdict.missing_context)) {
+    console.error(`plain-stamp: the cold reader didn't run properly${verdict.error ? `: ${verdict.error}` : "."} Run it again.`);
+    return 1;
+  }
+  const advice = verdict.pass !== true && isWatchedSpec(process.cwd(), file);
+  if (verdict.pass !== true && !advice) {
     console.error("plain-stamp: the cold reader did not pass this text.");
     return 1;
   }
-  console.log(`Stamped ${file} (${writeStamp(process.cwd(), text, verdict).slice(0, 12)}).`);
+  const fp = writeStamp(process.cwd(), text, verdict).slice(0, 12);
+  console.log(advice ? `Stamped ${file} (${fp}). The reader's flags were advice, because this is a spec or plan.` : `Stamped ${file} (${fp}).`);
   return 0;
 }
 

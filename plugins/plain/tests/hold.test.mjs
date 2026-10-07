@@ -51,6 +51,19 @@ test("a clean body file needs a stamp, then goes ahead", () => {
   assert.equal(bash(dir, 'gh pr create --title "Add the map page" --body-file good.md').allow, true);
 });
 
+test("a stamp made under an older cold reader version holds the post and says why", async () => {
+  const { writeFileSync, mkdirSync } = await import("node:fs");
+  const { fingerprint } = await import("../scripts/plain-stamp.mjs");
+  const { CHECKER_VERSION } = await import("../scripts/lib/version.mjs");
+  const dir = repo();
+  const stamps = join(plainDir(dir), "stamps");
+  mkdirSync(stamps, { recursive: true });
+  writeFileSync(join(stamps, `${fingerprint(GOOD)}.json`), JSON.stringify({ checkerVersion: CHECKER_VERSION, readerVersion: "0" }));
+  const r = bash(dir, 'gh pr create --title "Add the map page" --body-file good.md');
+  assert.equal(r.allow, false);
+  assert.match(text(r), /older version of the checker or the cold reader/);
+});
+
 test("titles with planning codes are held", () => {
   const dir = repo();
   writeStamp(dir, GOOD, { pass: true });
