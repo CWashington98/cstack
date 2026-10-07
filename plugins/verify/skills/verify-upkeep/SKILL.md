@@ -72,7 +72,7 @@ Drive every feature at least once. Hold three rules the whole time, whatever fai
 A feature that can't be reached is recorded as unreachable, with a note naming the missing prerequisite and the route tried:
 
 ```sh
-node <plugin>/scripts/evidence.mjs add "$RUN" --kind unreachable --feature <id> --fail --note "<prerequisite>; tried <route>"
+node <plugin>/scripts/evidence.mjs add "$RUN" --kind unreachable --feature <sub-feature ID> --fail --note "<prerequisite>; tried <route>"
 ```
 
 If the map doesn't mention that prerequisite, that is drift too.

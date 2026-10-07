@@ -20,7 +20,7 @@ This folder is the maintained source for proving what Notes does for its users. 
 
 - Capture the action and the state it caused, not only the final screen.
 - Proof of a change includes a second view of the stored value.
-- Record the sub-feature ID and the entry point used with every piece of evidence.
+- Record the sub-feature ID (`--feature create-save`) and the entry point used with every piece of evidence.
 - Report a path you couldn't reach with the command you tried and what was missing.
 - A skipped entry point is never reported as verified through another path.
 

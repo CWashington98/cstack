@@ -18,7 +18,9 @@ const save = (dir, run) => writeFileSync(join(dir, "run.json"), JSON.stringify(r
 export function startRun(root, app, now = new Date()) {
   if (!/^[a-z0-9-]+$/.test(app)) throw new Error(`the app name must be lowercase letters, digits and dashes, got "${app}"`);
   const commit = git(root, "rev-parse", "HEAD");
-  const dirty = (git(root, "status", "--porcelain", "--untracked-files=no") ?? "") !== "";
+  // Untracked files count: an app can run code that was never committed. Only the
+  // evidence folder itself is left out.
+  const dirty = (git(root, "status", "--porcelain", "--untracked-files=all", "--", ".", ":(exclude).verify") ?? "") !== "";
   const stamp = now.toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
   const dir = join(root, ".verify", "runs", app, `${stamp}-${(commit ?? "nocommit").slice(0, 7)}`);
   mkdirSync(dir, { recursive: true });
@@ -39,6 +41,14 @@ export function addStep(dir, { kind, feature = null, trigger = null, end = null,
   run.steps.push({ kind, feature, trigger, end, artifacts, sideEffects, ok, note, at: now.toISOString() });
   save(dir, run);
   return run;
+}
+
+// The backticked IDs listed under a feature file's "## Sub-features" heading.
+export function subFeatureIds(file) {
+  if (!existsSync(file)) return [];
+  const text = readFileSync(file, "utf8").replace(/\r\n?/g, "\n");
+  const section = text.split(/^## /m).find((s) => s.startsWith("Sub-features")) ?? "";
+  return [...section.matchAll(/^\s*[-*]\s+`([a-z0-9-]+)`/gm)].map((m) => m[1]);
 }
 
 function rules(run, dir, { fullRun = false, head = null, cover = null } = {}) {
@@ -88,7 +98,13 @@ function rules(run, dir, { fullRun = false, head = null, cover = null } = {}) {
   if (cover) {
     const ids = existsSync(cover) ? readdirSync(cover).filter((f) => f.endsWith(".md") && f !== "README.md").map((f) => f.slice(0, -3)) : [];
     if (!ids.length) problems.push(`${cover} lists no features, so coverage can't be counted.`);
-    const covered = ids.filter((id) => steps.some((s) => ((s.kind === "drive" && s.ok) || s.kind === "unreachable") && (s.feature === id || s.feature?.startsWith(`${id}/`))));
+    // A step names a feature by its file ("create-note"), as "create-note/create-save",
+    // or by one of the sub-feature IDs the file lists ("create-save").
+    const names = (id) => new Set([id, ...subFeatureIds(join(cover, `${id}.md`))]);
+    const covered = ids.filter((id) => {
+      const known = names(id);
+      return steps.some((s) => ((s.kind === "drive" && s.ok) || s.kind === "unreachable") && (known.has(s.feature) || s.feature?.startsWith(`${id}/`)));
+    });
     for (const id of ids) if (!covered.includes(id)) problems.push(`feature ${id} was not driven and not reported unreachable.`);
     coverage = { covered: covered.length, total: ids.length };
   }
@@ -106,6 +122,7 @@ export function checkRun(dir, opts = {}) {
 export function finishRun(dir, status, now = new Date()) {
   if (!STATUSES.includes(status)) throw new Error(`the status must be one of: ${STATUSES.join(", ")}`);
   const run = load(dir);
+  if (run.status) throw new Error(`this run is already finished as "${run.status}". A finished run is final; start a new one.`);
   run.status = status;
   run.finishedAt = now.toISOString();
   if (status === "verified live") {
