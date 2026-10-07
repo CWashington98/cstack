@@ -35,7 +35,7 @@ function readFacts(skillDir, folder, repoRoot) {
   if (f.surface === "web") need(/^https?:\/\//.test(f.web?.baseUrl ?? ""), `"web.baseUrl" must be the address the app answers on.`);
   if (f.surface === "expo") {
     need(typeof f.expo?.appId === "string" && f.expo.appId !== "", `"expo.appId" is missing.`);
-    need(typeof f.expo?.appConfig === "string" && existsSync(join(repoRoot, f.expo.appConfig)), `"expo.appConfig" must point to the app's app.json.`);
+    need(typeof f.expo?.appConfig === "string" && existsSync(join(repoRoot, f.expo.appConfig)), `"expo.appConfig" must point to the app's app.json or app.config file.`);
   }
   for (const r of f.replays ?? []) need(existsSync(join(repoRoot, r)), `replay "${r}" does not exist.`);
   return { facts: f, findings: out };
@@ -97,19 +97,41 @@ export function checkRepoSettings(repoRoot) {
 
 const isYaml = (p) => /\.ya?ml$/.test(p);
 
+// The iOS and Android app IDs an Expo config declares. app.json is read as JSON. An
+// app.config.js or .ts can't be run here, so its IDs are read when written as plain text.
+function configAppIds(cfgFile, label) {
+  const raw = readFileSync(cfgFile, "utf8");
+  if (/\.json$/i.test(cfgFile)) {
+    let cfg;
+    try { cfg = JSON.parse(raw); } catch (e) { return { problem: `${label} is not valid JSON: ${e.message}` }; }
+    const expo = cfg.expo ?? cfg;
+    return { ids: [expo.ios?.bundleIdentifier, expo.android?.package].filter(Boolean) };
+  }
+  const ids = ["bundleIdentifier", "package"].flatMap((k) => [...raw.matchAll(new RegExp(`\\b${k}\\s*:\\s*["'\`]([^"'\`$]+)["'\`]`, "g"))].map((m) => m[1]));
+  if (!ids.length) return { problem: `can't find the app ID written as plain text in ${label}, so it can't be checked against facts.json. Write bundleIdentifier and package as plain strings there, or point "expo.appConfig" at an app.json that has them.` };
+  return { ids };
+}
+
 export function checkReplays(f, repoRoot) {
   const findings = [];
   let count = 0;
   if (f.surface === "expo" && f.expo?.appConfig && existsSync(join(repoRoot, f.expo.appConfig))) {
     const cfgFile = join(repoRoot, f.expo.appConfig);
-    const cfg = JSON.parse(readFileSync(cfgFile, "utf8")).expo ?? {};
-    const ids = [cfg.ios?.bundleIdentifier, cfg.android?.package].filter(Boolean);
-    if (ids.length && !ids.every((id) => id === f.expo.appId)) {
+    const { ids, problem } = configAppIds(cfgFile, f.expo.appConfig);
+    if (problem) findings.push(appHold(cfgFile, 0, problem));
+    else if (ids.length && !ids.every((id) => id === f.expo.appId)) {
       findings.push(appHold(cfgFile, 0, `facts.json says the app ID is "${f.expo.appId}", but ${f.expo.appConfig} says ${ids.map((i) => `"${i}"`).join(" and ")}.`));
     }
-    for (const file of (f.expo.flows ? walk(join(repoRoot, f.expo.flows)) : []).filter(isYaml)) {
-      count++;
-      findings.push(...checkFlowFile(file, f.expo.appId, f.expo.appConfig));
+  }
+  if (f.surface === "expo" && f.expo?.flows) {
+    const dir = join(repoRoot, f.expo.flows);
+    if (!existsSync(dir) || !statSync(dir).isDirectory()) {
+      findings.push(appHold(dir, 0, `"expo.flows" is set to ${f.expo.flows}, which is not a folder. Fix the path, or remove the field if the app has no Maestro flows.`));
+    } else {
+      for (const file of walk(dir).filter(isYaml)) {
+        count++;
+        findings.push(...checkFlowFile(file, f.expo.appId, f.expo.appConfig));
+      }
     }
   }
   for (const r of f.replays ?? []) {

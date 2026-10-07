@@ -24,8 +24,8 @@
 | Field | Type | Example | Where to find the real value |
 |---|---|---|---|
 | `expo.appId` | text | `"com.example.notes"` | `ios.bundleIdentifier` and `android.package` in `app.json`. Both must agree with it. |
-| `expo.appConfig` | text, a file path | `"apps/notes-mobile/app.json"` | The app's `app.json`. It must exist. |
-| `expo.flows` | text, a folder path (optional) | `"apps/notes-mobile/maestro"` | The folder of Maestro flows. Every flow in it is checked against `expo.appId`. |
+| `expo.appConfig` | text, a file path | `"apps/notes-mobile/app.json"` | The app's `app.json`, or its `app.config.js` or `app.config.ts` with the IDs written as plain text. It must exist. |
+| `expo.flows` | text, a folder path (optional) | `"apps/notes-mobile/maestro"` | The folder of Maestro flows. It must exist, and every flow in it is checked against `expo.appId`. |
 
 ## Optional
 
