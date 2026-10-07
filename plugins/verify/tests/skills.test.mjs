@@ -85,3 +85,10 @@ test("the Codex answer format is strict", () => {
 test("the verify plugin ships exactly its six skills", () => {
   assert.deepEqual(skills().sort(), ["drive-expo", "drive-web", "pr-review", "verify", "verify-setup", "verify-upkeep"]);
 });
+
+test("pr-review records each verdict against the reviewed commit from meta.json", () => {
+  const text = readFileSync(join(skillsDir, "pr-review", "SKILL.md"), "utf8");
+  const writes = text.split("\n").filter((l) => /verdict\.mjs write\b/.test(l));
+  assert.ok(writes.length >= 2, "the skill shows the write commands");
+  for (const l of writes) assert.match(l, /--meta "\$OUT\/meta\.json"/, l);
+});
