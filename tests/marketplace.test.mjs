@@ -56,3 +56,7 @@ test("the plain skill and its reference files exist", () => {
     assert.ok(existsSync(join(root, "plugins", "plain", "skills", "plain", f)), f);
   }
 });
+
+test("the verify plugin is listed", () => {
+  assert.ok(market.plugins.some((p) => p.name === "verify" && p.source === "./plugins/verify"));
+});
