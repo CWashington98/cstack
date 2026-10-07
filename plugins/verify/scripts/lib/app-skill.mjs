@@ -107,7 +107,9 @@ function configAppIds(cfgFile, label) {
     const expo = cfg.expo ?? cfg;
     return { ids: [expo.ios?.bundleIdentifier, expo.android?.package].filter(Boolean) };
   }
-  const ids = ["bundleIdentifier", "package"].flatMap((k) => [...raw.matchAll(new RegExp(`["']?\\b${k}["']?\\s*:\\s*["'\`]([^"'\`$]+)["'\`]`, "g"))].map((m) => m[1]));
+  // The exact key, bare or with matching quotes, so "android.package" or mypackage don't count.
+  const key = (k) => new RegExp(`(?<![\\w.$])(?:(["'])${k}\\1|${k})\\s*:\\s*["'\`]([^"'\`$]+)["'\`]`, "g");
+  const ids = ["bundleIdentifier", "package"].flatMap((k) => [...raw.matchAll(key(k))].map((m) => m[2]));
   if (!ids.length) return { problem: `can't find the app ID written as plain text in ${label}, so it can't be checked against facts.json. Write bundleIdentifier and package as plain strings there, or point "expo.appConfig" at an app.json that has them.` };
   return { ids };
 }
