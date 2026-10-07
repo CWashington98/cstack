@@ -134,3 +134,10 @@ test("an app.config file with quoted keys is read like plain keys", () => {
   const js = `module.exports = { "expo": { "ios": { "bundleIdentifier": "com.example.app" }, "android": { 'package': "com.example.app" } } };\n`;
   assert.deepEqual(expoSkill({ "apps/phone/app.config.js": js }, facts).findings, []);
 });
+
+test("a quoted key that only ends in package or bundleIdentifier is not an app ID", () => {
+  const facts = { ...EXPO, expo: { ...EXPO.expo, appConfig: "apps/phone/app.config.ts" } };
+  const ts = `export default { expo: { ios: { bundleIdentifier: "com.example.app" }, android: { package: "com.example.app" },
+  extra: { "android.package": "com.other", "ios.bundleIdentifier": "com.other", plugin: { mypackage: "com.other" } } } };\n`;
+  assert.deepEqual(expoSkill({ "apps/phone/app.config.ts": ts }, facts).findings, []);
+});
