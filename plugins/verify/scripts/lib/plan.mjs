@@ -150,6 +150,11 @@ export function checkItems(lines, root) {
       return;
     }
     const live = /^\**\s*Verify live\b/i.test(m[2]);
+    // Tests alone never verify: a ticked live box cites a run, or says why there is none.
+    const saysNone = /Verify live\**:?\**\s*none\s*[:—-]\s*\w/i.test(m[2]);
+    if (live && ticked && !saysNone && !evs.some((ev) => ev.kind === "run")) {
+      findings.push(hold(l.line, `"${title}": a ticked "Verify live" box needs a run that finished "verified live", or "none: <reason>" for a change with no user-facing behavior. Tests alone never verify.`));
+    }
     for (const ev of evs) for (const p of checkEvidence(ev, ticked, root, { live })) findings.push(hold(l.line, `"${title}": ${p}`));
   });
   return { findings, count: items.length, items };
