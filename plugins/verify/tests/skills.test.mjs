@@ -1,8 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, statSync, cpSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { makeRepo } from "../../../tests/helpers.mjs";
+import { checkAppSkill } from "../scripts/lib/app-skill.mjs";
 
 const plugin = join(dirname(fileURLToPath(import.meta.url)), "..");
 const skillsDir = join(plugin, "skills");
@@ -52,4 +54,14 @@ test("nothing in the plugin names a project", () => {
       assert.equal(hit, null, `${file} names a project ("${hit?.[0]}"). Move the fact to that project's app skill.`);
     }
   }
+});
+
+test("the example app skill passes check-app-skill", () => {
+  const root = makeRepo({ "apps/notes/package.json": "{}" });
+  const dest = join(root, ".claude", "skills", "verify-notes");
+  mkdirSync(dest, { recursive: true });
+  cpSync(join(skillsDir, "verify-setup", "example", "verify-notes"), dest, { recursive: true });
+  const r = checkAppSkill(dest, root);
+  assert.deepEqual(r.findings, []);
+  assert.equal(r.features, 2);
 });
