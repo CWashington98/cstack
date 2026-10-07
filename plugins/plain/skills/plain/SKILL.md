@@ -1,6 +1,6 @@
 ---
 name: plain
-description: Write or rewrite text so a junior developer or product manager can understand it with no outside context. Use before posting a pull request, review, issue or comment to GitHub, before publishing a page, before committing a spec or plan, and when the owner says "plain" or that a message didn't make sense.
+description: Write or rewrite text so a junior developer or product manager can understand it with no outside context. Use it before posting a pull request, review, issue or comment to GitHub. Use it before publishing a page or committing a spec or plan. Use it when the owner says "plain" or that a message didn't make sense.
 ---
 
 # plain
@@ -9,18 +9,18 @@ Everything we publish must make sense to a junior developer or a product manager
 
 Read `rules.md` in this folder before writing. For a pull request description, also read `pr-layout.md`.
 
-The scripts are in the plugin's `scripts` folder, two levels above this file. Below, SCRIPTS means `<this skill's folder>/../../scripts`.
+The scripts are in the plugin's `scripts` folder, two levels above this file. Below, `SCRIPTS` means `<this skill's folder>/../../scripts`.
 
 ## Write or fix a text
 
 1. Put the text in a file. Pull request bodies, issue bodies and comments are always posted from a file (`--body-file`, or `-F body=@file` with `gh api`). The hold stops text written inline in a command.
 2. Rewrite it by the rules.
 3. Run the checker: `node SCRIPTS/plain-check.mjs <file>`. Fix every "hold" line. Consider each "advice" line.
-4. Run the cold reader: `node SCRIPTS/plain-read.mjs <file> --json > "$TMPDIR/plain-verdict.json"`, then read the verdict.
-5. For each unclear term or missing piece of context, explain it or replace it in the text, then go back to step 3. Compare the reader's restatement and ask with what you meant. If they differ, rewrite. After two rewrites that still fail, stop and show the owner the text and the reader's notes.
-6. When both pass, record the stamp: `node SCRIPTS/plain-stamp.mjs write <file> --verdict "$TMPDIR/plain-verdict.json"`.
+4. Run the cold reader, a separate skill in this plugin (`../cold-reader/SKILL.md`): `node <this skill's folder>/../cold-reader/scripts/cold-read.mjs <file> --json > "$TMPDIR/plain-verdict.json"`, then read the verdict.
+5. For each unclear term or missing piece of context, explain it or replace it in the text, then go back to step 3. Compare the reader's restatement and ask with what you meant. If they differ, rewrite. After two rewrites that still fail, stop and show the owner the text and the reader's notes. For a spec or plan in one of the repository's watched folders, the reader's flags are advice: fix what you can, then stamp.
+6. When both pass (or, for a spec or plan, when the checker passes and the reader ran), record the stamp: `node SCRIPTS/plain-stamp.mjs write <file> --verdict "$TMPDIR/plain-verdict.json"`.
 7. If you rewrote the owner's own draft, show the before and after.
-8. Post or publish from the same file. Changing the file after stamping needs a new pass.
+8. Post or publish from the same file. Changing the file after stamping needs a new pass, and so does a new version of the cold reader.
 
 ## Fix an existing pull request: `/plain 123`
 
