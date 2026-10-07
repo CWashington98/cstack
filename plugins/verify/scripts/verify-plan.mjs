@@ -28,7 +28,11 @@ function main(argv) {
     console.error(`verify-plan: file not found: ${args._[0] ?? "(none given)"}`);
     return 2;
   }
-  const r = checkFile(readFileSync(file, "utf8"), { file, root: repoRoot(dirname(file)), since: args.since });
+  let r;
+  try { r = checkFile(readFileSync(file, "utf8"), { file, root: repoRoot(dirname(file)), since: args.since }); } catch (e) {
+    if (e instanceof UsageError) { console.error(`verify-plan: ${e.message}`); return 2; }
+    throw e;
+  }
   if (args.json) console.log(JSON.stringify({ file, ...r }, null, 2));
   else {
     for (const f of r.findings) console.log(`line ${f.line}  ${f.level.padEnd(6)}  ${f.message}`);

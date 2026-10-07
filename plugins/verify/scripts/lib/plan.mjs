@@ -4,7 +4,8 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { resolve, join, extname, relative } from "node:path";
 import { homedir } from "node:os";
-import { proseLines, HEADING } from "./markdown.mjs";
+import { proseLines, unclosedFence, HEADING } from "./markdown.mjs";
+import { UsageError } from "./args.mjs";
 
 const SCENARIO = /^#{2,6}\s+Scenario:\s*(.*)$/;
 const ITEM = /^\s*[-*]\s+\[( |x|X)\]\s+(.*)$/;
@@ -80,7 +81,11 @@ function newestRun(dir) {
   return runs.length ? join(dir, runs.at(-1), "run.json") : null;
 }
 
-export function checkEvidence(ev, ticked, root) {
+// Statuses that never count as proof, and the one a "Verify live" box needs.
+const NEVER_PASS = ["blocked", "failed"];
+
+// live: the item is a pull request's "Verify live" box.
+export function checkEvidence(ev, ticked, root, { live = false } = {}) {
   if (!KINDS.includes(ev.kind)) return [`unknown evidence kind "${ev.kind}". Use one of: ${KINDS.join(", ")}.`];
   const complete = { test: ev.target && ev.quoted, file: ev.target, screenshot: ev.target, log: ev.target && ev.quoted, commit: true, run: ev.target, link: true };
   if (!complete[ev.kind]) return [`"${ev.raw}" is incomplete. ${HELP[ev.kind]}`];
@@ -109,12 +114,24 @@ export function checkEvidence(ev, ticked, root) {
     case "run": {
       const file = newestRun(path);
       if (!file) return [`${ev.target} holds no evidence run (no run.json).`];
-      return JSON.parse(readFileSync(file, "utf8")).status ? [] : [`the run in ${ev.target} has no final status.`];
+      const { status } = JSON.parse(readFileSync(file, "utf8"));
+      if (!status) return [`the run in ${ev.target} has no final status.`];
+      if (NEVER_PASS.includes(status)) return [`the run in ${ev.target} ended "${status}", which is never a pass.`];
+      if (live && status !== "verified live") return [`a ticked "Verify live" box needs a run that finished "verified live"; the run in ${ev.target} says "${status}".`];
+      return [];
     }
     case "link":
-      return /^https:\/\/\S+$/.test(ev.target) ? [] : [`"${ev.target}" is not a full https:// address.`];
+      // A host and a real path: "https://github.com/" alone is a placeholder, not proof.
+      return /^https:\/\/[^/\s]+\/[^\s]*[^/\s]$/.test(ev.target) ? [] : [`"${ev.target}" is not a full https:// address to the proof itself.`];
   }
   return [];
+}
+
+// Cut at the last word boundary that fits, and show the cut with an ellipsis.
+function shorten(text, max) {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max).replace(/\s+\S*$/, "");
+  return `${cut || text.slice(0, max)}…`;
 }
 
 export function checkItems(lines, root) {
@@ -124,14 +141,15 @@ export function checkItems(lines, root) {
     const m = l.text.match(ITEM);
     if (!m) return;
     const ticked = m[1] !== " ";
-    const title = m[2].replace(/\*\*/g, "").slice(0, 60);
+    const title = shorten(m[2].replace(/\*\*/g, ""), 60);
     items.push({ line: l.line, ticked, title });
     const evs = parseEvidence(gather(lines, i));
     if (!evs || !evs.length) {
       findings.push(hold(l.line, `"${title}" names no evidence. Add "Evidence:" and what will show it is done: a test, a file, a screenshot, a log line, a commit.`));
       return;
     }
-    for (const ev of evs) for (const p of checkEvidence(ev, ticked, root)) findings.push(hold(l.line, `"${title}": ${p}`));
+    const live = /^\**\s*Verify live\b/i.test(m[2]);
+    for (const ev of evs) for (const p of checkEvidence(ev, ticked, root, { live })) findings.push(hold(l.line, `"${title}": ${p}`));
   });
   return { findings, count: items.length, items };
 }
@@ -174,10 +192,14 @@ export function checkDone(lines, { file, root, since } = {}) {
   const findings = [];
   if (!/\d/.test(done.text)) findings.push(hold(done.line, `"Done when" has no count. Make it countable, such as "all 12 tasks merged", so nobody can declare victory early.`));
   if (since && file && root) {
+    const run = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    try { run("rev-parse", "--verify", "--quiet", `${since}^{commit}`); } catch {
+      throw new UsageError(`--since ${since} is not a commit in this repository. Check the name, or fetch it first.`);
+    }
     let old = null;
     try {
-      old = execFileSync("git", ["show", `${since}:${relative(root, file)}`], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
-    } catch { /* the plan did not exist at that ref: nothing to compare */ }
+      old = run("show", `${since}:${relative(root, file)}`);
+    } catch { /* the ref is real, so the plan did not exist there: nothing to compare */ }
     const before = old && doneLine(proseLines(old));
     if (before && before.text.trim() !== done.text.trim()) {
       findings.push(hold(done.line, `The done condition changed since ${since}. It is fixed before work starts and never relaxed. Before: "${before.text.trim()}". Now: "${done.text.trim()}".`));
@@ -191,6 +213,8 @@ export function checkFile(raw, { file, root, since } = {}) {
   const sc = checkScenarios(lines);
   const it = checkItems(lines, root);
   const findings = [...sc.findings, ...it.findings];
+  const open = unclosedFence(raw);
+  if (open) findings.push(hold(open, `The code block opened on line ${open} is never closed, so everything after it is hidden from this check. Close it with a matching fence.`));
   if (it.count) findings.push(...checkProofBoxes(lines), ...checkDone(lines, { file, root, since }));
   if (!sc.count && !it.count) {
     findings.push(hold(1, `Found no scenarios and no plan items, so there is nothing to check. A spec has "#### Scenario:" headings; a plan has checkbox items.`));
