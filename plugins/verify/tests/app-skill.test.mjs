@@ -114,3 +114,17 @@ test("replays listed in facts.json are checked", () => {
   assert.match(text(r), /waits a fixed time/);
   assert.equal(r.flows, 1);
 });
+
+test("a flows folder that is set but missing, or not a folder, is held", () => {
+  assert.match(text(expoSkill({}, { ...EXPO, expo: { ...EXPO.expo, flows: "apps/phone/maestr0" } })), /"expo\.flows" is set to apps\/phone\/maestr0, which is not a folder/);
+  assert.match(text(expoSkill({}, { ...EXPO, expo: { ...EXPO.expo, flows: "apps/phone/app.json" } })), /which is not a folder/);
+});
+
+test("an app.config file is read for the app ID instead of crashing", () => {
+  const ts = (id) => `export default { expo: { ios: { bundleIdentifier: "${id}" }, android: { package: '${id}' } } };\n`;
+  const facts = { ...EXPO, expo: { ...EXPO.expo, appConfig: "apps/phone/app.config.ts" } };
+  assert.deepEqual(expoSkill({ "apps/phone/app.config.ts": ts("com.example.app") }, facts).findings, []);
+  assert.match(text(expoSkill({ "apps/phone/app.config.ts": ts("com.example.other") }, facts)), /says "com\.example\.other"/);
+  assert.match(text(expoSkill({ "apps/phone/app.config.ts": "export default ({ config }) => ({ ...config, ios: { bundleIdentifier: process.env.ID } });\n" }, facts)), /can't find the app ID written as plain text in apps\/phone\/app\.config\.ts/);
+  assert.match(text(expoSkill({ "apps/phone/app.json": "{ not json" })), /app\.json is not valid JSON/);
+});
