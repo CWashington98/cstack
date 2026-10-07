@@ -65,3 +65,19 @@ test("the example app skill passes check-app-skill", () => {
   assert.deepEqual(r.findings, []);
   assert.equal(r.features, 2);
 });
+
+test("the Codex answer format is strict", () => {
+  // Codex's --output-schema follows OpenAI's strict structured output rules: every object
+  // lists all its properties as required and allows no others.
+  const schema = JSON.parse(readFileSync(join(skillsDir, "pr-review", "codex-schema.json"), "utf8"));
+  const visit = (node, path) => {
+    if (node.type === "object" || (Array.isArray(node.type) && node.type.includes("object"))) {
+      assert.equal(node.additionalProperties, false, `${path}: additionalProperties must be false`);
+      assert.deepEqual([...node.required].sort(), Object.keys(node.properties).sort(), `${path}: every property is required`);
+      for (const [k, v] of Object.entries(node.properties)) visit(v, `${path}.${k}`);
+    }
+    if (node.items) visit(node.items, `${path}[]`);
+  };
+  visit(schema, "answer");
+  assert.deepEqual(schema.properties.verdict.enum, ["ready", "not ready"]);
+});
