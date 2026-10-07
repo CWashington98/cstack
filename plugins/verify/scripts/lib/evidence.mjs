@@ -99,12 +99,18 @@ function rules(run, dir, { fullRun = false, head = null, cover = null } = {}) {
     const ids = existsSync(cover) ? readdirSync(cover).filter((f) => f.endsWith(".md") && f !== "README.md").map((f) => f.slice(0, -3)) : [];
     if (!ids.length) problems.push(`${cover} lists no features, so coverage can't be counted.`);
     // A step names a feature by its file ("create-note"), as "create-note/create-save",
-    // or by one of the sub-feature IDs the file lists ("create-save").
-    const names = (id) => new Set([id, ...subFeatureIds(join(cover, `${id}.md`))]);
-    const covered = ids.filter((id) => {
-      const known = names(id);
-      return steps.some((s) => ((s.kind === "drive" && s.ok) || s.kind === "unreachable") && (known.has(s.feature) || s.feature?.startsWith(`${id}/`)));
-    });
+    // or by a sub-feature ID the file lists ("create-save"). A sub-feature ID that two
+    // files list counts for neither, because it can't say which path was driven.
+    const subs = new Map(ids.map((id) => [id, subFeatureIds(join(cover, `${id}.md`))]));
+    const owners = new Map();
+    for (const [id, list] of subs) for (const sub of new Set(list)) owners.set(sub, [...(owners.get(sub) ?? []), id]);
+    const counted = steps.filter((s) => (s.kind === "drive" && s.ok) || s.kind === "unreachable");
+    const covered = ids.filter((id) => counted.some((s) =>
+      s.feature === id || s.feature?.startsWith(`${id}/`) || (subs.get(id).includes(s.feature) && owners.get(s.feature).length === 1)));
+    for (const name of new Set(counted.map((s) => s.feature))) {
+      const files = owners.get(name);
+      if (files?.length > 1 && !ids.includes(name)) problems.push(`"${name}" is listed by more than one feature file (${files.join(", ")}). Record it as ${files.map((f) => `${f}/${name}`).join(" or ")}.`);
+    }
     for (const id of ids) if (!covered.includes(id)) problems.push(`feature ${id} was not driven and not reported unreachable.`);
     coverage = { covered: covered.length, total: ids.length };
   }

@@ -121,8 +121,9 @@ export function checkEvidence(ev, ticked, root, { live = false } = {}) {
       return [];
     }
     case "link":
-      // A host and a real path: "https://github.com/" alone is a placeholder, not proof.
-      return /^https:\/\/[^/\s]+\/[^\s]*[^/\s]$/.test(ev.target) ? [] : [`"${ev.target}" is not a full https:// address to the proof itself.`];
+      // A host and a path below the root, with or without a trailing slash:
+      // "https://github.com/" alone is a placeholder, not proof.
+      return /^https:\/\/[^/\s]+\/+[^/\s]\S*$/.test(ev.target) ? [] : [`"${ev.target}" is not a full https:// address to the proof itself.`];
   }
   return [];
 }

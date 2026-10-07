@@ -19,7 +19,7 @@ Start an evidence run. It prints the run folder; call it `RUN`.
 RUN=$(node <plugin>/scripts/evidence.mjs start --app <app>)
 ```
 
-In drive, read-back and unreachable steps, name the feature with `--feature` and a sub-feature ID from the feature file, such as `create-save`. The coverage check counts it toward the feature file that lists it.
+In drive, read-back and unreachable steps, name the feature with `--feature` and a sub-feature ID from the feature file, such as `create-save`. The coverage check counts it toward the feature file that lists it. If two feature files list the same ID, write the file name first, such as `notes/save`; a shared ID on its own counts for neither.
 
 Save every screenshot, log and read-back inside `RUN`, and record each step with `evidence.mjs add`. When the run is over:
 

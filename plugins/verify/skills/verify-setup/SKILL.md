@@ -67,7 +67,7 @@ The README lists every feature, the shared preconditions, and the rule that a sk
 
 Each feature file has a title line, one paragraph on what the user sees, and exactly four sections in this order:
 
-1. **Sub-features:** short IDs in backticks, such as `play`, with one line each.
+1. **Sub-features:** short IDs in backticks, such as `play`, with one line each. Keep each ID unique across the whole map, for example by starting it with the feature name (`create-save`).
 2. **How to get to it (user view):** every way a user reaches it.
 3. **Driving it with Playwright** (or Maestro): preconditions, then each action paired with its exact command and the result to observe.
 4. **Gotchas:** traps that can waste or spoil a run.
