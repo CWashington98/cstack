@@ -1,0 +1,39 @@
+{
+  "skill_name": "drive-expo",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Prove the recording screen works in our Expo app.",
+      "expected_output": "Runs check-app-skill and the health check, drives the recording screen with a Maestro flow using the app ID from facts.json, presses the record button and waits for the finished state, reads back the stored recording row, and says a simulator can't prove the sound itself.",
+      "files": [],
+      "expectations": [
+        "Runs check-app-skill and the health check before driving",
+        "Drives with Maestro, using the app ID from facts.json",
+        "The flow presses the record button and waits for the finished state",
+        "Reads back the stored recording row",
+        "Says a simulator can't prove the sound itself"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "The Maestro flows all fail with 'app not installed'.",
+      "expected_output": "Compares the flows' appId with the bundle identifier and package in app.json, and reports the mismatch instead of reinstalling the app.",
+      "files": [],
+      "expectations": [
+        "Compares the flows' appId with the bundleIdentifier and package in app.json",
+        "Reports the mismatch as the likely cause",
+        "Does not simply reinstall the app as the fix"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Just tap at 50%,80% to hit the button.",
+      "expected_output": "Targets the button by its visible text or test ID instead of a screen position, and explains that positions break when the layout or device changes.",
+      "files": [],
+      "expectations": [
+        "Uses the button's text or test ID instead of point:",
+        "Explains why screen positions break"
+      ]
+    }
+  ]
+}
