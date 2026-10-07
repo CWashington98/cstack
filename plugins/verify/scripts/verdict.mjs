@@ -3,8 +3,9 @@
 // Usage:
 //   node verdict.mjs patch-id --base <ref> [--head <ref>]
 //   node verdict.mjs merge --report <json> --validation <json> --out <json>
-//   node verdict.mjs write --reviewer <karen|codex|claude-fallback> --report <json> --base <ref>
-//        [--head <ref>] [--model <name>] [--note <why a fallback>]
+//   node verdict.mjs write --reviewer <karen|codex|claude-fallback> --report <json> --meta <review meta.json>
+//        [--head <ref>] [--base <ref>] [--model <name>] [--note <why a fallback>]
+//        The verdict lands on the commit in meta.json; --head and --base must match it.
 //   node verdict.mjs check --base <ref> [--head <ref>] [--json]
 //   node verdict.mjs comment <verdict file>
 // Exit 0 passes, 1 the check fails, 2 wrong use.
@@ -35,8 +36,12 @@ function main(argv) {
       return 0;
     }
     if (cmd === "write") {
-      need("reviewer", "report", "base");
-      const { file, record } = writeVerdict(repo, { reviewer: a.reviewer, report: readJson(a.report), head: a.head ?? "HEAD", base: a.base, model: a.model ?? null, note: a.note ?? null });
+      need("reviewer", "report", "meta");
+      const meta = readJson(a.meta);
+      const head = a.head ? execFileSync("git", ["rev-parse", `${a.head}^{commit}`], { cwd: repo, encoding: "utf8" }).trim() : meta.head;
+      if (head !== meta.head) throw new UsageError(`--head ${a.head} is not the reviewed commit ${meta.head} in ${a.meta}.`);
+      if (a.base && a.base !== meta.base) throw new UsageError(`--base ${a.base} is not the reviewed base ${meta.base} in ${a.meta}.`);
+      const { file, record } = writeVerdict(repo, { reviewer: a.reviewer, report: readJson(a.report), head, base: meta.base, meta, model: a.model ?? null, note: a.note ?? null });
       console.log(`${record.verdict}  ${file}`);
       return 0;
     }

@@ -70,10 +70,12 @@ Only reproduced blocking findings can make a verdict "not ready". The rest are d
 ## 7. Record the verdicts
 
 ```sh
-node <plugin>/scripts/verdict.mjs write --reviewer karen --report "$OUT/karen.final.json" --base <base>
-node <plugin>/scripts/verdict.mjs write --reviewer codex --report "$OUT/codex.final.json" --base <base>
-node <plugin>/scripts/verdict.mjs check --base <base>
+node <plugin>/scripts/verdict.mjs write --reviewer karen --report "$OUT/karen.final.json" --meta "$OUT/meta.json"
+node <plugin>/scripts/verdict.mjs write --reviewer codex --report "$OUT/codex.final.json" --meta "$OUT/meta.json"
+node <plugin>/scripts/verdict.mjs check --base <base> --head "$(node -p "require('$OUT/meta.json').head")"
 ```
+
+Each verdict lands on the commit in `meta.json`, the one the reviewers actually saw, even if someone commits while the review runs. `write` refuses a `--head` or `--base` that doesn't match it.
 
 For a fallback reviewer, write `--reviewer claude-fallback --note "<Codex's error>" --model <model>`. Verdicts are stored in the repository's git folder, keyed by commit. They are never committed.
 

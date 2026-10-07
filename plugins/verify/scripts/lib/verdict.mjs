@@ -15,7 +15,8 @@ export const NAMES = { karen: "Karen (Claude)", codex: "Codex (OpenAI)", "claude
 export function patchId(repo, from, to) {
   const diff = git(repo, ["diff", from, to]);
   if (!diff.trim()) return "empty";
-  return git(repo, ["patch-id", "--stable"], diff).trim().split(/\s+/)[0];
+  // --verbatim keeps whitespace, so re-indenting YAML, Python or a Makefile is a new change.
+  return git(repo, ["patch-id", "--verbatim"], diff).trim().split(/\s+/)[0];
 }
 
 export function validateReport(r) {
@@ -46,15 +47,21 @@ export function mergeValidation(report, validation) {
 
 export const verdictDir = (repo) => join(resolve(repo, git(repo, ["rev-parse", "--git-common-dir"]).trim()), "verify", "verdicts");
 
-export function writeVerdict(repo, { reviewer, report, head = "HEAD", base, model = null, note = null }) {
+// head is the full ID of the reviewed commit, never a moving name like HEAD, so a commit made
+// while the review ran can't inherit its verdict. meta is review-prep's meta.json.
+export function writeVerdict(repo, { reviewer, report, head, base, model = null, note = null, meta = null, now = new Date() }) {
   if (!REVIEWERS.includes(reviewer)) throw new Error(`reviewer must be one of: ${REVIEWERS.join(", ")}`);
   if (reviewer === "claude-fallback" && !note) throw new Error("a fallback reviewer must say why Codex could not review (--note).");
+  if (!/^[0-9a-f]{40}$/.test(head ?? "")) throw new Error(`the verdict must name the reviewed commit by its full commit ID, got ${JSON.stringify(head ?? null)}. Take it from the review's meta.json.`);
+  if (meta && meta.head !== head) throw new Error(`commit ${short(head)} does not match the reviewed commit ${short(meta.head ?? "")} in meta.json.`);
   const problems = validateReport(report);
   if (problems.length) throw new Error(problems.join("\n"));
   const headSha = rev(repo, head);
   const mergeBase = git(repo, ["merge-base", base, headSha]).trim();
+  const pid = patchId(repo, mergeBase, headSha);
+  if (meta?.patchId && meta.patchId !== pid) throw new Error(`the change from ${short(mergeBase)} to ${short(headSha)} does not match the reviewed change in meta.json. Review it again.`);
   const eff = effectiveVerdict(report);
-  const record = { reviewer, model, note, head: headSha, base, mergeBase, patchId: patchId(repo, mergeBase, headSha), said: report.verdict, verdict: eff.verdict, summary: report.summary, findings: report.findings, date: new Date().toISOString() };
+  const record = { reviewer, model, note, head: headSha, base, mergeBase, patchId: pid, said: report.verdict, verdict: eff.verdict, summary: report.summary, findings: report.findings, date: now.toISOString() };
   const dir = verdictDir(repo);
   mkdirSync(dir, { recursive: true });
   const file = join(dir, `${headSha}.${reviewer}.json`);
@@ -69,14 +76,14 @@ export function checkVerdicts(repo, { base, head = "HEAD" }) {
   const dir = verdictDir(repo);
   const all = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => JSON.parse(readFileSync(join(dir, f), "utf8"))) : [];
   const newest = (list) => list.sort((a, b) => a.date.localeCompare(b.date)).at(-1) ?? null;
+  // An exact verdict for this commit, from any acceptable reviewer, beats one carried over
+  // from an identical change. Within each group the newest wins.
   const pick = (names) => {
-    for (const name of names) {
-      const exact = newest(all.filter((v) => v.reviewer === name && v.head === headSha));
-      if (exact) return exact;
-      const carried = newest(all.filter((v) => v.reviewer === name && pid !== "empty" && v.patchId === pid));
-      if (carried) return { ...carried, carriedFrom: carried.head };
-    }
-    return null;
+    const mine = all.filter((v) => names.includes(v.reviewer));
+    const exact = newest(mine.filter((v) => v.head === headSha));
+    if (exact) return exact;
+    const carried = newest(mine.filter((v) => pid !== "empty" && v.patchId === pid));
+    return carried ? { ...carried, carriedFrom: carried.head } : null;
   };
   const karen = pick(["karen"]);
   const other = pick(["codex", "claude-fallback"]);
@@ -85,7 +92,7 @@ export function checkVerdicts(repo, { base, head = "HEAD" }) {
   if (!other) problems.push(`No verdict from Codex, or from a fallback reviewer standing in for it, for commit ${short(headSha)}.`);
   if (karen && other) {
     if (karen.verdict !== other.verdict) problems.push(`The reviewers disagree: Karen says "${karen.verdict}" and ${NAMES[other.reviewer]} says "${other.verdict}". The owner decides.`);
-    else if (karen.verdict === "not ready") problems.push("Both reviewers say not ready.");
+    else if (karen.verdict !== "ready") problems.push("Both reviewers say not ready.");
   }
   return { ok: problems.length === 0, problems, head: headSha, patchId: pid, karen, other };
 }
