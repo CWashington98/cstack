@@ -1,6 +1,6 @@
 # How our setup compares with the best AI-native engineering teams
 
-Status: review for the owner, 2026-10-07. Nothing here is built yet.
+Status: review for the owner, 2026-10-07. Wave 1 items 6 and 7 added 2026-10-08 at the owner's request. Nothing here is built yet.
 
 ## 1. The short answer
 
@@ -61,7 +61,7 @@ Three researchers read primary sources from January 2025 to October 2026 and lef
 
 Ranked by how far each change moves the goal, per unit of effort.
 
-### Wave 1: make every agent finish properly (about 60% to 80%)
+### Wave 1: make every agent finish properly, and make tests independent (about 60% to 80%)
 
 | # | Change | Effort | Done when |
 |---|---|---|---|
@@ -70,24 +70,26 @@ Ranked by how far each change moves the goal, per unit of effort.
 | 3 | **Limits on every loop.** Two fix rounds, or three identical failures, then a fresh agent; then a short written note to the owner. Turn limits on unattended runs. | 1 day, in the coordinator | No loop runs past its limit |
 | 4 | **Lessons become checks, in the repository.** Turn every mechanical lesson in memory into a lint rule, hook or test, with an error message that says how to fix it. Write the rest into `docs/solutions/` in the project. Every finished task leaves one lesson behind, or says it found none. | 2 days, then ongoing | Half of today's mechanical lessons are checks; memory files shrink |
 | 5 | **Risk-sized review.** Changes that touch database schemas, sign-in and permissions, patient data or dependencies get a deeper review and a two-line summary for the owner. Everything else gets the standard review, limited to blocking findings. | half a day, in `pr-review` and the house rules | Each pull request states its risk level, and reviews match it |
+| 6 | **An independent test author on high-risk paths.** A separate agent writes the acceptance tests from the approved spec before building starts, and a git hook stops the builder editing them. Moved from optional to required, in house rules section 3.5. | 1 day, in the house rules | Every high-risk change has acceptance tests committed before its first building commit |
+| 7 | **Property tests for code that transforms data.** A rule that must hold for every input ("every row in comes out"), checked against hundreds of generated inputs. It would have caught the 347-of-1,084 export. In house rules section 3.5. | half a day, plus a test per change | `pr-review` finds no data-transforming change without one |
 
 ### Wave 2: take the owner out of the loop (about 80% to 90%)
 
 | # | Change | Effort | Done when |
 |---|---|---|---|
-| 6 | **Routines.** A pull-request watcher fixes failing checks and answers review comments. A weekly job per project runs `verify-upkeep`, prunes stale docs, and opens small fix pull requests. These run in Anthropic's cloud, so precordia's broken GitHub billing doesn't stop them. | 1 to 2 days | A week passes in which the owner starts no maintenance work |
-| 7 | **Work state as a structured file.** OpenSpec tasks get a matching JSON list with a pass field per item. Only a passing check may flip it. A fresh agent resumes from it and the progress file. | 1 day | A new session picks up a half-done change with no briefing |
-| 8 | **Agents read staging.** `verify` adds reading the backend logs (Convex logs) and app errors for the feature it just drove | 1 day | Evidence runs include a log read-back |
-| 9 | **The spec gate stays short.** The owner sees a design of at most 200 lines plus the prototype. Plans are for agents only. | a rule, plus a check in `plain` | No owner review is longer than 200 lines |
+| 8 | **Routines.** A pull-request watcher fixes failing checks and answers review comments. A weekly job per project runs `verify-upkeep`, prunes stale docs, and opens small fix pull requests. These run in Anthropic's cloud, so precordia's broken GitHub billing doesn't stop them. | 1 to 2 days | A week passes in which the owner starts no maintenance work |
+| 9 | **Work state as a structured file.** OpenSpec tasks get a matching JSON list with a pass field per item. Only a passing check may flip it. A fresh agent resumes from it and the progress file. | 1 day | A new session picks up a half-done change with no briefing |
+| 10 | **Agents read staging.** `verify` adds reading the backend logs (Convex logs) and app errors for the feature it just drove | 1 day | Evidence runs include a log read-back |
+| 11 | **The spec gate stays short.** The owner sees a design of at most 200 lines plus the prototype. Plans are for agents only. | a rule, plus a check in `plain` | No owner review is longer than 200 lines |
 
 ### Wave 3: measure, then strip what doesn't pay (about 90% to 95%)
 
 | # | Change | Effort | Done when |
 |---|---|---|---|
-| 10 | **Test cases for our own checks, taken from real failures.** Examples: two dead flags that Karen only found by changing code. An export that silently returned 347 of 1,084 rows. The audio bug. The wrong mobile app ID. A Claude Code hook that exited with code 1. Score every check against them, and re-run the scores after each new model. | 2 days | Each check has a measured catch rate; any check that catches nothing is removed |
-| 11 | **A readiness score** for each project, on Factory's model: tests, docs, monitoring, security and agent tools | 1 day | All five projects scored; the lowest gets a plan |
-| 12 | **Small guards:** a hook that catches deleted or skipped tests; every agent reply ends with "what was missing from my brief"; claims labeled measured, inferred or guess | 1 day | All three live in every project |
-| 13 | **Cheaper execution for small tasks.** Superpowers measured its inline mode as twice as fast and half the cost of a fresh agent per task. Use it below a size limit. | a rule in the coordinator | Usage per merged pull request falls |
+| 12 | **Test cases for our own checks, taken from real failures.** Examples: two dead flags that Karen only found by changing code. An export that silently returned 347 of 1,084 rows. The audio bug. The wrong mobile app ID. A Claude Code hook that exited with code 1. Score every check against them, and re-run the scores after each new model. | 2 days | Each check has a measured catch rate; any check that catches nothing is removed |
+| 13 | **A readiness score** for each project, on Factory's model: tests, docs, monitoring, security and agent tools | 1 day | All five projects scored; the lowest gets a plan |
+| 14 | **Small guards:** every agent reply ends with "what was missing from my brief", and claims are labeled measured, inferred or guess. The hook that catches deleted or skipped tests moved into the house rules. | half a day | Both live in every project |
+| 15 | **Cheaper execution for small tasks.** Superpowers measured its inline mode as twice as fast and half the cost of a fresh agent per task. Use it below a size limit. | a rule in the coordinator | Usage per merged pull request falls |
 
 ## 7. Where the experts disagree, and our call
 

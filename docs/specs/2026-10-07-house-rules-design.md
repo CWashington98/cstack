@@ -1,6 +1,6 @@
 # House rules: one shared set of development rules for every project
 
-Status: design for the owner's review, 2026-10-07. Nothing here is built yet.
+Status: design for the owner's review, 2026-10-07. Section 3.5 added 2026-10-08 at the owner's request. Nothing here is built yet.
 
 ## 1. What this is
 
@@ -40,9 +40,9 @@ The block holds the rules all three projects already share, plus the proof rules
 | Document | Shared rule |
 |---|---|
 | Proposal | Who it's for; before and after, in plain words; what's out of scope; how it rolls out |
-| Specs | Each scenario written as given, when, then, from the user's point of view; nothing left "to be decided"; each requirement says how it will be proved |
+| Specs | Each scenario written as given, when, then, from the user's point of view; nothing left "to be decided"; each requirement says how it will be proved. A requirement about data being changed, copied, filtered or counted also states the rule that must hold for every input (section 3.5). |
 | Design | What existing code or product is reused, and why anything is built instead; what data changes; who is allowed to do what |
-| Tasks | The first group writes failing tests; the last group checks the result live and records the proof |
+| Tasks | The first group writes failing tests. On high-risk paths, a separate agent writes the acceptance tests from the approved spec before building starts (section 3.5). The last group checks the result live and records the proof. |
 | Building | Work in a separate worktree; watch each new test fail before writing the fix |
 | Archiving | Archive a change once its pull request has merged |
 
@@ -58,6 +58,8 @@ These run in git hooks, so they work for everyone, whether or not they use Claud
 | **Refactors don't change tests** | before a push | A `refactor:` commit that edits test files. A refactor must keep behavior the same, and unchanged tests passing is the proof. |
 | **Minimum package age** | when the lockfile changes | A package version published less than 7 days ago. It reads the lockfile, so it also catches installs that skip the package manager's own age setting. |
 | **Claude Code hooks block properly** | when a hook file changes | A blocking Claude Code hook that exits with code 1. Only code 2 blocks; code 1 lets the action go ahead. |
+| **Acceptance tests stay locked** | before a push | On a high-risk path, a commit that edits an acceptance test file, unless it's a `test(acceptance):` commit or carries a `Spec-Change:` line saying which spec change requires it (section 3.5) |
+| **No quietly weakened tests** | before a push | A commit that deletes a test, or marks one as skipped (`.skip`, `.only`, `xit`, `@skip` and the like), unless its message carries a `Test-Removed:` line with the reason |
 | **Gates read exit codes** | when a hook file changes | A gate that decides pass or fail by searching a command's printed output, which passes when the command never ran. |
 
 Pre-commit checks must finish in under 5 seconds. Anything slower runs before a push or before a pull request.
@@ -78,7 +80,25 @@ These suit a project with one owner, or a custom pipeline. A project turns them 
 - **Risk zones:** each change is rated by the files it touches, and risky ones need more review.
 - **Approval before code:** no application code until the owner approves the spec.
 - **Review record:** a merge needs a recorded review tied to the pull request's current commit. This is the `pr-review` skill's job in the `verify` design.
-- **Locked acceptance tests:** tests written by a separate author from the approved spec, which the builder can't edit.
+
+### 3.5 Tests that don't share the builder's blind spots
+
+Added at the owner's request on 2026-10-08. When the same agent writes the code and its tests, the tests share its misunderstandings, and they tend to check made-up sample values instead of real behavior. Our own record shows it: the audio bug passed every test; an export silently returned 347 of 1,084 rows; two dead flags survived three reviews. Two rules close most of that gap.
+
+**1. An independent test author on high-risk paths.**
+
+- Each project lists its high-risk paths in its house rules settings. For precordia, the starting list is the clinical and labeling backends, the shared recording code, the patient mobile app's source, and the labeling app's audio code.
+- When a change touches a high-risk path, a separate agent writes the acceptance tests first. It sees only the approved spec, never the builder's plan or code.
+- Those tests go in an `acceptance` folder, in a `test(acceptance):` commit, before any building starts. They must fail at that point.
+- The builder can't edit them. The "acceptance tests stay locked" check enforces it. If the builder finds a test that really is wrong, it stops and asks; a fix then goes in with a `Spec-Change:` line naming the spec change.
+- This is smsMarketing's independent test author, which already works there, moved from optional to required for high-risk paths.
+
+**2. Property tests for code that transforms data.**
+
+- Code that changes, copies, filters, merges or counts data gets at least one property test. A property test states a rule that must hold for every input. Examples: "every row that goes in comes out", "the total never changes", "sorting twice gives the same order". A tool then generates hundreds of inputs, including awkward ones, and checks the rule for each.
+- It uses the project's existing test runner, with `fast-check` for JavaScript and TypeScript projects.
+- The spec names the rule (section 3.1), so the test author knows what to check.
+- `pr-review` asks for it: a change that transforms data with no property test is a blocking finding on high-risk paths, and a note elsewhere.
 
 ## 4. What changes in each project
 
@@ -97,13 +117,14 @@ The two commit checks read the first word of each commit message. All projects w
 - `test(red):` a test that fails, committed before the fix
 - `fix:` the fix that makes it pass
 - `refactor:` a change that keeps behavior the same
+- `test(acceptance):` the locked acceptance tests for a high-risk change, written before building
 - `feat:`, `docs:`, `chore:` as now
 
 onehearthealth already uses these. precordia mostly does. smsMarketing uses its own trailers, which the checks would read too.
 
 ## 6. How we know it works
 
-- Each check has tests that build small real git repositories on the fly. A branch with a fix and no failing test is held. The same branch with the test first passes. A refactor that edits a test is held. A package published yesterday is held. A Claude Code hook that exits with code 1 is flagged.
+- Each check has tests that build small real git repositories on the fly. A branch with a fix and no failing test is held. The same branch with the test first passes. A refactor that edits a test is held. A package published yesterday is held. A Claude Code hook that exits with code 1 is flagged. A builder commit that edits a locked acceptance test is held. A commit that deletes or skips a test without a reason is held.
 - The rules block round-trips: writing it twice changes nothing, and the project's own rules outside the markers are never touched.
 - After rollout, each project's next five pull requests pass the checks, or each failure is a real problem.
 
@@ -114,3 +135,5 @@ onehearthealth already uses these. precordia mostly does. smsMarketing uses its 
 3. **onehearthealth's mutation testing in continuous integration.** Recommended: leave it. The "local only" rule came from precordia's costs, and it's the team's repository.
 4. **precordia's documented `--no-verify` skip for the mutation gate.** Recommended: keep it, but name a reason each time, so the facts file can say "not for routine use".
 5. **Which optional parts precordia turns on** (section 3.4). Recommended: review record only, through `pr-review`.
+
+**Decided by the owner, 2026-10-08:** section 3.5. An independent test author writes locked acceptance tests on high-risk paths, and code that transforms data gets property tests.
