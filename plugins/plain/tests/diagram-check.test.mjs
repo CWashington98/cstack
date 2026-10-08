@@ -104,3 +104,13 @@ test("the command passes with exit 0, holds with exit 1, and returns 2 for a mis
   assert.equal(json.held, false);
   assert.deepEqual(json.findings.map((f) => f.rule), ["color-alone"]);
 });
+
+test("every template in the skill passes", () => {
+  const templates = join(here, "..", "skills", "to-diagram", "templates");
+  const names = readdirSync(templates).filter((n) => /\.(svg|html)$/.test(n));
+  assert.ok(names.length >= 4, "at least four templates");
+  for (const name of names) {
+    const findings = check(readFileSync(join(templates, name), "utf8"), name);
+    assert.deepEqual(findings.map((f) => `${f.rule}: ${f.message}`), [], name);
+  }
+});

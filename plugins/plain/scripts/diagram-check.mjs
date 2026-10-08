@@ -328,6 +328,9 @@ export function checkSvg(source, config, palette, firstLine = 1) {
       const scaled = scale < 1 ? ` after the diagram is shrunk to its width of ${width} pixels` : "";
       add(it.line, "font-size", "hold", it.label, `Words "${short(it.label)}" are ${+smallest.toFixed(1)} pixels${scaled}. The smallest allowed is ${minSize} pixels, or ${legendSize} inside a legend.`);
     }
+    if (it.runs.some((r) => r.left < canvas.x - 2 || r.right > canvas.x + canvas.w + 2)) {
+      add(it.line, "label-overflow", "advice", it.label, `Words "${short(it.label)}" may run past the edge of the diagram and be cut off. Move them in or shorten them.`);
+    }
     const first = it.runs[0];
     const { top } = colorAt((first.left + first.right) / 2, first.mid, i);
     if (top && top !== backdrop) {

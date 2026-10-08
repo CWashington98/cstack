@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 364" width="960" height="364" role="img" aria-labelledby="diagram-title diagram-desc" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <!-- Template: a flow, left to right. Replace the words, keep the colors.
+       Boxes are 180 wide with a 52 gap, so x = 40, 272, 504, 736.
+       Every color here comes from ../palette.json. -->
+  <title id="diagram-title">How a change goes from plan to release</title>
+  <desc id="diagram-desc">Four steps from left to right: write the plan, build it, review it, release it. Review can send the change back to build.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6c788c"/>
+    </marker>
+    <marker id="arrow-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#f2994a"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="100%" height="100%" fill="#0b0f17"/>
+
+  <text x="40" y="56" fill="#f2f5f9" font-size="24" font-weight="600">How a change goes from plan to release</text>
+
+  <g>
+    <rect x="40" y="110" width="180" height="96" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+    <text x="130" y="152" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Write the plan</text>
+    <text x="130" y="178" text-anchor="middle" fill="#9aa5b6" font-size="15">one short page</text>
+  </g>
+  <g>
+    <rect x="272" y="110" width="180" height="96" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+    <text x="362" y="152" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Build it</text>
+    <text x="362" y="178" text-anchor="middle" fill="#9aa5b6" font-size="15">code and tests</text>
+  </g>
+  <g>
+    <rect x="504" y="110" width="180" height="96" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+    <text x="594" y="152" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Review it</text>
+    <text x="594" y="178" text-anchor="middle" fill="#9aa5b6" font-size="15">a second person reads</text>
+  </g>
+  <g>
+    <rect x="736" y="110" width="180" height="96" rx="10" fill="#202837" stroke="#5ea8ff" stroke-width="2"/>
+    <text x="826" y="152" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Release it</text>
+    <text x="826" y="178" text-anchor="middle" fill="#9aa5b6" font-size="15">everyone gets it</text>
+  </g>
+
+  <line x1="220" y1="158" x2="268" y2="158" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="452" y1="158" x2="500" y2="158" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="684" y1="158" x2="732" y2="158" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <path d="M594,206 C594,262 362,262 362,212" fill="none" stroke="#f2994a" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow-orange)"/>
+  <text x="478" y="282" text-anchor="middle" fill="#f2994a" font-size="15">Sent back with changes</text>
+
+  <g class="legend">
+    <line x1="40" y1="326" x2="72" y2="326" stroke="#5ea8ff" stroke-width="2"/>
+    <text x="82" y="331" fill="#9aa5b6" font-size="14">Blue edge: the finish line</text>
+    <line x1="300" y1="326" x2="332" y2="326" stroke="#f2994a" stroke-width="2" stroke-dasharray="6 5"/>
+    <text x="342" y="331" fill="#9aa5b6" font-size="14">Orange dashes: going back a step</text>
+  </g>
+</svg>
