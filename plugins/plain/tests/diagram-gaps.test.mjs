@@ -327,3 +327,11 @@ test("a filled box's edge is checked only when its fill is under 3 to 1 against 
 test("very dark colors use the straight-line part of the brightness formula", () => {
   assert.ok(Math.abs(luminance("#010101") - 1 / 255 / 12.92) < 1e-12);
 });
+
+test("a linked style sheet is held whatever its rel list looks like, and @import in any case", () => {
+  const svg = doc(BOX + words());
+  for (const head of ['<link rel="preload stylesheet" href="s.css">', '<link rel="alternate stylesheet" href="s.css">', "<link REL='StyleSheet' href='s.css'>", '<link href="s.css" rel=stylesheet>', "<style>@IMPORT url(s.css);</style>", "<style>@Import 's.css';</style>"]) {
+    assert.ok(holds(page(svg, head), "p.html").includes("page-style"), head);
+  }
+  assert.deepEqual(holds(page(svg, '<link rel="icon" href="i.png"><link rel="stylesheets-not" href="x">'), "p.html"), [], "other link types pass");
+});

@@ -652,13 +652,17 @@ function checkPageStyles(raw, svgs) {
     /\*/.test(selector) ||
     new RegExp(`(^|[\\s>+~,(])(${SVG_NAMES})(?=$|[\\s>+~,.#:\\[)])`, "i").test(selector) ||
     [...names].some((n) => new RegExp(`${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`).test(selector));
-  for (const m of outside.matchAll(/<link\b[^>]*\brel\s*=\s*["']?stylesheet[^>]*>/gi)) {
+  // rel is a list of words in any case, such as "preload stylesheet".
+  for (const m of outside.matchAll(/<link\b[^>]*>/gi)) {
+    const rel = m[0].match(/\brel\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i);
+    const words = (rel?.[1] ?? rel?.[2] ?? rel?.[3] ?? "").toLowerCase().split(/\s+/);
+    if (!words.includes("stylesheet")) continue;
     hold(m.index, "link", "The page loads a style sheet the checker can't read, and it could change the diagram. Put the page's styles in the page.");
   }
   for (const block of outside.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)) {
     const start = block.index + block[0].indexOf(block[1]);
     const css = block[1].replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, " "));
-    for (const imp of css.matchAll(/@import\b[^;]*;?/g)) hold(start + imp.index, "@import", "The page imports a style sheet the checker can't read, and it could change the diagram.");
+    for (const imp of css.matchAll(/@import\b[^;]*;?/gi)) hold(start + imp.index, "@import", "The page imports a style sheet the checker can't read, and it could change the diagram.");
     for (const rule of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
       const selector = rule[1].trim();
       if (selector.startsWith("@")) continue;
