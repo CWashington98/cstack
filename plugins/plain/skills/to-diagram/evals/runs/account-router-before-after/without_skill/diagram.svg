@@ -1,69 +1,44 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" font-family="Helvetica, Arial, sans-serif" font-size="14">
-<defs><marker id="a" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L10,4 L0,8 z" fill="#374151"/></marker></defs>
-<rect width="960" height="560" fill="#fff"/>
-<text x="480" y="30" text-anchor="middle" font-size="20" font-weight="bold" fill="#111827">Account router: before and after</text>
-<line x1="480" y1="50" x2="480" y2="540" stroke="#d1d5db" stroke-dasharray="6 4"/>
-<text x="240" y="70" text-anchor="middle" font-size="17" font-weight="bold" fill="#b91c1c">BEFORE</text>
-<text x="720" y="70" text-anchor="middle" font-size="17" font-weight="bold" fill="#15803d">AFTER</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 620" font-family="Helvetica, Arial, sans-serif" font-size="14">
+<rect width="960" height="620" fill="#ffffff"/>
+<text x="480" y="30" text-anchor="middle" font-size="20" font-weight="bold" fill="#111">Account router: which Claude subscription a new session starts on</text>
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#333"/></marker></defs>
 
-<!-- BEFORE -->
-<g stroke="#374151" stroke-width="1.5">
-<rect x="30" y="100" width="130" height="36" rx="6" fill="#f3f4f6"/>
-<rect x="30" y="150" width="130" height="36" rx="6" fill="#f3f4f6"/>
-<rect x="30" y="200" width="130" height="36" rx="6" fill="#fecaca" stroke="#b91c1c"/>
-<rect x="215" y="140" width="130" height="110" rx="8" fill="#fee2e2" stroke="#b91c1c" stroke-width="2"/>
-<rect x="300" y="320" width="150" height="70" rx="8" fill="#f3f4f6"/>
-</g>
-<text x="95" y="123" text-anchor="middle">Account A req</text>
-<text x="95" y="173" text-anchor="middle">Account B req</text>
-<text x="95" y="223" text-anchor="middle">Account C (slow)</text>
-<text x="280" y="180" text-anchor="middle" font-weight="bold">One shared</text>
-<text x="280" y="198" text-anchor="middle" font-weight="bold">router</text>
-<text x="280" y="225" text-anchor="middle" font-size="12">DB lookup on</text>
-<text x="280" y="240" text-anchor="middle" font-size="12">every call</text>
-<text x="375" y="352" text-anchor="middle" font-weight="bold">Database</text>
-<text x="375" y="372" text-anchor="middle" font-size="12">account table</text>
-<g stroke="#374151" stroke-width="1.5" fill="none" marker-end="url(#a)">
-<path d="M160 118 L215 165"/><path d="M160 168 L215 185"/><path d="M160 218 L215 215"/>
-<path d="M280 250 L330 320"/><path d="M360 320 L300 252" stroke-dasharray="5 3"/>
-</g>
-<text x="105" y="290" fill="#b91c1c" font-size="13">Slow lookup for C holds up</text>
-<text x="105" y="308" fill="#b91c1c" font-size="13">the router, so A and B wait too.</text>
-<text x="30" y="430" font-size="13" fill="#374151">Problem: shared path + per-request DB hit</text>
-<text x="30" y="450" font-size="13" fill="#374151">= one slow account slows everyone.</text>
+<text x="230" y="70" text-anchor="middle" font-size="17" font-weight="bold" fill="#8a1c1c">BEFORE</text>
+<rect x="30" y="85" width="400" height="60" rx="8" fill="#f4f4f4" stroke="#555"/>
+<text x="230" y="110" text-anchor="middle">New Claude Code session starts</text>
+<text x="230" y="130" text-anchor="middle" fill="#555">two accounts: A and B</text>
+<line x1="230" y1="145" x2="230" y2="195" stroke="#333" stroke-width="2" marker-end="url(#a)"/>
+<rect x="30" y="195" width="400" height="80" rx="8" fill="#fdecec" stroke="#8a1c1c"/>
+<text x="230" y="225" text-anchor="middle" font-weight="bold">Compare usage on A and B</text>
+<text x="230" y="250" text-anchor="middle">Pick the account with the LOWER usage</text>
+<line x1="230" y1="275" x2="230" y2="325" stroke="#333" stroke-width="2" marker-end="url(#a)"/>
+<rect x="30" y="325" width="400" height="50" rx="8" fill="#f4f4f4" stroke="#555"/>
+<text x="230" y="355" text-anchor="middle">Session starts on that account</text>
+<text x="230" y="420" text-anchor="middle" fill="#8a1c1c" font-size="13">Not checked: locked accounts, near the 5-hour limit,</text>
+<text x="230" y="440" text-anchor="middle" fill="#8a1c1c" font-size="13">stale meter readings, or when the weekly allowance resets.</text>
 
-<!-- AFTER -->
-<g stroke="#374151" stroke-width="1.5">
-<rect x="500" y="100" width="130" height="36" rx="6" fill="#f3f4f6"/>
-<rect x="500" y="150" width="130" height="36" rx="6" fill="#f3f4f6"/>
-<rect x="500" y="200" width="130" height="36" rx="6" fill="#fef3c7" stroke="#b45309"/>
-<rect x="670" y="140" width="110" height="110" rx="8" fill="#dcfce7" stroke="#15803d" stroke-width="2"/>
-<rect x="830" y="90" width="110" height="40" rx="6" fill="#dcfce7" stroke="#15803d"/>
-<rect x="830" y="150" width="110" height="40" rx="6" fill="#dcfce7" stroke="#15803d"/>
-<rect x="830" y="210" width="110" height="40" rx="6" fill="#fef3c7" stroke="#b45309"/>
-<rect x="700" y="320" width="110" height="46" rx="8" fill="#dbeafe" stroke="#1d4ed8"/>
-<rect x="840" y="320" width="100" height="46" rx="8" fill="#f3f4f6"/>
-</g>
-<text x="565" y="123" text-anchor="middle">Account A req</text>
-<text x="565" y="173" text-anchor="middle">Account B req</text>
-<text x="565" y="223" text-anchor="middle">Account C (slow)</text>
-<text x="725" y="188" text-anchor="middle" font-weight="bold">Edge</text>
-<text x="725" y="206" text-anchor="middle" font-weight="bold">routing</text>
-<text x="725" y="226" text-anchor="middle" font-size="12">by account ID</text>
-<text x="885" y="115" text-anchor="middle">Worker A</text>
-<text x="885" y="175" text-anchor="middle">Worker B</text>
-<text x="885" y="235" text-anchor="middle">Worker C</text>
-<text x="755" y="348" text-anchor="middle" font-weight="bold">Account cache</text>
-<text x="890" y="348" text-anchor="middle" font-weight="bold">Database</text>
-<g stroke="#374151" stroke-width="1.5" fill="none" marker-end="url(#a)">
-<path d="M630 118 L670 165"/><path d="M630 168 L670 185"/><path d="M630 218 L670 215"/>
-<path d="M780 160 L830 110"/><path d="M780 195 L830 170"/><path d="M780 235 L830 230"/>
-<path d="M885 250 L760 320"/>
-<path d="M810 343 L840 343" stroke-dasharray="5 3"/>
-</g>
-<text x="825" y="392" text-anchor="middle" font-size="12" fill="#1d4ed8">hit: no DB call; miss: fetch once, store</text>
-<text x="500" y="290" fill="#b45309" font-size="13">Slow C only stalls Worker C.</text>
-<text x="500" y="308" fill="#15803d" font-size="13">A and B keep their own workers.</text>
-<text x="500" y="430" font-size="13" fill="#374151">Fix: isolate per account + cache the lookup</text>
-<text x="500" y="450" font-size="13" fill="#374151">= no cross-account slowdown, far fewer DB reads.</text>
+<line x1="480" y1="70" x2="480" y2="590" stroke="#bbb" stroke-dasharray="6 6"/>
+
+<text x="720" y="70" text-anchor="middle" font-size="17" font-weight="bold" fill="#1c6b2e">AFTER</text>
+<rect x="520" y="85" width="400" height="50" rx="8" fill="#f4f4f4" stroke="#555"/>
+<text x="720" y="115" text-anchor="middle">New Claude Code session starts</text>
+<line x1="720" y1="135" x2="720" y2="160" stroke="#333" stroke-width="2" marker-end="url(#a)"/>
+<rect x="520" y="160" width="400" height="90" rx="8" fill="#fff8e1" stroke="#b07a00"/>
+<text x="720" y="183" text-anchor="middle" font-weight="bold">Step 1: read each account's meters</text>
+<text x="720" y="205" text-anchor="middle">A meter reading older than 12 hours</text>
+<text x="720" y="225" text-anchor="middle">counts as UNKNOWN</text>
+<line x1="720" y1="250" x2="720" y2="275" stroke="#333" stroke-width="2" marker-end="url(#a)"/>
+<rect x="520" y="275" width="400" height="110" rx="8" fill="#fff8e1" stroke="#b07a00"/>
+<text x="720" y="298" text-anchor="middle" font-weight="bold">Step 2: skip an account if it is</text>
+<text x="720" y="323" text-anchor="middle">locked, or</text>
+<text x="720" y="345" text-anchor="middle">close to its 5-hour usage limit</text>
+<text x="720" y="370" text-anchor="middle" fill="#555" font-size="13">(who remains is the eligible set)</text>
+<line x1="720" y1="385" x2="720" y2="410" stroke="#333" stroke-width="2" marker-end="url(#a)"/>
+<rect x="520" y="410" width="400" height="80" rx="8" fill="#e8f5ec" stroke="#1c6b2e"/>
+<text x="720" y="437" text-anchor="middle" font-weight="bold">Step 3: of the rest, pick the account</text>
+<text x="720" y="460" text-anchor="middle" font-weight="bold">whose WEEKLY allowance resets SOONEST</text>
+<line x1="720" y1="490" x2="720" y2="515" stroke="#333" stroke-width="2" marker-end="url(#a)"/>
+<rect x="520" y="515" width="400" height="50" rx="8" fill="#f4f4f4" stroke="#555"/>
+<text x="720" y="545" text-anchor="middle">Session starts on that account</text>
+<text x="720" y="590" text-anchor="middle" fill="#1c6b2e" font-size="13">Unused weekly allowance is spent before it expires.</text>
 </svg>

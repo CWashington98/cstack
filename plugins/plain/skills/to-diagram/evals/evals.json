@@ -1,6 +1,6 @@
 {
   "skill_name": "to-diagram",
-  "about": "Three realistic requests for a diagram. Each was run once by a fresh agent that had the skill and once by one that didn't. Every output is scored with the checker: node ../../../scripts/diagram-check.mjs <file>. The prompts carry their own context, because a fresh agent knows nothing about the project.",
+  "about": "Three realistic requests for a diagram. Each was run by a fresh agent with the skill and by one without it. Every output is scored with the checker: node ../../../scripts/diagram-check.mjs <file>. Each prompt carries the facts it needs, because a fresh agent knows nothing about the project. Project names appear only where the facts need them.",
   "evals": [
     {
       "id": 1,
@@ -29,12 +29,13 @@
     {
       "id": 3,
       "name": "account-router-before-after",
-      "prompt": "Show the before and after of the account router change. Before: every incoming API request went through one shared router that looked up the account in the database on every call, so one slow account slowed everyone down. After: requests are routed by account ID at the edge to a worker for that account, and the account lookup is cached.",
-      "expected_output": "A before and after diagram, dark, with the slow shared path and the per-account path side by side. Passes the checker.",
+      "prompt": "Show the before and after of the account router change. The account router picks which of our two Claude subscriptions a new Claude Code session starts on. Before: it picked the account with the lower usage. After: it picks the account whose weekly allowance resets soonest. It skips an account that is locked, and one that is close to its 5-hour usage limit. It treats a usage meter reading more than 12 hours old as unknown.",
+      "expected_output": "A before and after diagram, dark, showing the old rule (lower usage wins) beside the new one (soonest weekly reset wins, after skipping locked accounts and accounts near the 5-hour limit, with readings over 12 hours old treated as unknown). No capital-letter abbreviations. Passes the checker.",
       "files": [],
       "assertions": [
         "The diagram file passes the checker (exit 0).",
         "Before and after are both shown and labeled in words, not only by color.",
+        "The new rule's three parts appear: soonest weekly reset, the two skips, and stale readings treated as unknown.",
         "It comes with a short caption saying what to notice."
       ]
     }

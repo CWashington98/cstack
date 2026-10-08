@@ -20,6 +20,7 @@ The tests are in the plugin's `tests` folder:
 
 - `palette.test.mjs` works out the contrast of every allowed pairing and fails if any falls short.
 - `diagram-check.test.mjs` runs the checker on every file in `tests/fixtures/diagram/` and on every template. A fixture's name says what it must produce: `pass-…`, `hold-<rule>-…` or `advice-<rule>-…`.
+- `diagram-gaps.test.mjs` covers the bad diagrams a review found passing, and pins the contrast limits at their exact edges. Breaking each checked behavior in the code makes one of these tests fail.
 
 ## The palette
 
@@ -50,11 +51,17 @@ Choices made while building this, and what it costs if one is wrong.
 
 - **Box labels: advice over 6 words, hold over 12.** A hard stop at 7 would block ordinary labels like "Spec written and agreed by the owner". If wrong, some crowded boxes ship; the advice still flags them.
 - **A box's word count includes its second line.** Readers see both lines as one label. If wrong, two-line boxes get advice a little early.
-- **12-pixel words only inside a legend,** marked by a group whose `id` or `class` contains `legend`. If wrong, a legend without that marker is held until someone adds it.
+- **12-pixel words only inside a legend,** marked by a group whose `id` is `legend` or whose class list has `legend` as a whole word. If wrong, a legend without that marker is held until someone adds it.
 - **All words need 4.5 to 1, even large ones.** The guidelines allow 3 to 1 for very large words; we skip that exception to keep one simple rule. If wrong, some large accent headings are held that would be legal.
 - **A box stands out if its edge or its fill reaches 3 to 1** against what is around it. A filled shape with no edge and no words must reach 3 to 1 itself, unless it is a palette surface color. If wrong, a faint panel with no edge could pass; a panel only frames other boxes, so the loss is small.
-- **Font sizes are measured after shrinking by the `width` attribute.** A page that shrinks the picture with style rules isn't seen, so the page template never shrinks it and scrolls sideways instead. If wrong, a page that forces the diagram to fit a phone shows smaller words than were checked.
-- **Unreadable parts are held, not skipped.** Style sheets, embedded images, gradients and rotation are held, because the checker can't prove their colors. If wrong, a diagram that needs rotated words can't pass; write it another way.
+- **Font sizes are measured after shrinking by the diagram's width or height,** from its attributes or its own style. A width in percent is held, because the checker can't know the final size. If wrong, a diagram meant to stretch to its page is held; give it a pixel width.
+- **Only listed elements are allowed; everything else is held.** That covers style sheets, embedded images, gradients, animation, nested diagrams, filters and rotation, because the checker can't prove what they draw. If wrong, a diagram that needs one of these can't pass; draw it another way.
+- **On a page, page styles must stay out of the diagram.** A rule for the diagram's parts may set only display and margins. Opacity, filters, transforms, zoom, fill and stroke are held anywhere on the page, because they can reach the diagram through a parent. Linked style sheets are held. If wrong, an ordinary page effect elsewhere on the page, such as a hover transform, blocks the diagram page.
+- **Any shape covering half the canvas or more must be a surface color.** If wrong, a deliberately large accent area is held; use a surface color with an accent edge.
+- **The background rect must use plain numbers.** Some image tools draw a percent-sized rect as white. If wrong, nothing is lost: numbers work everywhere.
+- **Words may not be outlined:** no stroke and no empty fill. If wrong, an outlined heading style can't be used.
+- **Lines and edges behind words count; lines meeting other lines don't.** Words are measured against fills and against any line drawn across them. Lines and marks are measured against fills only, since a line touching a box edge is a join. If wrong, a line drawn along another line of the same color passes.
+- **Capital-letter words are held in diagrams even when plain's common list allows them** (API, ID, AI and so on). One passes if the glossary has it or the diagram's visible words spell it out anywhere. Plain's prose checker is unchanged. If wrong, a diagram for a technical reader has to spell out words that reader knows.
 - **Acronyms spelled out only in the hidden description still hold on the label.** Most readers never see the description. If wrong, a label holds that a screen reader user would have understood.
 - **Text width is estimated** at 0.55 of the font size per letter (0.6 for bold). Words wider than their box or past the edge are advice, not a hold, because the estimate can be off by a few letters. If wrong, a cut-off label ships; step 8 in `SKILL.md` asks for a look in a browser.
 - **"Meaning shown by color alone" is a guess:** two or more accent colors on shapes and no legend. It can't tell whether the labels already say the meaning, so it is advice. If wrong, a diagram gets a needless nudge.
@@ -62,19 +69,21 @@ Choices made while building this, and what it costs if one is wrong.
 
 ## Test results
 
-On 7 October 2026, each request in `evals/evals.json` was given to a fresh agent (Sonnet) once with the skill and once without it. Each drawing was scored with the checker. The drawings and captions are in `evals/runs/`, and the details in `evals/results/2026-10-07.json`.
+Each request in `evals/evals.json` was given to a fresh agent (Sonnet) with the skill and without it. Each prompt carries the facts it needs, because a fresh agent knows nothing about the project. Every drawing was scored with the checker as it stands after the review fixes. The drawings and captions are in `evals/runs/`, and the details in `evals/results/2026-10-07-after-review.json`.
+
+The three runs with the skill were redone after the review, as was the router run without it, whose prompt changed to carry the real facts. The other two runs without the skill are from the first round; their prompts did not change. The first round's scores are in `evals/results/2026-10-07.json`.
 
 | Request | With the skill | Without it |
 |---|---|---|
-| Pull request flow | Passes | Held: 22 problems |
-| Two backends kept apart | Passes, 4 pieces of advice (labels of 7 to 10 words) | Held: 62 problems |
-| Before and after of a routing change | Passes | Held: 80 problems |
+| Pull request flow | Passes, 4 pieces of advice (labels of 7 to 10 words) | Held: 23 problems |
+| Two backends kept apart | Passes, 1 piece of advice (a 7-word label) | Held: 62 problems |
+| Before and after of the account router | Passes | Held: 60 problems |
 | **Pass rate** | **3 of 3** | **0 of 3** |
 
-Without the skill, every drawing had a white background, colors outside the palette, and words of 12 or 13 pixels. Two left out the title or description that screen readers need. Two used unexplained acronyms such as `HIPAA` and `DB` in labels. Leaving aside the palette rule, which only this skill knows about, the drawings would still all be held for the light background and the small words.
+Without the skill, every drawing had a white background, colors outside the palette, and words of 12 or 13 pixels. Some also left out the title or description that screen readers need, or used capital-letter abbreviations. Leaving aside the palette rule, which only this skill knows about, they would still all be held for the light background and the small words.
 
-With the skill, runs took 43 to 64 seconds against 27 to 36 without, and used about 14% more tokens. The skill's drawings were checked and fixed before they were handed back.
+With the skill, no drawing used a capital-letter abbreviation: "a second automated reviewer", not the two-letter short form. The router drawing shows the real rule: skip a locked account, skip one near its 5-hour limit, treat meter readings over 12 hours old as unknown, then pick the soonest weekly reset.
 
-The assertions in `evals.json` were graded by reading the drawings: 9 of 9 with the skill, 5 of 9 without. Without the skill, all three failed the checker, and one label used an unexplained acronym.
+Runs with the skill took 58 to 69 seconds against 27 to 35 without, and used about 17% more tokens. The skill's drawings were checked and fixed before they were handed back.
 
 To run the test again, give each prompt to a fresh agent with the skill and without it. Save the drawing as `diagram.svg` and the caption as `caption.md` under `evals/runs/<name>/<with_skill or without_skill>/`. Then run the checker on each drawing.

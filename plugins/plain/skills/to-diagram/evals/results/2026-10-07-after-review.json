@@ -1,0 +1,103 @@
+{
+  "date": "2026-10-07",
+  "model": "sonnet",
+  "checker": "plugins/plain/scripts/diagram-check.mjs, after the review fixes",
+  "note": "All drawings scored with the fixed checker. The three runs with the skill and the router run without it were redone after the review; the other two runs without the skill are from the first round, with unchanged prompts.",
+  "passRate": {
+    "with_skill": "3 of 3",
+    "without_skill": "0 of 3"
+  },
+  "runs": [
+    {
+      "eval": "pull-request-flow",
+      "variant": "with_skill",
+      "round": "2026-10-07, after the review",
+      "passes": true,
+      "holds": 0,
+      "advice": 4,
+      "byRule": {
+        "advice:label-length": 4
+      },
+      "seconds": 58.257,
+      "tokens": 75935
+    },
+    {
+      "eval": "pull-request-flow",
+      "variant": "without_skill",
+      "round": "2026-10-07, first round",
+      "passes": false,
+      "holds": 23,
+      "advice": 1,
+      "byRule": {
+        "hold:desc": 1,
+        "advice:screen-reader": 1,
+        "hold:palette": 19,
+        "hold:background": 1,
+        "hold:capitals": 1,
+        "hold:font-size": 1
+      },
+      "seconds": 27.375,
+      "tokens": 62800
+    },
+    {
+      "eval": "two-backends",
+      "variant": "with_skill",
+      "round": "2026-10-07, after the review",
+      "passes": true,
+      "holds": 0,
+      "advice": 1,
+      "byRule": {
+        "advice:label-length": 1
+      },
+      "seconds": 68.986,
+      "tokens": 73570
+    },
+    {
+      "eval": "two-backends",
+      "variant": "without_skill",
+      "round": "2026-10-07, first round",
+      "passes": false,
+      "holds": 62,
+      "advice": 1,
+      "byRule": {
+        "advice:long-sentence": 1,
+        "hold:palette": 45,
+        "hold:background": 1,
+        "hold:capitals": 3,
+        "hold:font-size": 13
+      },
+      "seconds": 32.355,
+      "tokens": 63687
+    },
+    {
+      "eval": "account-router-before-after",
+      "variant": "with_skill",
+      "round": "2026-10-07, after the review",
+      "passes": true,
+      "holds": 0,
+      "advice": 0,
+      "byRule": {},
+      "seconds": 62.309,
+      "tokens": 73264
+    },
+    {
+      "eval": "account-router-before-after",
+      "variant": "without_skill",
+      "round": "2026-10-07, after the review",
+      "passes": false,
+      "holds": 60,
+      "advice": 1,
+      "byRule": {
+        "hold:title": 1,
+        "hold:desc": 1,
+        "advice:screen-reader": 1,
+        "hold:palette": 47,
+        "hold:background": 1,
+        "hold:capitals": 6,
+        "hold:font-size": 4
+      },
+      "seconds": 34.722,
+      "tokens": 63846
+    }
+  ]
+}
