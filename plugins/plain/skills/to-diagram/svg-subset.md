@@ -2,6 +2,17 @@
 
 The checker reads diagram files with a small reader that has no dependencies. It understands only the parts of the format listed here. Anything else is either held, so nobody ships a color the checker couldn't prove, or ignored, as listed below.
 
+## What this checker is for
+
+It catches the mistakes an agent makes while drawing an honest diagram: a light background, a color outside the palette, faint words, tiny words, a missing title, an unexplained abbreviation. The allowed subset is deliberately small, so that every allowed shape can be measured. It is not a security boundary. Someone set on fooling it can still find a way, and closing every such way would need a full renderer. When a new way around it turns up, the fix is a tighter limit on the subset, not more geometry.
+
+## Limits
+
+- Lines and edges: `stroke-width` at most 12.
+- Arrowheads: `markerWidth` and `markerHeight` at most 12.
+- Words: at most 48 pixels. No block or shape characters (Unicode block elements and geometric shapes, such as █ or ▶); draw shapes with shape elements.
+- Light area: no more than a third of the picture lighter than the surface colors. Fills count their area inside the canvas: rects and ellipses exactly, paths and polygons by their bounding box. A path's box includes its curve control points and its arc radii. A stroke counts the smaller of its box grown by half its width on every side, and its length plus two widths, times its width. An arrowhead counts its width times its height, times the line's stroke width.
+
 ## Allowed
 
 | Part | Notes |
@@ -10,7 +21,7 @@ The checker reads diagram files with a small reader that has no dependencies. It
 | `<title>`, `<desc>` | Direct children of `<svg>`. Both must have words. |
 | `<g>`, `<a>` | Groups. Colors, sizes and opacity set on a group pass down to what is inside. |
 | `<rect>`, `<circle>`, `<ellipse>`, `<polygon>` | Shapes that can sit behind words. Size the background rect in plain numbers, not percents. Rounded corners are fine. |
-| `<line>`, `<polyline>`, `<path>` | Lines and arrows. A filled path or polyline is treated as the polygon through its end points. Curves count only by their end points. |
+| `<line>`, `<polyline>`, `<path>` | Lines and arrows. A filled polyline is treated as the polygon through its points. A filled path is treated as its bounding box, which includes curve control points and arc radii. |
 | `<text>`, `<tspan>` | Real words with a solid palette fill and no stroke. A tspan that sets `x`, `y`, `dx` or `dy` starts a new line. Every tspan is measured on its own, against every point across its line. |
 | `<defs>`, `<marker>` | Arrowheads. The marker's colors must be in the palette, and they are checked against what is behind the end of the line. |
 | Colors | Palette hex codes, short hex, hex with transparency, `rgb()` and `rgba()`, `none`, `transparent`, and `currentColor` (taken from the `color` setting). Colors must still match the palette exactly. |

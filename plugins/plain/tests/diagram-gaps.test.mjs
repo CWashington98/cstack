@@ -312,8 +312,9 @@ test("light area comes from each shape's real size: fills, lines and edges", () 
   assert.ok(!light('<ellipse cx="380" cy="100" rx="120" ry="100" fill="#5ea8ff"/>'), "an ellipse of 47% cut by the canvas edge to about 29%");
   assert.ok(!light('<circle cx="200" cy="0" r="120" fill="#5ea8ff"/>'), "a circle of 56% cut by the top edge to 28%");
   assert.ok(!light('<circle cx="0" cy="100" r="120" fill="#5ea8ff"/>'), "a circle of 56% cut by the left edge to about 27%");
-  assert.ok(light('<line x1="250" y1="0" x2="250" y2="200" stroke="#5ea8ff" stroke-width="140"/>'), "a line counts its length times its width: 35%");
-  assert.ok(!light('<line x1="250" y1="0" x2="250" y2="200" stroke="#5ea8ff" stroke-width="120"/>'), "30%");
+  const lines = (n) => Array.from({ length: n }, (_, k) => `<line x1="${250 + k * 12}" y1="0" x2="${250 + k * 12}" y2="200" stroke="#5ea8ff" stroke-width="12"/>`).join("");
+  assert.ok(light(lines(12)), "lines count their length times their width: 12 lines make 38%");
+  assert.ok(!light(lines(9)), "9 lines make 29%");
 });
 
 test("a filled box's edge is checked only when its fill is under 3 to 1 against what is around it", () => {
@@ -334,4 +335,39 @@ test("a linked style sheet is held whatever its rel list looks like, and @import
     assert.ok(holds(page(svg, head), "p.html").includes("page-style"), head);
   }
   assert.deepEqual(holds(page(svg, '<link rel="icon" href="i.png"><link rel="stylesheets-not" href="x">'), "p.html"), [], "other link types pass");
+});
+
+// Karen's evasion check: closed with simple limits on the allowed subset.
+test("a curved path is measured by all its points, control points and arc radii included", () => {
+  assert.ok(holds(doc('<path d="M0,0 C 800,0 800,400 0,200 Z" fill="#f2f5f9"/>' + BOX + words())).includes("background"), "a cubic blob over the canvas");
+  assert.ok(holds(doc('<path d="M0,100 A 200 200 0 1 1 0,101 Z" fill="#f2f5f9"/>' + BOX + words())).includes("background"), "an arc blob over the canvas");
+  const blob = '<path d="M50,70 C 50,50 250,50 250,70 C 250,100 50,100 50,70 Z" fill="#f2f5f9"/>';
+  assert.ok(holds(doc(BOX + blob + words())).includes("text-contrast"), "light words on a light curved blob");
+});
+
+test("strokes wider than 12 are held, and tiny shapes with wide strokes add up as light area", () => {
+  const line = (w) => `<line x1="260" y1="160" x2="380" y2="160" stroke="#6c788c" stroke-width="${w}"/>`;
+  assert.ok(holds(doc(BOX + words() + line(13))).includes("stroke-width"));
+  assert.deepEqual(holds(doc(BOX + words() + line(12))), []);
+  const dots = Array.from({ length: 600 }, (_, k) => `<line x1="${(k % 30) * 13 + 6}" y1="${Math.floor(k / 30) * 10 + 5}" x2="${(k % 30) * 13 + 6}" y2="${Math.floor(k / 30) * 10 + 5}" stroke="#f2f5f9" stroke-width="12" stroke-linecap="round"/>`).join("");
+  assert.ok(holds(doc(dots + BOX + words())).includes("background"), "600 zero-length lines with round caps");
+});
+
+test("arrowheads larger than 12 are held, and large light arrowheads add up as light area", () => {
+  const marker = (size) => `<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="${size}" markerHeight="${size}" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#f2f5f9"/></marker></defs>`;
+  const arrow = '<line x1="260" y1="160" x2="300" y2="160" stroke="#6c788c" stroke-width="2" marker-end="url(#a)"/>';
+  assert.ok(holds(doc(marker(13) + BOX + words() + arrow)).includes("unsupported"));
+  assert.deepEqual(holds(doc(marker(12) + BOX + words() + arrow)), []);
+  const many = Array.from({ length: 40 }, (_, k) => `<line x1="${(k % 10) * 40 + 10}" y1="${Math.floor(k / 10) * 50 + 20}" x2="${(k % 10) * 40 + 11}" y2="${Math.floor(k / 10) * 50 + 20}" stroke="#6c788c" stroke-width="12" marker-end="url(#a)"/>`).join("");
+  assert.ok(holds(doc(marker(12) + many + BOX + words())).includes("background"), "40 arrowheads of 12 by 12 at a stroke width of 12");
+});
+
+test("words over 48 pixels, and words made of block or shape characters, are held", () => {
+  const sized = (n) => doc(BOX + words().replace('font-size="18"', `font-size="${n}"`).replace("Say hello", "Hi"));
+  assert.ok(holds(sized(49)).includes("font-size"));
+  assert.deepEqual(holds(sized(48)), []);
+  assert.ok(holds(doc(BOX + words("", "Say ████"))).includes("text-shapes"));
+  assert.ok(holds(doc(BOX + words("", "Next ▶"))).includes("text-shapes"));
+  assert.ok(holds(doc(BOX + words("", "▀▄"))).includes("text-shapes"));
+  assert.deepEqual(holds(doc(BOX + words("", "Say hello — then go"))), [], "ordinary punctuation passes");
 });

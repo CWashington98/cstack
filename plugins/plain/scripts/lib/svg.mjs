@@ -141,3 +141,56 @@ export function pathPoints(d) {
   }
   return out;
 }
+
+// Every point that bounds a path: end points, curve control points, and for
+// arcs the start and end points widened by the larger radius. The box around
+// these always contains the drawn path.
+export function pathExtent(d) {
+  const toks = (d ?? "").match(/[a-df-z]|-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/gi) ?? [];
+  const out = [];
+  let i = 0;
+  let cmd = null;
+  let x = 0;
+  let y = 0;
+  let sx = 0;
+  let sy = 0;
+  const next = () => Number(toks[i++]);
+  const pt = (rel) => {
+    const px = (rel ? x : 0) + next();
+    const py = (rel ? y : 0) + next();
+    return [px, py];
+  };
+  while (i < toks.length) {
+    if (/[a-z]/i.test(toks[i])) cmd = toks[i++];
+    if (!cmd) break;
+    const C = cmd.toUpperCase();
+    const rel = cmd !== C;
+    let end;
+    if (C === "Z") {
+      [x, y] = [sx, sy];
+      cmd = null;
+      continue;
+    } else if (C === "H") end = [(rel ? x : 0) + next(), y];
+    else if (C === "V") end = [x, (rel ? y : 0) + next()];
+    else if (C === "C") {
+      out.push(pt(rel), pt(rel));
+      end = pt(rel);
+    } else if (C === "S" || C === "Q") {
+      out.push(pt(rel));
+      end = pt(rel);
+    } else if (C === "A") {
+      const r = Math.max(Math.abs(next()), Math.abs(next()));
+      i += 3;
+      end = pt(rel);
+      for (const [px, py] of [[x, y], end]) out.push([px - r, py - r], [px + r, py + r]);
+    } else end = pt(rel);
+    if (!end.every(Number.isFinite)) break;
+    [x, y] = end;
+    if (C === "M") {
+      [sx, sy] = end;
+      cmd = rel ? "l" : "L";
+    }
+    out.push(end);
+  }
+  return out.filter((p) => p.every(Number.isFinite));
+}

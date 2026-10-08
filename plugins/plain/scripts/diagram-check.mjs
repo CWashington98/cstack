@@ -11,14 +11,14 @@ import { loadConfig } from "./lib/config.mjs";
 import { prepare } from "./lib/text.mjs";
 import { checkText } from "./lib/rules.mjs";
 import { parseColor, contrast, blend, nearestColor, luminance } from "./lib/color.mjs";
-import { readSvg, SvgReadError, textOf, ownStyle, num, points, pathPoints } from "./lib/svg.mjs";
+import { readSvg, SvgReadError, textOf, ownStyle, num, points, pathPoints, pathExtent } from "./lib/svg.mjs";
 import { formatFindings } from "./plain-check.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 export const PALETTE_PATH = join(here, "..", "skills", "to-diagram", "palette.json");
 export const loadPalette = () => JSON.parse(readFileSync(PALETTE_PATH, "utf8"));
 
-export const LIMITS = { text: 4.5, graphic: 3, adviseWords: 6, holdWords: 12, boxes: 12, lightShare: 1 / 3 };
+export const LIMITS = { text: 4.5, graphic: 3, adviseWords: 6, holdWords: 12, boxes: 12, lightShare: 1 / 3, strokeWidth: 12, marker: 12, maxFont: 48 };
 // A contrast ratio meets its limit when it is equal to it or above it.
 export const meets = (ratio, limit) => ratio >= limit;
 const INHERITED = ["fill", "stroke", "fill-opacity", "stroke-opacity", "stroke-width", "font-size", "font-weight", "color", "text-anchor", "dominant-baseline", "visibility"];
@@ -135,8 +135,10 @@ function bounds(item) {
   const g = item.geo;
   if (item.kind === "rect") return { x: g.x, y: g.y, w: g.w, h: g.h };
   if (item.kind === "circle" || item.kind === "ellipse") return { x: g.cx - g.rx, y: g.cy - g.ry, w: 2 * g.rx, h: 2 * g.ry };
-  const xs = g.pts.map((p) => p[0]);
-  const ys = g.pts.map((p) => p[1]);
+  const all = g.extent ?? g.pts;
+  if (!all.length) return { x: 0, y: 0, w: 0, h: 0 };
+  const xs = all.map((p) => p[0]);
+  const ys = all.map((p) => p[1]);
   return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
 }
 const center = (item) => {
@@ -148,6 +150,10 @@ function contains(item, x, y) {
   const g = item.geo;
   if (item.kind === "rect") return x >= g.x && x <= g.x + g.w && y >= g.y && y <= g.y + g.h;
   if (item.kind === "circle" || item.kind === "ellipse") return g.rx > 0 && g.ry > 0 && ((x - g.cx) / g.rx) ** 2 + ((y - g.cy) / g.ry) ** 2 <= 1;
+  if (item.kind === "path") {
+    const b = bounds(item);
+    return x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h;
+  }
   if (item.kind === "line" || g.pts.length < 3) return false;
   return inPolygon(g.pts, x, y);
 }
@@ -169,7 +175,7 @@ function geometry(tag, a, dx, dy) {
     case "polygon":
       return { pts: shift(points(a.points)) };
     default:
-      return { pts: shift(pathPoints(a.d)) };
+      return { pts: shift(pathPoints(a.d)), extent: shift(pathExtent(a.d)) };
   }
 }
 
@@ -306,6 +312,11 @@ export function checkSvg(source, config, palette, firstLine = 1, onPage = false)
     const legend = ctx.legend || (tag === "g" && isLegend(node));
     const next = { ...ctx, dx: ctx.dx + shift[0], dy: ctx.dy + shift[1], opacity: ctx.opacity * opacityOf(s.opacity), size: size ?? ctx.size, sizeSet: ctx.sizeSet || (s["font-size"] !== undefined && size !== null), legend };
     if (tag === "marker" && node.attrs.id) markers.set(node.attrs.id, node);
+    if (tag === "marker") {
+      for (const side of ["markerWidth", "markerHeight"]) {
+        if (num(node.attrs[side], 3) > LIMITS.marker) add(node.line, "unsupported", "hold", side, `${side}="${node.attrs[side]}" is larger than ${LIMITS.marker}. Arrowheads stay small.`);
+      }
+    }
     if (ctx.marker && SHAPES.has(tag) && style.fill === undefined && tag !== "line" && tag !== "polyline") {
       add(node.line, "palette", "hold", tag, `This arrowhead <${tag}> has no fill, so it draws black. Set fill to a palette color.`);
     }
@@ -328,6 +339,9 @@ export function checkSvg(source, config, palette, firstLine = 1, onPage = false)
       }
       item.fill = fill && typeof fill === "object" && !fill.unset ? { hex: fill.hex, alpha: alphaOf(fill, "fill") } : null;
       item.strokeWidth = num(style["stroke-width"], 1);
+      if (item.strokeWidth > LIMITS.strokeWidth && style.stroke !== undefined && style.stroke !== "none") {
+        add(node.line, "stroke-width", "hold", String(item.strokeWidth), `stroke-width ${item.strokeWidth} is wider than ${LIMITS.strokeWidth}. Diagrams never need wider lines; draw a filled shape instead.`);
+      }
       item.stroke = stroke && typeof stroke === "object" && item.strokeWidth > 0 ? { hex: stroke.hex, alpha: alphaOf(stroke, "stroke") } : null;
       item.markers = ["marker-start", "marker-mid", "marker-end", "marker"].map((k) => s[k]?.match(/url\(\s*#([^)\s]+)\s*\)/)?.[1]).filter(Boolean);
       items.push(item);
@@ -470,11 +484,51 @@ export function checkSvg(source, config, palette, firstLine = 1, onPage = false)
   // sample points. Overlaps count twice, which only makes the check stricter.
   const surfaceLum = Math.max(...Object.values(palette.colors).filter((c) => c.kind === "surface").map((c) => luminance(c.hex)));
   const isLight = (c) => c && luminance(blend(c.hex, c.alpha, bgHex)) > surfaceLum + 1e-6;
+  // A stroke covers the smaller of its box grown by half its width on every
+  // side (which covers caps and tiny shapes) and its length plus two widths,
+  // times its width (which keeps a box's edge from counting its inside).
+  const strokeArea = (it) => {
+    const b = bounds(it);
+    const w = it.strokeWidth;
+    return Math.min((b.w + w) * (b.h + w), (edgeLength(it) + 2 * w) * w);
+  };
+  // An arrowhead covers its width times its height, times the line's stroke
+  // width unless the marker is sized in plain units. marker-mid repeats at
+  // every inner corner.
+  const markerArea = (it) => {
+    let area = 0;
+    const s = ownStyle(it.node);
+    for (const [prop, id] of ["marker-start", "marker-mid", "marker-end", "marker"].map((k) => [k, s[k]?.match(/url\(\s*#([^)\s]+)\s*\)/)?.[1]])) {
+      const m = id && markers.get(id);
+      if (!m) continue;
+      const colors = [];
+      const collect = (n) => {
+        if (n.text !== undefined) return;
+        const st = ownStyle(n);
+        for (const k of ["fill", "stroke"]) {
+          let v = st[k];
+          if (/^context-stroke$/i.test(v ?? "")) v = it.stroke?.hex;
+          if (/^context-fill$/i.test(v ?? "")) v = it.fill?.hex;
+          const c = parseColor(v);
+          if (c && c !== "none") colors.push(c);
+        }
+        n.children.forEach(collect);
+      };
+      collect(m);
+      if (!colors.some(isLight)) continue;
+      const scale = m.attrs.markerUnits === "userSpaceOnUse" ? 1 : it.strokeWidth;
+      const each = num(m.attrs.markerWidth, 3) * num(m.attrs.markerHeight, 3) * scale * scale;
+      const count = prop === "marker-mid" ? Math.max(0, (it.geo.pts?.length ?? 0) - 2) : prop === "marker" ? Math.max(2, it.geo.pts?.length ?? 2) : 1;
+      area += each * count;
+    }
+    return area;
+  };
   let lightArea = 0;
   for (const it of items) {
     if (it.type !== "shape" || it === backdrop) continue;
     if (isLight(it.fill)) lightArea += fillArea(it, canvas);
-    if (isLight(it.stroke)) lightArea += edgeLength(it) * it.strokeWidth;
+    if (isLight(it.stroke)) lightArea += strokeArea(it);
+    lightArea += markerArea(it);
   }
   const lightShare = lightArea / (canvas.w * canvas.h);
   if (lightShare > LIMITS.lightShare) {
@@ -505,6 +559,9 @@ export function checkSvg(source, config, palette, firstLine = 1, onPage = false)
     if (onPage && it.runs.some((r) => !r.sizeSet)) {
       add(it.line, "font-size", "hold", it.label, `Words "${short(it.label)}" have no font size set inside the diagram, so on a page they take the page's size. Set font-size on the words or a group around them.`);
     }
+    const largest = Math.max(...it.runs.map((r) => r.size * scale));
+    if (largest > LIMITS.maxFont) add(it.line, "font-size", "hold", it.label, `Words "${short(it.label)}" are ${+largest.toFixed(1)} pixels. The largest allowed is ${LIMITS.maxFont}; a diagram's title is about 24.`);
+    if (/[\u2580-\u25FF]/.test(it.label)) add(it.line, "text-shapes", "hold", it.label, `Words "${short(it.label)}" use block or shape characters. Draw shapes with shape elements, and keep words to letters, numbers and punctuation.`);
     const allowed = it.legend ? legendSize : minSize;
     const smallest = Math.min(...it.runs.map((r) => r.size * scale));
     if (smallest < allowed - 1e-9) {

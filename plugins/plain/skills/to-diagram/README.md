@@ -65,6 +65,9 @@ Choices made while building this, and what it costs if one is wrong.
 - **Acronyms spelled out only in the hidden description still hold on the label.** Most readers never see the description. If wrong, a label holds that a screen reader user would have understood.
 - **Text width is estimated** at 0.55 of the font size per letter (0.6 for bold). Words wider than their box or past the edge are advice, not a hold, because the estimate can be off by a few letters. If wrong, a cut-off label ships; step 8 in `SKILL.md` asks for a look in a browser.
 - **"Meaning shown by color alone" is a guess:** two or more accent colors on shapes and no legend. It can't tell whether the labels already say the meaning, so it is advice. If wrong, a diagram gets a needless nudge.
+- **The checker guards against honest mistakes, not a determined attacker.** Deliberate tricks are closed by simple limits on the allowed subset: lines and edges at most 12 wide, arrowheads at most 12, words at most 48 pixels, no block or shape characters in words. If wrong, a diagram that needs a thicker line or a huge heading is held; neither has come up.
+- **A filled path counts as its whole bounding box,** control points and arc radii included, both for light area and for what is behind words. If wrong, words beside a curved shape are measured against its fill and may be held; move them clear.
+- **A stroke's light area is the smaller of two measures:** its box grown by half its width, and its length plus two widths, times its width. The first alone would count the inside of every bordered box. If wrong, a few very wide strokes on tiny shapes count slightly less than they cover.
 - **Words sitting on top of a line are not detected.** Curves are reduced to their end points, so the check would miss most cases. `SKILL.md` asks for labels beside lines instead. If wrong, an overlapping label ships unless someone looks.
 
 ## Test results

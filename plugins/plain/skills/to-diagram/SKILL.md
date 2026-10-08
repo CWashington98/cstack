@@ -76,6 +76,7 @@ Holds (must fix):
 - The `<title>` or `<desc>` is missing.
 - A label breaks the plain rules: a capital-letter abbreviation not spelled out in the diagram or the glossary, a planning code, or a word the repository's `.claude/plain.json` says never to publish.
 - A box holds more than 12 words.
+- A line or edge wider than 12, an arrowhead larger than 12, words over 48 pixels, or block or shape characters (such as █ or ▶) in words.
 - The file uses something the checker can't read: a filter, a rotated group, or any element not on the allowed list. Examples are a style sheet, an embedded image, animation, or a diagram inside the diagram.
 - On a page, a style sheet or style attribute that could change the diagram.
 
