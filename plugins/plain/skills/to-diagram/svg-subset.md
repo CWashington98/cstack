@@ -22,7 +22,7 @@ The checker reads diagram files with a small reader that has no dependencies. It
 
 ## Held
 
-Any element not in the table above, such as `<style>`, `<script>`, `<image>`, `<use>`, `<set>`, `<animate>`, a nested `<svg>` or a gradient. Also a fill or edge that points at a gradient or pattern, `filter`, `mask`, `clip-path` and `mix-blend-mode`, and any transform other than translate.
+Any element not in the table above, such as `<style>`, `<script>`, `<image>`, `<use>`, `<set>`, `<animate>`, a nested `<svg>` or a gradient. Also a fill or edge that points at a gradient or pattern, `filter`, `mask`, `clip-path`, `mix-blend-mode`, `textLength` and `lengthAdjust`, and any transform other than translate. `context-fill` and `context-stroke` are allowed only inside an arrowhead marker.
 
 On a page, the checker also reads the page's styles. It holds a linked or imported style sheet. It holds a rule for the diagram or its parts that sets anything but `display` or margins. It holds any page style that sets opacity, filters, transforms, zoom, fill or stroke. On a page, words must have a font size set inside the diagram.
 

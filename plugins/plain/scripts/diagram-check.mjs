@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { loadConfig } from "./lib/config.mjs";
 import { prepare } from "./lib/text.mjs";
 import { checkText } from "./lib/rules.mjs";
-import { parseColor, contrast, blend, nearestColor } from "./lib/color.mjs";
+import { parseColor, contrast, blend, nearestColor, luminance } from "./lib/color.mjs";
 import { readSvg, SvgReadError, textOf, ownStyle, num, points, pathPoints } from "./lib/svg.mjs";
 import { formatFindings } from "./plain-check.mjs";
 
@@ -18,13 +18,15 @@ const here = dirname(fileURLToPath(import.meta.url));
 export const PALETTE_PATH = join(here, "..", "skills", "to-diagram", "palette.json");
 export const loadPalette = () => JSON.parse(readFileSync(PALETTE_PATH, "utf8"));
 
-export const LIMITS = { text: 4.5, graphic: 3, adviseWords: 6, holdWords: 12, boxes: 12 };
+export const LIMITS = { text: 4.5, graphic: 3, adviseWords: 6, holdWords: 12, boxes: 12, lightShare: 1 / 3 };
+// A contrast ratio meets its limit when it is equal to it or above it.
+export const meets = (ratio, limit) => ratio >= limit;
 const INHERITED = ["fill", "stroke", "fill-opacity", "stroke-opacity", "stroke-width", "font-size", "font-weight", "color", "text-anchor", "dominant-baseline", "visibility"];
 // Every element the checker can read. Anything else is held, because it could
 // draw or change colors the checker never sees (animation, style sheets,
 // embedded pictures, nested diagrams).
 const ALLOWED = new Set(["svg", "title", "desc", "metadata", "defs", "marker", "g", "a", "rect", "circle", "ellipse", "line", "polyline", "polygon", "path", "text", "tspan"]);
-const EFFECTS = ["filter", "mask", "clip-path", "mix-blend-mode"];
+const EFFECTS = ["filter", "mask", "clip-path", "mix-blend-mode", "textLength", "lengthAdjust"];
 const NOT_PAINTED = new Set(["defs", "marker", "title", "desc", "metadata"]);
 const SHAPES = new Set(["rect", "circle", "ellipse", "line", "polyline", "polygon", "path"]);
 const short = (s, n = 40) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
@@ -58,21 +60,6 @@ function nearSegment([[x1, y1], [x2, y2]], x, y, reach) {
   const len = dx * dx + dy * dy;
   const t = len ? Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / len)) : 0;
   return Math.hypot(x - (x1 + t * dx), y - (y1 + t * dy)) <= reach;
-}
-
-// How much of the canvas a shape covers, from 0 to 1.
-function coverage(item, canvas) {
-  const b = bounds(item);
-  const w = Math.max(0, Math.min(b.x + b.w, canvas.x + canvas.w) - Math.max(b.x, canvas.x));
-  const h = Math.max(0, Math.min(b.y + b.h, canvas.y + canvas.h) - Math.max(b.y, canvas.y));
-  let area = w * h;
-  if (item.kind === "circle" || item.kind === "ellipse") area *= Math.PI / 4;
-  else if (item.kind !== "rect") {
-    const p = item.geo.pts;
-    const shoelace = Math.abs(p.reduce((sum, [x, y], k) => sum + x * p[(k + 1) % p.length][1] - p[(k + 1) % p.length][0] * y, 0)) / 2;
-    area = Math.min(area, shoelace);
-  }
-  return area / (canvas.w * canvas.h);
 }
 
 // A length in pixels, or null for any other unit (percent, em and so on).
@@ -247,6 +234,14 @@ export function checkSvg(source, config, palette, firstLine = 1, onPage = false)
     }
     return c;
   };
+  // context-fill and context-stroke only mean something inside an arrowhead.
+  const contextOutsideMarker = (node, s) => {
+    for (const prop of ["fill", "stroke"]) {
+      if (/^context-(fill|stroke)$/i.test(String(s[prop] ?? "").trim())) {
+        add(node.line, "palette", "hold", s[prop], `${prop}="${s[prop]}" only works inside an arrowhead. Here it can draw nothing or anything. Use a palette hex code.`);
+      }
+    }
+  };
   const walk = (node, inherited, ctx) => {
     if (node.text !== undefined) return;
     const tag = node.tag.toLowerCase();
@@ -259,6 +254,7 @@ export function checkSvg(source, config, palette, firstLine = 1, onPage = false)
     for (const effect of EFFECTS) {
       if (s[effect] !== undefined && s[effect] !== "none") add(node.line, "unsupported", "hold", effect, `${effect} isn't supported. It changes how things look in ways the checker can't measure.`);
     }
+    if (!ctx.marker && tag !== "marker") contextOutsideMarker(node, s);
     const style = { ...inherited };
     for (const k of INHERITED) if (s[k] !== undefined) style[k] = s[k];
     for (const prop of ["fill", "stroke", "color"]) if (s[prop] !== undefined) paint(s[prop], node, prop, style);
@@ -332,6 +328,10 @@ export function checkSvg(source, config, palette, firstLine = 1, onPage = false)
           const st2 = { ...st };
           for (const k of INHERITED) if (s[k] !== undefined) st2[k] = s[k];
           for (const prop of ["fill", "stroke", "color"]) if (s[prop] !== undefined) paint(s[prop], child, prop, st2);
+          contextOutsideMarker(child, s);
+          for (const attr of ["textLength", "lengthAdjust"]) {
+            if (s[attr] !== undefined) add(child.line, "unsupported", "hold", attr, `${attr} isn't supported. It squeezes or stretches words, so the checker can't know their size.`);
+          }
           const size2 = fontSize(s["font-size"], size);
           if (size2 === null) add(child.line, "font-size", "hold", s["font-size"], `font-size "${s["font-size"]}" can't be read. Write it in pixels, such as font-size="16".`);
           const moves = ["x", "y", "dx", "dy"].some((k) => child.attrs[k] !== undefined);
@@ -428,12 +428,22 @@ export function checkSvg(source, config, palette, firstLine = 1, onPage = false)
       add(backdrop.line, "background", "hold", "", `The background rect doesn't cover the whole canvas (${canvas.w} by ${canvas.h}). Use ${wanted}.`);
     }
   }
-  // Nothing else may turn most of the picture light.
-  for (const it of items) {
-    if (it.type !== "shape" || it === backdrop || !it.fill || byHex.get(it.fill.hex)?.kind === "surface") continue;
-    const share = coverage(it, canvas);
-    if (share >= 0.5) add(it.line, "background", "hold", it.kind, `This <${it.kind}> covers ${Math.round(share * 100)}% of the diagram in ${nameOf(it.fill.hex)}, which makes it a light or colored background. Large areas must be background, surface or raised.`);
+  // Nothing may turn much of the picture light. A 40 by 40 grid of points
+  // over the canvas is colored as painted, fills and edges together, so
+  // light areas split across shapes, or drawn as very wide lines, still add up.
+  const raisedLum = Math.max(...Object.values(palette.colors).filter((c) => c.kind === "surface").map((c) => luminance(c.hex)));
+  let lightPoints = 0;
+  for (let gx = 0; gx < 40; gx++) {
+    for (let gy = 0; gy < 40; gy++) {
+      const { hex } = colorAt(canvas.x + ((gx + 0.5) * canvas.w) / 40, canvas.y + ((gy + 0.5) * canvas.h) / 40, items.length, true);
+      if (luminance(hex) > raisedLum + 1e-6) lightPoints++;
+    }
   }
+  const lightShare = lightPoints / 1600;
+  if (lightShare > LIMITS.lightShare) {
+    add(root.line, "background", "hold", "", `About ${Math.round(lightShare * 100)}% of the diagram is lighter than the palette's lightest surface color. More than a third makes it a light diagram. Large areas must be background, surface or raised; keep accents to edges, lines and small marks.`);
+  }
+
 
   const texts = items.map((it, i) => ({ it, i })).filter(({ it }) => it.type === "text" && it.runs.length);
   if (!texts.length) add(root.line, "no-text", "hold", "", "The diagram has no words. Labels must be real <text> elements, never shapes or text turned into outlines, so screen readers and search can read them.");
@@ -452,7 +462,7 @@ export function checkSvg(source, config, palette, firstLine = 1, onPage = false)
         if (!worst || ratio < worst.ratio) worst = { ratio, behind, r };
       }
     }
-    if (worst && worst.ratio < LIMITS.text) {
+    if (worst && !meets(worst.ratio, LIMITS.text)) {
       add(it.line, "text-contrast", "hold", worst.r.text, `Words "${short(worst.r.text)}" are ${fmt(worst.ratio)} to 1 against ${nameOf(worst.behind)} behind them. Words need at least ${LIMITS.text} to 1. Use text or muted text on a surface, or background-colored words on an accent.`);
     }
     if (onPage && it.runs.some((r) => !r.sizeSet)) {
@@ -483,7 +493,7 @@ export function checkSvg(source, config, palette, firstLine = 1, onPage = false)
       const ratio = contrast(blend(hex, alpha, behind), behind);
       if (!worst || ratio < worst.ratio) worst = { ratio, behind };
     }
-    if (worst && worst.ratio < LIMITS.graphic) {
+    if (worst && !meets(worst.ratio, LIMITS.graphic)) {
       add(it.line, what === "mark" ? "mark-contrast" : "line-contrast", "hold", it.kind, `This ${what} is ${fmt(worst.ratio)} to 1 against ${nameOf(worst.behind)} behind it. Lines, arrows, box edges and marks need at least ${LIMITS.graphic} to 1.`);
     }
   };
@@ -499,7 +509,7 @@ export function checkSvg(source, config, palette, firstLine = 1, onPage = false)
         const [cx, cy] = center(it);
         const outer = colorAt(cx, cy, i).hex;
         const fillRatio = contrast(blend(it.fill.hex, it.fill.alpha, outer), outer);
-        if (fillRatio < LIMITS.graphic) graphic(it, i, it.stroke.hex, it.stroke.alpha, [[cx, cy, outer]], it.kind === "rect" ? "box edge" : "outline");
+        if (!meets(fillRatio, LIMITS.graphic)) graphic(it, i, it.stroke.hex, it.stroke.alpha, [[cx, cy, outer]], it.kind === "rect" ? "box edge" : "outline");
       } else if (["rect", "circle", "ellipse"].includes(it.kind)) {
         const [cx, cy] = center(it);
         graphic(it, i, it.stroke.hex, it.stroke.alpha, [[cx, cy]], "outline");

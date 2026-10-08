@@ -6,8 +6,8 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { makeRepo } from "../../../tests/helpers.mjs";
 import { loadConfig } from "../scripts/lib/config.mjs";
-import { checkDiagram, checkSvg } from "../scripts/diagram-check.mjs";
-import { blend, contrast } from "../scripts/lib/color.mjs";
+import { checkDiagram, checkSvg, meets } from "../scripts/diagram-check.mjs";
+import { blend, contrast, parseColor } from "../scripts/lib/color.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const config = loadConfig(makeRepo({ ".claude/plain.json": "{}" }));
@@ -30,7 +30,7 @@ test("a light shape covering most of the canvas is held, after the first shape t
   assert.ok(holds(doc('<circle cx="200" cy="100" r="190" fill="#f2f5f9"/>' + BOX + words())).includes("background"));
   assert.ok(holds(doc('<rect x="0" y="0" width="400" height="200" fill="#5ea8ff" fill-opacity="0.2"/>' + BOX + words())).includes("background"));
   assert.deepEqual(holds(doc('<rect x="10" y="10" width="380" height="180" fill="#202837"/>' + BOX + words())), []);
-  assert.deepEqual(holds(doc('<rect x="0" y="0" width="190" height="200" fill="#f2f5f9"/>')).includes("background"), false, "under half the canvas is not a background");
+  assert.deepEqual(holds(doc('<rect x="0" y="0" width="100" height="200" fill="#f2f5f9"/>' + BOX + words())).includes("background"), false, "a quarter of the canvas is not a background");
 });
 
 // 2. Only allowed elements.
@@ -243,4 +243,57 @@ test("screen reader advice appears unless aria-labelledby names both the title's
   assert.equal(advice('aria-labelledby="t missing"'), 1, "an id that doesn't exist");
   assert.equal(advice('aria-labelledby="t d missing"'), 1, "both, plus an id that doesn't exist");
   assert.equal(advice('aria-labelledby="x y"'), 1);
+});
+
+// Karen's recheck.
+test("light area is added up across shapes and lines, not judged one shape at a time", () => {
+  const light = (body) => holds(doc(body + BOX + words())).includes("background");
+  assert.ok(light('<rect x="0" y="0" width="188" height="200" fill="#f2f5f9"/><rect x="212" y="0" width="188" height="200" fill="#f2f5f9"/>'), "two light halves");
+  assert.ok(light('<line x1="0" y1="100" x2="400" y2="100" stroke="#f2f5f9" stroke-width="300"/>'), "one very wide line");
+  assert.ok(light('<rect x="100" y="0" width="200" height="200" fill="none" stroke="#f2f5f9" stroke-width="600"/>'), "a rect with a very wide edge");
+  assert.ok(light('<rect x="260" y="0" width="140" height="200" fill="#5ea8ff"/>'), "over a third of the canvas in an accent");
+  assert.ok(!light('<rect x="280" y="0" width="120" height="200" fill="#5ea8ff"/>'), "under a third is fine");
+});
+
+test("context-fill and context-stroke are held outside an arrowhead", () => {
+  assert.ok(holds(doc(BOX + words().replace('fill="#f2f5f9"', 'fill="context-fill"'))).includes("palette"));
+  assert.ok(holds(doc(BOX + words().replace('fill="#f2f5f9"', 'fill="context-stroke"'))).includes("palette"));
+  assert.ok(holds(doc(BOX.replace('stroke="#6c788c"', 'stroke="context-stroke"') + words())).includes("palette"));
+  assert.ok(holds(doc(BOX + words("", 'Say <tspan fill="context-fill">hello</tspan>'))).includes("palette"));
+  const arrow = '<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>';
+  assert.deepEqual(holds(doc(arrow + BOX + words() + '<line x1="250" y1="160" x2="380" y2="160" stroke="#6c788c" stroke-width="2" marker-end="url(#a)"/>')), []);
+});
+
+test("textLength and lengthAdjust are held, because they squeeze words below the checked size", () => {
+  assert.ok(holds(doc(BOX + words('textLength="20" lengthAdjust="spacingAndGlyphs"'))).includes("unsupported"));
+  assert.ok(holds(doc(BOX + words('textLength="20"'))).includes("unsupported"));
+  assert.ok(holds(doc(BOX + words("", 'Say <tspan textLength="5">hello</tspan>'))).includes("unsupported"));
+});
+
+test("exactly 4.5 to 1 and exactly 3 to 1 meet their limits", () => {
+  assert.equal(meets(4.5, 4.5), true);
+  assert.equal(meets(4.4999, 4.5), false);
+  assert.equal(meets(3, 3), true);
+  assert.equal(meets(2.9999, 3), false);
+});
+
+test("words are measured at their start, middle and end", () => {
+  const patch = (x) => `<rect x="${x}" y="70" width="10" height="20" fill="#5ea8ff"/>`;
+  const on = (x) => holds(doc(BOX + patch(x) + words('font-weight="400"'))).includes("text-contrast");
+  // "Say hello" at 18 pixels starts at 60 and is about 89 pixels wide: start 61, middle 104.5, end 148.
+  assert.ok(on(56), "a patch under the start");
+  assert.ok(on(100), "a patch under the middle");
+  assert.ok(on(143), "a patch under the end");
+  assert.ok(!on(200), "a patch past the words");
+});
+
+test("hidden things are skipped: opacity 0 and visibility hidden", () => {
+  assert.deepEqual(holds(doc(BOX + words() + '<text x="60" y="160" fill="#f2f5f9" font-size="9" opacity="0">RCM</text>')), []);
+  assert.deepEqual(holds(doc(BOX + words() + '<text x="60" y="160" fill="#f2f5f9" font-size="9" visibility="hidden">RCM</text>')), []);
+  assert.ok(holds(doc(BOX + words() + '<text x="60" y="160" fill="#f2f5f9" font-size="9" opacity="0.5">RCM</text>')).length > 0, "half visible still counts");
+});
+
+test("four-digit hex colors carry transparency", () => {
+  assert.deepEqual(parseColor("#abc8"), { hex: "#aabbcc", alpha: 0x88 / 255 });
+  assert.deepEqual(parseColor("#abcf"), { hex: "#aabbcc", alpha: 1 });
 });

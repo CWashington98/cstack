@@ -67,7 +67,7 @@ The checker is in the plugin's `scripts` folder, two levels above this file. Bel
 Holds (must fix):
 
 - The background is missing, isn't the palette's dark background, is sized in percent, or doesn't cover the whole picture.
-- Any shape other than the three surface colors covers half the picture or more.
+- More than a third of the picture is lighter than the surface colors, counting fills and wide lines together.
 - A color isn't in the palette, a shape has no fill (so it draws black), or a fill uses a gradient or pattern.
 - Words are under 4.5 to 1 contrast against what is behind them, including lines drawn behind them. Each tspan is measured on its own.
 - Words are outlined: a stroke on them, or no fill.
