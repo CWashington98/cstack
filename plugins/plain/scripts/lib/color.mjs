@@ -74,6 +74,33 @@ function lab(hex) {
   return [116 * xyz[1] - 16, 500 * (xyz[0] - xyz[1]), 200 * (xyz[1] - xyz[2])];
 }
 
+// Lightness and chroma (how colorful) from the Lab color space, and the
+// hue angle in degrees from plain red, green and blue, which keeps blues
+// apart from purples better than the Lab hue does.
+export function lch(hex) {
+  const [l, a, b] = lab(hex);
+  const [r, g, bl] = rgb(hex).map((v) => v / 255);
+  const max = Math.max(r, g, bl);
+  const d = max - Math.min(r, g, bl);
+  const h = d === 0 ? 0 : max === r ? ((g - bl) / d) % 6 : max === g ? (bl - r) / d + 2 : (r - g) / d + 4;
+  return { l, c: Math.hypot(a, b), h: (h * 60 + 360) % 360 };
+}
+
+// The palette color a stray color was most likely meant to be: the nearest
+// hue for a colorful color, the nearest lightness for a gray.
+export function nearestColor(hex, candidates) {
+  const want = lch(hex);
+  const colorful = want.c > 15;
+  const pool = candidates.filter((c) => (lch(c).c > 15) === colorful);
+  const score = (c) => {
+    const got = lch(c);
+    if (!colorful) return Math.abs(got.l - want.l);
+    const dh = Math.abs(got.h - want.h);
+    return Math.min(dh, 360 - dh);
+  };
+  return (pool.length ? pool : candidates).slice().sort((a, b) => score(a) - score(b))[0];
+}
+
 // How different two colors look, as the straight-line distance in the
 // CIE Lab color space (1976). About 2 is barely visible; 40 is obvious.
 export function deltaE(a, b) {

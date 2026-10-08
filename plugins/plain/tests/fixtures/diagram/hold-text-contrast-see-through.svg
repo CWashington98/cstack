@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" role="img" aria-labelledby="t d">
+  <title id="t">A small test diagram</title>
+  <desc id="d">One box that says hello.</desc>
+  <rect x="0" y="0" width="400" height="200" fill="#0b0f17"/>
+  <rect x="40" y="40" width="200" height="80" rx="8" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+  <text x="140" y="86" text-anchor="middle" fill="#9aa5b6" font-size="18" opacity="0.4">Say hello</text>
+</svg>

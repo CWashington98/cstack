@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200" role="img" aria-labelledby="t d">
+  <title id="t">A small test diagram</title>
+  <desc id="d">One box that says hello.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6c788c"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="400" height="200" fill="#0b0f17"/>
+  <rect x="20" y="60" width="120" height="70" rx="8" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+  <text x="80" y="101" text-anchor="middle" fill="#f2f5f9" font-size="18">Start</text>
+  <rect x="260" y="60" width="120" height="70" rx="8" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+  <text x="320" y="101" text-anchor="middle" fill="#f2f5f9" font-size="18">Finish</text>
+  <line x1="140" y1="95" x2="256" y2="95" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+</svg>
