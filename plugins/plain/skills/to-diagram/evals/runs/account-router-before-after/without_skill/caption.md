@@ -1,0 +1,1 @@
+Before: all requests shared one router that queried the database for the account on every call, so one slow account stalled every other account. After: the edge routes each request by account ID to that account's own worker, and the account lookup is cached, so a slow account only affects itself and most calls skip the database.

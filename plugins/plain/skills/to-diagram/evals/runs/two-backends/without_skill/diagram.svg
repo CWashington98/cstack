@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 520" font-family="Helvetica, Arial, sans-serif" role="img" aria-labelledby="t d">
+<title id="t">Two separate Convex backends</title>
+<desc id="d">Clinical backend (HIPAA, patient data) and labeling backend (anonymized recordings) never call each other; a one-way export script copies anonymized recordings from clinical to labeling.</desc>
+<rect width="900" height="520" fill="#ffffff"/>
+<text x="450" y="34" font-size="20" font-weight="bold" text-anchor="middle" fill="#1a1a1a">Two Convex backends, kept apart on purpose</text>
+
+<rect x="30" y="60" width="330" height="360" rx="10" fill="#fdf0ef" stroke="#b3261e" stroke-width="2"/>
+<text x="195" y="90" font-size="17" font-weight="bold" text-anchor="middle" fill="#7a1710">CLINICAL backend</text>
+<text x="195" y="110" font-size="13" text-anchor="middle" fill="#7a1710">Patient data, HIPAA rules</text>
+<rect x="55" y="130" width="280" height="50" rx="6" fill="#fff" stroke="#b3261e"/>
+<text x="195" y="160" font-size="14" text-anchor="middle" fill="#1a1a1a">Patient app</text>
+<rect x="55" y="195" width="280" height="50" rx="6" fill="#fff" stroke="#b3261e"/>
+<text x="195" y="225" font-size="14" text-anchor="middle" fill="#1a1a1a">Provider portal</text>
+<rect x="55" y="270" width="280" height="130" rx="6" fill="#fff" stroke="#b3261e" stroke-dasharray="4 3"/>
+<text x="195" y="295" font-size="13" font-weight="bold" text-anchor="middle" fill="#1a1a1a">Stored here</text>
+<text x="195" y="320" font-size="13" text-anchor="middle" fill="#1a1a1a">Patient identities, orders</text>
+<text x="195" y="342" font-size="13" text-anchor="middle" fill="#1a1a1a">Recordings linked to a person</text>
+<text x="195" y="364" font-size="13" text-anchor="middle" fill="#1a1a1a">Algorithm results, reports</text>
+
+<rect x="540" y="60" width="330" height="360" rx="10" fill="#eef4fd" stroke="#1a56b3" stroke-width="2"/>
+<text x="705" y="90" font-size="17" font-weight="bold" text-anchor="middle" fill="#0f3470">LABELING backend</text>
+<text x="705" y="110" font-size="13" text-anchor="middle" fill="#0f3470">Anonymized recordings only</text>
+<rect x="565" y="130" width="280" height="50" rx="6" fill="#fff" stroke="#1a56b3"/>
+<text x="705" y="160" font-size="14" text-anchor="middle" fill="#1a1a1a">Labeling app</text>
+<rect x="565" y="195" width="280" height="50" rx="6" fill="#fff" stroke="#1a56b3"/>
+<text x="705" y="225" font-size="14" text-anchor="middle" fill="#1a1a1a">Outside cardiologists rate recordings</text>
+<rect x="565" y="270" width="280" height="130" rx="6" fill="#fff" stroke="#1a56b3" stroke-dasharray="4 3"/>
+<text x="705" y="295" font-size="13" font-weight="bold" text-anchor="middle" fill="#1a1a1a">Stored here</text>
+<text x="705" y="320" font-size="13" text-anchor="middle" fill="#1a1a1a">Anonymized heart recordings</text>
+<text x="705" y="342" font-size="13" text-anchor="middle" fill="#1a1a1a">Ratings, raters, organizations</text>
+<text x="705" y="364" font-size="13" text-anchor="middle" fill="#1a1a1a">No patient identity</text>
+
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#2d2d2d"/></marker></defs>
+<line x1="362" y1="330" x2="538" y2="330" stroke="#2d2d2d" stroke-width="3" marker-end="url(#a)"/>
+<rect x="385" y="290" width="130" height="30" rx="5" fill="#fff8e1" stroke="#8a6d00"/>
+<text x="450" y="310" font-size="12" font-weight="bold" text-anchor="middle" fill="#5c4900">Export script</text>
+<text x="450" y="352" font-size="12" text-anchor="middle" fill="#1a1a1a">one-way, anonymized</text>
+
+<g stroke="#555" stroke-width="2" stroke-dasharray="6 4" fill="none"><line x1="362" y1="160" x2="538" y2="160"/></g>
+<text x="450" y="148" font-size="12" text-anchor="middle" fill="#1a1a1a">no calls either way</text>
+<line x1="437" y1="153" x2="463" y2="167" stroke="#b3261e" stroke-width="3"/><line x1="463" y1="153" x2="437" y2="167" stroke="#b3261e" stroke-width="3"/>
+
+<text x="450" y="460" font-size="14" text-anchor="middle" fill="#1a1a1a">Why apart: outside raters can never reach HIPAA-protected data, because it is not in their backend.</text>
+<text x="450" y="482" font-size="14" text-anchor="middle" fill="#1a1a1a">A bug or breach in labeling cannot expose patients.</text>
+</svg>

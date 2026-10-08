@@ -1,0 +1,42 @@
+{
+  "skill_name": "to-diagram",
+  "about": "Three realistic requests for a diagram. Each was run once by a fresh agent that had the skill and once by one that didn't. Every output is scored with the checker: node ../../../scripts/diagram-check.mjs <file>. The prompts carry their own context, because a fresh agent knows nothing about the project.",
+  "evals": [
+    {
+      "id": 1,
+      "name": "pull-request-flow",
+      "prompt": "Draw how a pull request goes from spec to merge in our process. Here's the process: the owner approves a written spec; an agent builds it, writing tests first; Karen (our automated reviewer) and a second AI reviewer both check it; the owner tries it in a preview build; then it merges to the staging branch, and later staging merges to main. If a reviewer finds a problem, it goes back to the build step.",
+      "expected_output": "A flow diagram, dark, palette colors only, with short plain labels and a loop back from review to build. Passes the checker.",
+      "files": [],
+      "assertions": [
+        "The diagram file passes the checker (exit 0).",
+        "It shows the loop from review back to build.",
+        "It comes with a short caption saying what to notice."
+      ]
+    },
+    {
+      "id": 2,
+      "name": "two-backends",
+      "prompt": "Diagram the two backends and why they're kept apart. We run two separate Convex backends. The clinical one holds patient data under HIPAA rules and serves the patient app and the provider portal. The labeling one holds anonymized heart recordings that outside cardiologists rate. They never call each other. A one-way export script copies anonymized recordings from clinical into labeling.",
+      "expected_output": "A boxes-in-groups diagram with the two backends as groups, the apps they serve, and one one-way arrow for the export. HIPAA is spelled out or avoided. Passes the checker.",
+      "files": [],
+      "assertions": [
+        "The diagram file passes the checker (exit 0).",
+        "The export is the only link between the two groups, and it points one way.",
+        "No unexplained acronym appears in the labels."
+      ]
+    },
+    {
+      "id": 3,
+      "name": "account-router-before-after",
+      "prompt": "Show the before and after of the account router change. Before: every incoming API request went through one shared router that looked up the account in the database on every call, so one slow account slowed everyone down. After: requests are routed by account ID at the edge to a worker for that account, and the account lookup is cached.",
+      "expected_output": "A before and after diagram, dark, with the slow shared path and the per-account path side by side. Passes the checker.",
+      "files": [],
+      "assertions": [
+        "The diagram file passes the checker (exit 0).",
+        "Before and after are both shown and labeled in words, not only by color.",
+        "It comes with a short caption saying what to notice."
+      ]
+    }
+  ]
+}

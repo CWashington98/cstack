@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 400" font-family="Helvetica, Arial, sans-serif" font-size="14">
+<title>Pull request flow from spec to merge</title>
+<defs><marker id="a" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#333"/></marker>
+<marker id="r" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#c0392b"/></marker></defs>
+<rect width="1000" height="400" fill="#fff"/>
+<text x="500" y="30" text-anchor="middle" font-size="18" font-weight="bold">How a pull request goes from spec to merge</text>
+<g stroke="#333" stroke-width="1.5">
+<rect x="20" y="110" width="130" height="70" rx="8" fill="#e8f0fe"/>
+<rect x="190" y="110" width="130" height="70" rx="8" fill="#e8f0fe"/>
+<rect x="360" y="60" width="150" height="60" rx="8" fill="#fff4d6"/>
+<rect x="360" y="170" width="150" height="60" rx="8" fill="#fff4d6"/>
+<rect x="550" y="110" width="130" height="70" rx="8" fill="#e8f0fe"/>
+<rect x="720" y="110" width="120" height="70" rx="8" fill="#e6f4ea"/>
+<rect x="870" y="110" width="110" height="70" rx="8" fill="#e6f4ea"/>
+<rect x="720" y="270" width="120" height="60" rx="8" fill="#e6f4ea"/>
+</g>
+<g text-anchor="middle" fill="#111">
+<text x="85" y="140">1. Owner</text><text x="85" y="160">approves spec</text>
+<text x="255" y="140">2. Agent builds</text><text x="255" y="160">(tests first)</text>
+<text x="435" y="86">3a. Karen</text><text x="435" y="106">automated review</text>
+<text x="435" y="196">3b. Second AI</text><text x="435" y="216">reviewer</text>
+<text x="615" y="140">4. Owner tries</text><text x="615" y="160">preview build</text>
+<text x="780" y="140">5. Merge to</text><text x="780" y="160">staging</text>
+<text x="925" y="140">6. Merge to</text><text x="925" y="160">main (later)</text>
+</g>
+<g stroke="#333" stroke-width="1.8" fill="none" marker-end="url(#a)">
+<path d="M150,145 H188"/>
+<path d="M320,145 L358,100"/><path d="M320,145 L358,190"/>
+<path d="M510,90 L548,130"/><path d="M510,200 L548,160"/>
+<path d="M680,145 H718"/><path d="M840,145 H868"/>
+</g>
+<path d="M435,230 V300 H255 V182" stroke="#c0392b" stroke-width="1.8" stroke-dasharray="6 4" fill="none" marker-end="url(#r)"/>
+<text x="345" y="320" text-anchor="middle" fill="#c0392b">Problem found: back to build</text>
+<path d="M435,120 V145" stroke="none"/>
+<text x="20" y="380" fill="#555" font-size="12">Blue = work and approval steps; yellow = both reviewers must pass; green = merge steps.</text>
+</svg>

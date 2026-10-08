@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 500" width="960" height="500" role="img" aria-labelledby="diagram-title diagram-desc" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <title id="diagram-title">Two separate backends and the one-way copy between them</title>
+  <desc id="diagram-desc">Two groups side by side. The clinical backend holds real patient data under US health privacy rules and serves the patient app and provider portal. The labeling backend holds anonymized heart recordings that outside cardiologists rate. The two never call each other. One export script copies anonymized recordings from the clinical side to the labeling side, in one direction only.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6c788c"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="100%" height="100%" fill="#0b0f17"/>
+
+  <text x="40" y="56" fill="#f2f5f9" font-size="24" font-weight="600">Two backends, kept apart, with one one-way link</text>
+
+  <g>
+    <rect x="40" y="96" width="380" height="300" rx="14" fill="#202837" stroke="#6c788c" stroke-width="2"/>
+    <text x="64" y="134" fill="#c49bff" font-size="20" font-weight="600">Clinical backend</text>
+    <text x="64" y="158" fill="#9aa5b6" font-size="15">real patient data, health privacy rules</text>
+    <rect x="64" y="186" width="332" height="76" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+    <text x="230" y="219" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Patient app, provider portal</text>
+    <text x="230" y="243" text-anchor="middle" fill="#9aa5b6" font-size="15">the only apps that use it</text>
+    <rect x="64" y="290" width="332" height="76" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+    <text x="230" y="323" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Patient records and recordings</text>
+    <text x="230" y="347" text-anchor="middle" fill="#9aa5b6" font-size="15">names and heart sounds</text>
+  </g>
+
+  <g>
+    <rect x="540" y="96" width="380" height="300" rx="14" fill="#202837" stroke="#6c788c" stroke-width="2"/>
+    <text x="564" y="134" fill="#3ccbd3" font-size="20" font-weight="600">Labeling backend</text>
+    <text x="564" y="158" fill="#9aa5b6" font-size="15">anonymized data only</text>
+    <rect x="564" y="186" width="332" height="76" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+    <text x="730" y="219" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Labeling app</text>
+    <text x="730" y="243" text-anchor="middle" fill="#9aa5b6" font-size="15">outside cardiologists rate here</text>
+    <rect x="564" y="290" width="332" height="76" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+    <text x="730" y="323" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Anonymized recordings</text>
+    <text x="730" y="347" text-anchor="middle" fill="#9aa5b6" font-size="15">no names, no patient link</text>
+  </g>
+
+  <text x="480" y="200" text-anchor="middle" fill="#f2994a" font-size="15" font-weight="600">No calls</text>
+  <text x="480" y="220" text-anchor="middle" fill="#f2994a" font-size="15" font-weight="600">either way</text>
+
+  <text x="480" y="310" text-anchor="middle" fill="#5ea8ff" font-size="15" font-weight="600">Export script</text>
+  <line x1="396" y1="328" x2="564" y2="328" stroke="#5ea8ff" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="480" y="352" text-anchor="middle" fill="#9aa5b6" font-size="15">copies one way</text>
+
+  <text x="40" y="436" fill="#9aa5b6" font-size="15">Why apart: outside raters can only ever reach data that was already anonymized.</text>
+</svg>

@@ -1,0 +1,1 @@
+How a pull request moves from spec to merge: the owner approves a written spec, an agent builds it (tests first), Karen and a second AI reviewer both check it, the owner tries it in a preview build, then it merges to staging and later to main. A problem found by either reviewer sends the work back to the build step.

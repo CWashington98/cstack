@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-07",
+  "model": "sonnet",
+  "checker": "plugins/plain/scripts/diagram-check.mjs",
+  "passRate": {
+    "with_skill": "3 of 3",
+    "without_skill": "0 of 3"
+  },
+  "runs": [
+    {
+      "eval": "pull-request-flow",
+      "variant": "with_skill",
+      "passes": true,
+      "holds": 0,
+      "advice": 0,
+      "byRule": {},
+      "seconds": 56.23,
+      "tokens": 74791
+    },
+    {
+      "eval": "pull-request-flow",
+      "variant": "without_skill",
+      "passes": false,
+      "holds": 22,
+      "advice": 1,
+      "byRule": {
+        "hold:desc": 1,
+        "advice:screen-reader": 1,
+        "hold:palette": 19,
+        "hold:background": 1,
+        "hold:font-size": 1
+      },
+      "seconds": 27.375,
+      "tokens": 62800
+    },
+    {
+      "eval": "two-backends",
+      "variant": "with_skill",
+      "passes": true,
+      "holds": 0,
+      "advice": 4,
+      "byRule": {
+        "advice:label-length": 4
+      },
+      "seconds": 43.447,
+      "tokens": 73196
+    },
+    {
+      "eval": "two-backends",
+      "variant": "without_skill",
+      "passes": false,
+      "holds": 62,
+      "advice": 1,
+      "byRule": {
+        "advice:long-sentence": 1,
+        "hold:palette": 45,
+        "hold:background": 1,
+        "hold:capitals": 3,
+        "hold:font-size": 13
+      },
+      "seconds": 32.355,
+      "tokens": 63687
+    },
+    {
+      "eval": "account-router-before-after",
+      "variant": "with_skill",
+      "passes": true,
+      "holds": 0,
+      "advice": 0,
+      "byRule": {},
+      "seconds": 63.927,
+      "tokens": 70164
+    },
+    {
+      "eval": "account-router-before-after",
+      "variant": "without_skill",
+      "passes": false,
+      "holds": 80,
+      "advice": 1,
+      "byRule": {
+        "hold:title": 1,
+        "hold:desc": 1,
+        "advice:screen-reader": 1,
+        "hold:palette": 61,
+        "hold:background": 1,
+        "hold:capitals": 3,
+        "hold:font-size": 13
+      },
+      "seconds": 36.141,
+      "tokens": 64532
+    }
+  ]
+}
