@@ -154,37 +154,71 @@ export function pathExtent(d) {
   let y = 0;
   let sx = 0;
   let sy = 0;
+  let lastCubic = null;
+  let lastQuad = null;
   const next = () => Number(toks[i++]);
   const pt = (rel) => {
     const px = (rel ? x : 0) + next();
     const py = (rel ? y : 0) + next();
     return [px, py];
   };
+  const reflect = (c) => (c ? [2 * x - c[0], 2 * y - c[1]] : [x, y]);
   while (i < toks.length) {
     if (/[a-z]/i.test(toks[i])) cmd = toks[i++];
     if (!cmd) break;
     const C = cmd.toUpperCase();
     const rel = cmd !== C;
     let end;
+    let cubic = null;
+    let quad = null;
     if (C === "Z") {
       [x, y] = [sx, sy];
       cmd = null;
+      lastCubic = lastQuad = null;
       continue;
     } else if (C === "H") end = [(rel ? x : 0) + next(), y];
     else if (C === "V") end = [x, (rel ? y : 0) + next()];
     else if (C === "C") {
-      out.push(pt(rel), pt(rel));
+      const c1 = pt(rel);
+      cubic = pt(rel);
+      out.push(c1, cubic);
       end = pt(rel);
-    } else if (C === "S" || C === "Q") {
-      out.push(pt(rel));
+    } else if (C === "S") {
+      out.push(reflect(lastCubic));
+      cubic = pt(rel);
+      out.push(cubic);
+      end = pt(rel);
+    } else if (C === "Q") {
+      quad = pt(rel);
+      out.push(quad);
+      end = pt(rel);
+    } else if (C === "T") {
+      quad = reflect(lastQuad);
+      out.push(quad);
       end = pt(rel);
     } else if (C === "A") {
-      const r = Math.max(Math.abs(next()), Math.abs(next()));
-      i += 3;
+      // Radii too small to reach the end point are scaled up, as the format's
+      // rules say and browsers do.
+      let rx = Math.abs(next());
+      let ry = Math.abs(next());
+      const phi = (next() * Math.PI) / 180;
+      i += 2;
       end = pt(rel);
-      for (const [px, py] of [[x, y], end]) out.push([px - r, py - r], [px + r, py + r]);
+      const hx = (x - end[0]) / 2;
+      const hy = (y - end[1]) / 2;
+      const px = Math.cos(phi) * hx + Math.sin(phi) * hy;
+      const py = -Math.sin(phi) * hx + Math.cos(phi) * hy;
+      const lambda = rx && ry ? (px * px) / (rx * rx) + (py * py) / (ry * ry) : 0;
+      if (lambda > 1) {
+        rx *= Math.sqrt(lambda);
+        ry *= Math.sqrt(lambda);
+      }
+      const r = Math.max(rx, ry);
+      for (const [qx, qy] of [[x, y], end]) out.push([qx - r, qy - r], [qx + r, qy + r]);
     } else end = pt(rel);
     if (!end.every(Number.isFinite)) break;
+    lastCubic = cubic;
+    lastQuad = quad;
     [x, y] = end;
     if (C === "M") {
       [sx, sy] = end;

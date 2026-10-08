@@ -371,3 +371,26 @@ test("words over 48 pixels, and words made of block or shape characters, are hel
   assert.ok(holds(doc(BOX + words("", "▀▄"))).includes("text-shapes"));
   assert.deepEqual(holds(doc(BOX + words("", "Say hello — then go"))), [], "ordinary punctuation passes");
 });
+
+// Codex's last batch.
+test("context-stroke reached through currentColor is held outside an arrowhead", () => {
+  assert.ok(holds(doc(BOX + words('color="context-stroke"').replace('fill="#f2f5f9"', 'fill="currentColor"'))).includes("palette"));
+  assert.ok(holds(doc('<g color="context-stroke">' + BOX.replace('stroke="#6c788c"', 'stroke="currentColor"') + "</g>" + words())).includes("palette"));
+});
+
+test("a line running far off the canvas counts only the part on the canvas", () => {
+  assert.deepEqual(holds(doc(BOX + words() + '<line x1="-10000" y1="190" x2="10000" y2="190" stroke="#6c788c" stroke-width="2"/>')), []);
+  assert.deepEqual(holds(doc(BOX + words() + '<line x1="-10000" y1="-5000" x2="10000" y2="5000" stroke="#6c788c" stroke-width="2"/>')), [], "a diagonal one too");
+});
+
+test("smooth curve segments include their reflected control point in the path's box", () => {
+  const hi = '<text x="150" y="111.3" text-anchor="middle" fill="#f2f5f9" font-size="18">Hi</text>';
+  assert.ok(holds(doc(BOX + words() + '<path d="M100,100 C100,100 150,90 150,100 S 200,100 200,100" fill="#f2f5f9"/>' + hi)).includes("text-contrast"), "S");
+  assert.ok(holds(doc(BOX + words() + '<path d="M100,100 c0,0 50,-10 50,0 s 50,0 50,0" fill="#f2f5f9"/>' + hi)).includes("text-contrast"), "s");
+  assert.ok(holds(doc(BOX + words() + '<path d="M100,100 Q150,90 150,100 T 200,100" fill="#f2f5f9"/>' + hi)).includes("text-contrast"), "T");
+  assert.ok(holds(doc(BOX + words() + '<path d="M100,100 q50,-10 50,0 t 50,0" fill="#f2f5f9"/>' + hi)).includes("text-contrast"), "t");
+});
+
+test("an arc with radii too small to reach its end is scaled up, as browsers draw it", () => {
+  assert.ok(holds(doc('<path d="M0,100 A 1 1 0 1 1 400,100 Z" fill="#f2f5f9"/>' + BOX + words())).includes("background"));
+});

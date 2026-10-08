@@ -88,15 +88,22 @@ function fillArea(item, canvas) {
   return clip(b.x, b.x + b.w, x0, x1) * clip(b.y, b.y + b.h, y0, y1);
 }
 
-// The length of a shape's edge, or of a line.
-function edgeLength(item) {
-  const g = item.geo;
-  if (item.kind === "rect") return 2 * (g.w + g.h);
-  if (item.kind === "circle" || item.kind === "ellipse") {
-    const h = ((g.rx - g.ry) / (g.rx + g.ry)) ** 2;
-    return Math.PI * (g.rx + g.ry) * (1 + (3 * h) / (10 + Math.sqrt(4 - 3 * h)));
+// The length of the part of a segment that lies on the canvas.
+function clippedLength([[x1, y1], [x2, y2]], canvas) {
+  let t0 = 0;
+  let t1 = 1;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  for (const [p, q] of [[-dx, x1 - canvas.x], [dx, canvas.x + canvas.w - x1], [-dy, y1 - canvas.y], [dy, canvas.y + canvas.h - y1]]) {
+    if (p === 0) {
+      if (q < 0) return 0;
+    } else {
+      const t = q / p;
+      if (p < 0) t0 = Math.max(t0, t);
+      else t1 = Math.min(t1, t);
+    }
   }
-  return edges(item).reduce((sum, [[x1, y1], [x2, y2]]) => sum + Math.hypot(x2 - x1, y2 - y1), 0);
+  return t1 > t0 ? (t1 - t0) * Math.hypot(dx, dy) : 0;
 }
 
 // A length in pixels, or null for any other unit (percent, em and so on).
@@ -250,6 +257,7 @@ export function checkSvg(source, config, palette, firstLine = 1, onPage = false)
     const v = String(value).trim();
     const lower = v.toLowerCase();
     if (lower === "currentcolor") {
+      if (/^context-(fill|stroke)$/i.test(String(style.color ?? "").trim())) return "bad";
       if (style.color !== undefined) return paint(style.color, node, "color", style, true);
       if (!quiet) return "bad";
       const key = `${node.line}:currentcolor`;
@@ -279,7 +287,7 @@ export function checkSvg(source, config, palette, firstLine = 1, onPage = false)
   };
   // context-fill and context-stroke only mean something inside an arrowhead.
   const contextOutsideMarker = (node, s) => {
-    for (const prop of ["fill", "stroke"]) {
+    for (const prop of ["fill", "stroke", "color"]) {
       if (/^context-(fill|stroke)$/i.test(String(s[prop] ?? "").trim())) {
         add(node.line, "palette", "hold", s[prop], `${prop}="${s[prop]}" only works inside an arrowhead. Here it can draw nothing or anything. Use a palette hex code.`);
       }
@@ -487,10 +495,14 @@ export function checkSvg(source, config, palette, firstLine = 1, onPage = false)
   // A stroke covers the smaller of its box grown by half its width on every
   // side (which covers caps and tiny shapes) and its length plus two widths,
   // times its width (which keeps a box's edge from counting its inside).
+  // Both measures count only what lies on the canvas.
   const strokeArea = (it) => {
     const b = bounds(it);
     const w = it.strokeWidth;
-    return Math.min((b.w + w) * (b.h + w), (edgeLength(it) + 2 * w) * w);
+    const span = (lo, size, from, to) => Math.max(0, Math.min(lo + size + w / 2, to) - Math.max(lo - w / 2, from));
+    const box = span(b.x, b.w, canvas.x, canvas.x + canvas.w) * span(b.y, b.h, canvas.y, canvas.y + canvas.h);
+    const length = edges(it).reduce((sum, seg) => sum + clippedLength(seg, canvas), 0);
+    return Math.min(box, (length + 2 * w) * w);
   };
   // An arrowhead covers its width times its height, times the line's stroke
   // width unless the marker is sized in plain units. marker-mid repeats at
