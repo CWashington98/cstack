@@ -217,3 +217,30 @@ test("every template still passes after these rules", () => {
     assert.deepEqual(check(src, name).map((f) => `${f.rule}: ${f.message}`), [], name);
   }
 });
+
+// 10 to 13: found by the second reviewer.
+test("a child of <text> other than a tspan, such as a textPath, is held, not skipped", () => {
+  assert.ok(holds(doc(BOX + '<text x="60" y="86" fill="#f2f5f9" font-size="18"><textPath href="#p">Say hello</textPath></text>')).includes("unsupported"));
+});
+
+test("words with no visible fill are held, whether the fill is set on them or comes from a group", () => {
+  assert.ok(holds(doc(BOX + words().replace('fill="#f2f5f9"', 'fill="none"'))).includes("text-fill"));
+  assert.ok(holds(doc(BOX + words().replace('fill="#f2f5f9"', 'fill="transparent"'))).includes("text-fill"));
+  assert.ok(holds(doc(BOX + '<g fill="none">' + words().replace(' fill="#f2f5f9"', "") + "</g>")).includes("text-fill"));
+});
+
+test("an arrowhead with no fill draws black and is held", () => {
+  const arrow = '<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z"/></marker></defs>';
+  const line = '<line x1="250" y1="160" x2="380" y2="160" stroke="#6c788c" stroke-width="2" marker-end="url(#a)"/>';
+  assert.ok(holds(doc(arrow + BOX + words() + line)).includes("palette"));
+});
+
+test("screen reader advice appears unless aria-labelledby names both the title's and the description's ids", () => {
+  const advice = (root) => check(doc(BOX + words(), { root: `viewBox="0 0 400 200" role="img" ${root}` })).filter((f) => f.rule === "screen-reader").length;
+  assert.equal(advice('aria-labelledby="t d"'), 0);
+  assert.equal(advice('aria-labelledby="d t"'), 0);
+  assert.equal(advice('aria-labelledby="t"'), 1, "only the title");
+  assert.equal(advice('aria-labelledby="t missing"'), 1, "an id that doesn't exist");
+  assert.equal(advice('aria-labelledby="t d missing"'), 1, "both, plus an id that doesn't exist");
+  assert.equal(advice('aria-labelledby="x y"'), 1);
+});

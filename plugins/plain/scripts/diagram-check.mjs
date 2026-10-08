@@ -199,8 +199,11 @@ export function checkSvg(source, config, palette, firstLine = 1, onPage = false)
       add(root.line, tag, "hold", "", `The diagram needs ${what}. Screen readers read it aloud in place of the picture.`);
     }
   }
-  if (root.attrs.role !== "img" || !root.attrs["aria-labelledby"]) {
-    add(root.line, "screen-reader", "advice", "", 'Add role="img" and aria-labelledby="<title id> <desc id>" to the <svg>, so screen readers announce the title and description.');
+  const named = (root.attrs["aria-labelledby"] ?? "").split(/\s+/).filter(Boolean);
+  const idOf = (tag) => root.children.find((c) => c.tag === tag)?.attrs.id;
+  const labelled = ["title", "desc"].every((tag) => idOf(tag) && named.includes(idOf(tag))) && named.every((id) => [idOf("title"), idOf("desc")].includes(id));
+  if (root.attrs.role !== "img" || !labelled) {
+    add(root.line, "screen-reader", "advice", "", 'Give the <svg> role="img" and an aria-labelledby that names the ids of its <title> and <desc>, and nothing else, so screen readers announce both.');
   }
 
   // Walk the tree in paint order. Colors are checked where they are written,
@@ -270,6 +273,10 @@ export function checkSvg(source, config, palette, firstLine = 1, onPage = false)
     const legend = ctx.legend || (tag === "g" && isLegend(node));
     const next = { ...ctx, dx: ctx.dx + shift[0], dy: ctx.dy + shift[1], opacity: ctx.opacity * opacityOf(s.opacity), size: size ?? ctx.size, sizeSet: ctx.sizeSet || (s["font-size"] !== undefined && size !== null), legend };
     if (tag === "marker" && node.attrs.id) markers.set(node.attrs.id, node);
+    if (ctx.marker && SHAPES.has(tag) && style.fill === undefined && tag !== "line" && tag !== "polyline") {
+      add(node.line, "palette", "hold", tag, `This arrowhead <${tag}> has no fill, so it draws black. Set fill to a palette color.`);
+    }
+    if (tag === "marker") next.marker = true;
     if (NOT_PAINTED.has(tag) || ctx.defs) {
       for (const c of node.children) walk(c, style, { ...next, defs: true });
       return;
@@ -350,7 +357,11 @@ export function checkSvg(source, config, palette, firstLine = 1, onPage = false)
         reported.add(node);
         add(node.line, "palette", "hold", r.text.trim(), `Words "${short(r.text.trim())}" have no fill, so they draw black. Set fill to text (${palette.colors.text.hex}).`);
       }
-      const outlined = (r.style.stroke !== undefined && parseColor(r.style.stroke) !== "none") || (fill === null && r.style.fill !== undefined);
+      if (fill === null && r.style.fill !== undefined && !reported.has(`${node.line}:no-fill`)) {
+        reported.add(`${node.line}:no-fill`);
+        add(node.line, "text-fill", "hold", r.text.trim(), `Words "${short(r.text.trim())}" have fill "${r.style.fill}", so they can't be seen. Give words a solid palette fill, such as text (${palette.colors.text.hex}).`);
+      }
+      const outlined = r.style.stroke !== undefined && parseColor(r.style.stroke) !== "none";
       if (outlined && !reported.has(`${node.line}:outline`)) {
         reported.add(`${node.line}:outline`);
         add(node.line, "text-outline", "hold", r.text.trim(), `Words "${short(r.text.trim())}" are drawn as outlines. Give words a solid palette fill and no stroke, so the checker can measure them.`);
