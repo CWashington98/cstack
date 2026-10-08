@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import { makeRepo } from "../../../tests/helpers.mjs";
 import { loadConfig } from "../scripts/lib/config.mjs";
 import { checkDiagram, checkSvg, meets } from "../scripts/diagram-check.mjs";
-import { blend, contrast, parseColor } from "../scripts/lib/color.mjs";
+import { blend, contrast, parseColor, luminance } from "../scripts/lib/color.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const config = loadConfig(makeRepo({ ".claude/plain.json": "{}" }));
@@ -296,4 +296,34 @@ test("hidden things are skipped: opacity 0 and visibility hidden", () => {
 test("four-digit hex colors carry transparency", () => {
   assert.deepEqual(parseColor("#abc8"), { hex: "#aabbcc", alpha: 0x88 / 255 });
   assert.deepEqual(parseColor("#abcf"), { hex: "#aabbcc", alpha: 1 });
+});
+
+// Karen's third check.
+test("thin light stripes that fall between any fixed set of sample points are still added up", () => {
+  const stripes = Array.from({ length: 40 }, (_, k) => `<rect x="0" y="${(3.2 + 5 * k).toFixed(1)}" width="400" height="3.6" fill="#f2f5f9"/>`).join("");
+  const body = stripes + '<text x="60" y="88" fill="#0b0f17" font-size="18">Say hello</text>';
+  assert.ok(holds(doc(body)).includes("background"), "72% of the canvas is light");
+});
+
+test("light area comes from each shape's real size: fills, lines and edges", () => {
+  const light = (body) => holds(doc(body + BOX + words())).includes("background");
+  assert.ok(light('<circle cx="300" cy="100" r="95" fill="#5ea8ff"/>'), "a circle of 35%");
+  assert.ok(!light('<circle cx="300" cy="100" r="85" fill="#5ea8ff"/>'), "a circle of 28%, plus 1% of box edges");
+  assert.ok(!light('<ellipse cx="380" cy="100" rx="120" ry="100" fill="#5ea8ff"/>'), "an ellipse of 47% cut by the canvas edge to about 29%");
+  assert.ok(!light('<circle cx="200" cy="0" r="120" fill="#5ea8ff"/>'), "a circle of 56% cut by the top edge to 28%");
+  assert.ok(!light('<circle cx="0" cy="100" r="120" fill="#5ea8ff"/>'), "a circle of 56% cut by the left edge to about 27%");
+  assert.ok(light('<line x1="250" y1="0" x2="250" y2="200" stroke="#5ea8ff" stroke-width="140"/>'), "a line counts its length times its width: 35%");
+  assert.ok(!light('<line x1="250" y1="0" x2="250" y2="200" stroke="#5ea8ff" stroke-width="120"/>'), "30%");
+});
+
+test("a filled box's edge is checked only when its fill is under 3 to 1 against what is around it", () => {
+  const { below, atOrAbove } = nearRatio(3);
+  const palette = edgePalette({ text: { hex: "#ffffff", kind: "text" }, faint: { hex: "#050505", kind: "line" }, low: { hex: below.hex, kind: "accent" }, ok: { hex: atOrAbove.hex, kind: "accent" } });
+  const body = (fill) => `<rect x="250" y="20" width="100" height="50" fill="${fill}" stroke="#050505" stroke-width="2"/><text x="20" y="150" fill="#ffffff" font-size="18">Say hello</text>`;
+  assert.ok(edgeHolds(palette, body(below.hex)).includes("line-contrast"), "fill just under 3 to 1: the faint edge is checked");
+  assert.deepEqual(edgeHolds(palette, body(atOrAbove.hex)), [], "fill at 3 to 1: the box stands out on its own");
+});
+
+test("very dark colors use the straight-line part of the brightness formula", () => {
+  assert.ok(Math.abs(luminance("#010101") - 1 / 255 / 12.92) < 1e-12);
 });

@@ -62,6 +62,43 @@ function nearSegment([[x1, y1], [x2, y2]], x, y, reach) {
   return Math.hypot(x - (x1 + t * dx), y - (y1 + t * dy)) <= reach;
 }
 
+// The area of a shape's fill inside the canvas. Rects and ellipses are
+// measured exactly; other shapes by their bounding box, which can only
+// overestimate.
+function fillArea(item, canvas) {
+  const x0 = canvas.x;
+  const x1 = canvas.x + canvas.w;
+  const y0 = canvas.y;
+  const y1 = canvas.y + canvas.h;
+  const clip = (a, b, lo, hi) => Math.max(0, Math.min(b, hi) - Math.max(a, lo));
+  if (item.kind === "circle" || item.kind === "ellipse") {
+    const { cx, cy, rx, ry } = item.geo;
+    const from = Math.max(cx - rx, x0);
+    const to = Math.min(cx + rx, x1);
+    const steps = 400;
+    let area = 0;
+    for (let k = 0; k < steps && to > from; k++) {
+      const x = from + ((k + 0.5) * (to - from)) / steps;
+      const half = ry * Math.sqrt(Math.max(0, 1 - ((x - cx) / rx) ** 2));
+      area += clip(cy - half, cy + half, y0, y1) * ((to - from) / steps);
+    }
+    return area;
+  }
+  const b = bounds(item);
+  return clip(b.x, b.x + b.w, x0, x1) * clip(b.y, b.y + b.h, y0, y1);
+}
+
+// The length of a shape's edge, or of a line.
+function edgeLength(item) {
+  const g = item.geo;
+  if (item.kind === "rect") return 2 * (g.w + g.h);
+  if (item.kind === "circle" || item.kind === "ellipse") {
+    const h = ((g.rx - g.ry) / (g.rx + g.ry)) ** 2;
+    return Math.PI * (g.rx + g.ry) * (1 + (3 * h) / (10 + Math.sqrt(4 - 3 * h)));
+  }
+  return edges(item).reduce((sum, [[x1, y1], [x2, y2]]) => sum + Math.hypot(x2 - x1, y2 - y1), 0);
+}
+
 // A length in pixels, or null for any other unit (percent, em and so on).
 function pixels(value) {
   const m = String(value ?? "").trim().match(/^(-?[\d.]+)\s*(px)?$/i);
@@ -428,20 +465,20 @@ export function checkSvg(source, config, palette, firstLine = 1, onPage = false)
       add(backdrop.line, "background", "hold", "", `The background rect doesn't cover the whole canvas (${canvas.w} by ${canvas.h}). Use ${wanted}.`);
     }
   }
-  // Nothing may turn much of the picture light. A 40 by 40 grid of points
-  // over the canvas is colored as painted, fills and edges together, so
-  // light areas split across shapes, or drawn as very wide lines, still add up.
-  const raisedLum = Math.max(...Object.values(palette.colors).filter((c) => c.kind === "surface").map((c) => luminance(c.hex)));
-  let lightPoints = 0;
-  for (let gx = 0; gx < 40; gx++) {
-    for (let gy = 0; gy < 40; gy++) {
-      const { hex } = colorAt(canvas.x + ((gx + 0.5) * canvas.w) / 40, canvas.y + ((gy + 0.5) * canvas.h) / 40, items.length, true);
-      if (luminance(hex) > raisedLum + 1e-6) lightPoints++;
-    }
+  // Nothing may turn much of the picture light. Light area is added up from
+  // each shape's real size, so no pattern of thin shapes can slip between
+  // sample points. Overlaps count twice, which only makes the check stricter.
+  const surfaceLum = Math.max(...Object.values(palette.colors).filter((c) => c.kind === "surface").map((c) => luminance(c.hex)));
+  const isLight = (c) => c && luminance(blend(c.hex, c.alpha, bgHex)) > surfaceLum + 1e-6;
+  let lightArea = 0;
+  for (const it of items) {
+    if (it.type !== "shape" || it === backdrop) continue;
+    if (isLight(it.fill)) lightArea += fillArea(it, canvas);
+    if (isLight(it.stroke)) lightArea += edgeLength(it) * it.strokeWidth;
   }
-  const lightShare = lightPoints / 1600;
+  const lightShare = lightArea / (canvas.w * canvas.h);
   if (lightShare > LIMITS.lightShare) {
-    add(root.line, "background", "hold", "", `About ${Math.round(lightShare * 100)}% of the diagram is lighter than the palette's lightest surface color. More than a third makes it a light diagram. Large areas must be background, surface or raised; keep accents to edges, lines and small marks.`);
+    add(root.line, "background", "hold", "", `About ${Math.round(lightShare * 100)}% of the diagram is lighter than the palette's surface colors. More than a third makes it a light diagram. Large areas must be background, surface or raised; keep accents to edges, lines and small marks.`);
   }
 
 
