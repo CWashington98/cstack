@@ -1,0 +1,23 @@
+{
+  "about": "The only colors a diagram may use. Dark mode only. Every color that may be used for words reaches 4.5 to 1 on every surface, and every border and accent reaches 3 to 1 on every surface (the Web Content Accessibility Guidelines, version 2.2, rules 1.4.3 and 1.4.11). tests/palette.test.mjs proves both.",
+  "colors": {
+    "background": { "hex": "#0b0f17", "kind": "surface", "text": false, "use": "The whole canvas. Always the first shape, covering everything." },
+    "surface": { "hex": "#151b26", "kind": "surface", "text": false, "use": "The fill of an ordinary box." },
+    "raised": { "hex": "#202837", "kind": "surface", "text": false, "use": "The fill of a box that should stand out, or a group panel behind boxes." },
+    "text": { "hex": "#f2f5f9", "kind": "text", "text": true, "use": "Labels and titles." },
+    "muted": { "hex": "#9aa5b6", "kind": "text", "text": true, "use": "Second lines, notes and legend words." },
+    "border": { "hex": "#6c788c", "kind": "line", "text": false, "use": "Ordinary box edges, arrows and lines." },
+    "blue": { "hex": "#5ea8ff", "kind": "accent", "text": true, "use": "The main path, or the good side of a good and bad pair." },
+    "orange": { "hex": "#f2994a", "kind": "accent", "text": true, "use": "Warnings, or the bad side of a good and bad pair." },
+    "green": { "hex": "#4cc76a", "kind": "accent", "text": true, "use": "Done or passing, always with a word that says so." },
+    "red": { "hex": "#ff7a7a", "kind": "accent", "text": true, "use": "Stopped or failing, always with a word that says so." },
+    "purple": { "hex": "#c49bff", "kind": "accent", "text": true, "use": "A second group or a person." },
+    "teal": { "hex": "#3ccbd3", "kind": "accent", "text": true, "use": "A third group, or data and storage." }
+  },
+  "goodBad": ["blue", "orange"],
+  "font": {
+    "family": "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+    "minSize": 14,
+    "legendMinSize": 12
+  }
+}
