@@ -48,6 +48,8 @@ Keeps everything we publish readable for a junior developer or product manager w
 
 The hold does nothing until a repository opts in with `.claude/plain.json` (shared) or `.claude/plain.local.json` (personal). Details: `plugins/plain/skills/plain/glossary-format.md`.
 
+It also has to-diagram, a skill that draws a diagram in plain English. Diagrams are always dark, use a fixed palette that passes accessibility contrast rules, and are proved by a checker. Details: `plugins/plain/skills/to-diagram/SKILL.md`.
+
 ## Keeping skills current
 
 Run the `upkeep` skill monthly, or `node plugins/core/scripts/upkeep.mjs`. It checks every Claude account on this machine and the repositories listed in `~/.config/cstack/upkeep.json`. It reports deprecated or outdated plugins, stale catalogs, changed upstream skills behind our pinned pointers, and skill copies inside repositories, with the command that fixes each one. It only reports; you choose what to apply.

@@ -60,3 +60,10 @@ test("the plain skill and its reference files exist", () => {
 test("the verify plugin is listed", () => {
   assert.ok(market.plugins.some((p) => p.name === "verify" && p.source === "./plugins/verify"));
 });
+
+test("the to-diagram skill, its palette, its subset notes and its templates exist", () => {
+  const dir = join(root, "plugins", "plain", "skills", "to-diagram");
+  assert.match(readFileSync(join(dir, "SKILL.md"), "utf8"), /^---\nname: to-diagram\ndescription: .+\n---/);
+  for (const f of ["palette.json", "svg-subset.md", "README.md", "templates/flow.svg", "templates/page.html"]) assert.ok(existsSync(join(dir, f)), f);
+  assert.ok(existsSync(join(root, "plugins", "plain", "scripts", "diagram-check.mjs")));
+});
