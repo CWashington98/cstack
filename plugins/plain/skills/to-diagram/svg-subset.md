@@ -13,6 +13,8 @@ It catches the mistakes an agent makes while drawing an honest diagram: a light 
 - Words: at most 48 pixels. No block or shape characters (Unicode block elements and geometric shapes, such as █ or ▶); draw shapes with shape elements.
 - Light area: no more than a third of the picture lighter than the surface colors. Fills count their area inside the canvas: rects and ellipses exactly, paths and polygons by their bounding box. A path's box includes its curve control points (reflected ones too) and its arc radii, enlarged as browsers do when they are too small to reach the end point. A stroke counts the smaller of its box grown by half its width on every side, and its length plus two widths, times its width. Both count only what lies on the canvas. An arrowhead counts its width times its height, times the line's stroke width.
 
+- A light line whose center sits just outside the canvas still shades a strip inside it, up to half its width. Lines are capped at 12 wide, so that strip is at most 6 pixels deep. It isn't counted toward light area. On a real-size diagram this can't change the result.
+
 ## Allowed
 
 | Part | Notes |
