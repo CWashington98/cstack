@@ -67,3 +67,11 @@ test("the to-diagram skill, its palette, its subset notes and its templates exis
   for (const f of ["palette.json", "svg-subset.md", "README.md", "templates/flow.svg", "templates/page.html"]) assert.ok(existsSync(join(dir, f)), f);
   assert.ok(existsSync(join(root, "plugins", "plain", "scripts", "diagram-check.mjs")));
 });
+
+test("the good-css pointer picks only its one skill, from the skills folder", () => {
+  const p = market.plugins.find((p) => p.name === "good-css-picks");
+  assert.ok(p, "good-css-picks is missing");
+  assert.equal(p.source.url, "https://github.com/vojtaholik/good-css.git");
+  assert.equal(p.source.path, "skills");
+  assert.deepEqual(p.skills, ["./good-css"]);
+});

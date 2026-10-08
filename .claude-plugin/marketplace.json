@@ -96,6 +96,20 @@
       "skills": [
         "./react-native-skills"
       ]
+    },
+    {
+      "name": "good-css-picks",
+      "description": "Pinned pointer to good-css (Vojta Holik and contributors, MIT): 47 modern CSS techniques borrowed from CSS experts, written for agents. Read its skill before writing or reviewing any web styles (plain CSS, Tailwind, CSS-in-JS); it names which reference file to read for each task. Web only: it doesn't apply to React Native styles.",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/vojtaholik/good-css.git",
+        "path": "skills",
+        "sha": "e074e76a011dbadc4f0a7fbd6c661ed79deb6371"
+      },
+      "strict": false,
+      "skills": [
+        "./good-css"
+      ]
     }
   ]
 }
