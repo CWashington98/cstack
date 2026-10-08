@@ -20,12 +20,66 @@ export const loadPalette = () => JSON.parse(readFileSync(PALETTE_PATH, "utf8"));
 
 export const LIMITS = { text: 4.5, graphic: 3, adviseWords: 6, holdWords: 12, boxes: 12 };
 const INHERITED = ["fill", "stroke", "fill-opacity", "stroke-opacity", "stroke-width", "font-size", "font-weight", "color", "text-anchor", "dominant-baseline", "visibility"];
-const UNSUPPORTED = new Set(["style", "script", "image", "foreignobject", "use", "switch", "textpath", "filter", "mask", "clippath", "pattern", "symbol", "lineargradient", "radialgradient", "iframe", "video", "audio", "canvas"]);
+// Every element the checker can read. Anything else is held, because it could
+// draw or change colors the checker never sees (animation, style sheets,
+// embedded pictures, nested diagrams).
+const ALLOWED = new Set(["svg", "title", "desc", "metadata", "defs", "marker", "g", "a", "rect", "circle", "ellipse", "line", "polyline", "polygon", "path", "text", "tspan"]);
+const EFFECTS = ["filter", "mask", "clip-path", "mix-blend-mode"];
 const NOT_PAINTED = new Set(["defs", "marker", "title", "desc", "metadata"]);
 const SHAPES = new Set(["rect", "circle", "ellipse", "line", "polyline", "polygon", "path"]);
 const short = (s, n = 40) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 const words = (s) => s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
 const fmt = (r) => (Math.floor(r * 100) / 100).toFixed(2);
+const isLegend = (node) => [node.attrs.id, node.attrs.class].some((v) => (v ?? "").split(/\s+/).includes("legend"));
+
+// Opacity as a number from 0 to 1. Accepts "0.4" and "40%".
+export function opacityOf(value, fallback = 1) {
+  if (value === undefined) return fallback;
+  const v = String(value).trim();
+  const n = parseFloat(v);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(1, Math.max(0, v.endsWith("%") ? n / 100 : n));
+}
+
+// The segments a shape's edge is drawn along, for finding what is behind words.
+function edges(item) {
+  const g = item.geo;
+  let pts;
+  if (item.kind === "rect") pts = [[g.x, g.y], [g.x + g.w, g.y], [g.x + g.w, g.y + g.h], [g.x, g.y + g.h], [g.x, g.y]];
+  else if (item.kind === "circle" || item.kind === "ellipse") {
+    pts = Array.from({ length: 33 }, (_, k) => [g.cx + g.rx * Math.cos((k * Math.PI) / 16), g.cy + g.ry * Math.sin((k * Math.PI) / 16)]);
+  } else pts = item.kind === "polygon" && g.pts.length ? [...g.pts, g.pts[0]] : g.pts;
+  return pts.slice(1).map((p, k) => [pts[k], p]);
+}
+
+function nearSegment([[x1, y1], [x2, y2]], x, y, reach) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len = dx * dx + dy * dy;
+  const t = len ? Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / len)) : 0;
+  return Math.hypot(x - (x1 + t * dx), y - (y1 + t * dy)) <= reach;
+}
+
+// How much of the canvas a shape covers, from 0 to 1.
+function coverage(item, canvas) {
+  const b = bounds(item);
+  const w = Math.max(0, Math.min(b.x + b.w, canvas.x + canvas.w) - Math.max(b.x, canvas.x));
+  const h = Math.max(0, Math.min(b.y + b.h, canvas.y + canvas.h) - Math.max(b.y, canvas.y));
+  let area = w * h;
+  if (item.kind === "circle" || item.kind === "ellipse") area *= Math.PI / 4;
+  else if (item.kind !== "rect") {
+    const p = item.geo.pts;
+    const shoelace = Math.abs(p.reduce((sum, [x, y], k) => sum + x * p[(k + 1) % p.length][1] - p[(k + 1) % p.length][0] * y, 0)) / 2;
+    area = Math.min(area, shoelace);
+  }
+  return area / (canvas.w * canvas.h);
+}
+
+// A length in pixels, or null for any other unit (percent, em and so on).
+function pixels(value) {
+  const m = String(value ?? "").trim().match(/^(-?[\d.]+)\s*(px)?$/i);
+  return m ? parseFloat(m[1]) : null;
+}
 
 function fontSize(value, parent) {
   if (value === undefined) return parent;
@@ -95,7 +149,7 @@ function geometry(tag, a, dx, dy) {
   }
 }
 
-export function checkSvg(source, config, palette, firstLine = 1) {
+export function checkSvg(source, config, palette, firstLine = 1, onPage = false) {
   const found = [];
   const add = (line, rule, level, text, message) => found.push({ line, rule, level, text, message });
   let root;
@@ -122,8 +176,20 @@ export function checkSvg(source, config, palette, firstLine = 1) {
     ? { x: vbNums[0], y: vbNums[1], w: vbNums[2], h: vbNums[3] }
     : { x: 0, y: 0, w: num(root.attrs.width, NaN), h: num(root.attrs.height, NaN) };
   if (!Number.isFinite(canvas.w) || !Number.isFinite(canvas.h)) add(root.line, "unreadable", "hold", "", 'The <svg> needs a viewBox, such as viewBox="0 0 960 540", so its size is known.');
-  const width = root.attrs.width;
-  const scale = hasVb && width && !String(width).includes("%") && num(width, 0) > 0 ? num(width) / canvas.w : 1;
+  // A width or height on the <svg> (an attribute, or a style rule, which wins)
+  // shrinks or grows everything, words included.
+  const rootStyle = ownStyle(root);
+  const shown = {};
+  for (const side of ["width", "height"]) {
+    const v = rootStyle[side];
+    if (v === undefined || v === "auto") continue;
+    const px = pixels(v);
+    if (px === null || px <= 0) add(root.line, "canvas-size", "hold", v, `${side}="${v}" on the <svg> can't be checked. Give it in pixels or leave it out, so the checker knows how big the words show.`);
+    else shown[side] = px;
+  }
+  const scales = hasVb ? [shown.width && shown.width / canvas.w, shown.height && shown.height / canvas.h].filter(Boolean) : [];
+  const scale = scales.length ? Math.min(...scales) : 1;
+  const width = shown.width ?? (shown.height ? `${shown.height} high` : "");
 
   // Title and description, as the first children of the <svg>.
   for (const tag of ["title", "desc"]) {
@@ -143,11 +209,21 @@ export function checkSvg(source, config, palette, firstLine = 1) {
   const markers = new Map();
   const reported = new Set();
   const unsupported = new Set();
+  // `quiet` is true where a color is used rather than written, so a color
+  // written once on a group is reported once. currentColor is reported where
+  // it is used, because a child may set the color.
   const paint = (value, node, prop, style, quiet = false) => {
     if (value === undefined) return undefined;
     const v = String(value).trim();
     const lower = v.toLowerCase();
-    if (lower === "currentcolor") return paint(style.color, node, "color", style, quiet);
+    if (lower === "currentcolor") {
+      if (style.color !== undefined) return paint(style.color, node, "color", style, true);
+      if (!quiet) return "bad";
+      const key = `${node.line}:currentcolor`;
+      if (!reported.has(key)) add(node.line, "palette", "hold", v, `${prop}="currentColor" takes the color setting, and none is set, so a page could make it any color. Use a palette hex code.`);
+      reported.add(key);
+      return "bad";
+    }
     if (lower === "context-stroke" || lower === "context-fill") return lower;
     if (lower.startsWith("url(")) {
       if (!quiet && !reported.has(node)) add(node.line, "palette", "hold", v, `${prop}="${v}" points at a gradient or pattern. Use one flat palette color.`);
@@ -172,10 +248,13 @@ export function checkSvg(source, config, palette, firstLine = 1) {
     if (node.text !== undefined) return;
     const tag = node.tag.toLowerCase();
     const s = ownStyle(node);
-    if (UNSUPPORTED.has(tag)) {
-      if (!unsupported.has(tag)) add(node.line, "unsupported", "hold", tag, `<${node.tag}> isn't supported. The checker can't see what it draws, so it can't prove the colors. The to-diagram skill's svg-subset.md lists what is allowed.`);
+    if (!ALLOWED.has(tag) || (tag === "svg" && node !== root)) {
+      if (!unsupported.has(tag)) add(node.line, "unsupported", "hold", tag, `<${node.tag}> isn't supported. The checker can't see what it draws or changes, so it can't prove the colors or sizes. The to-diagram skill's svg-subset.md lists what is allowed.`);
       unsupported.add(tag);
       return;
+    }
+    for (const effect of EFFECTS) {
+      if (s[effect] !== undefined && s[effect] !== "none") add(node.line, "unsupported", "hold", effect, `${effect} isn't supported. It changes how things look in ways the checker can't measure.`);
     }
     const style = { ...inherited };
     for (const k of INHERITED) if (s[k] !== undefined) style[k] = s[k];
@@ -188,15 +267,15 @@ export function checkSvg(source, config, palette, firstLine = 1) {
     }
     const size = fontSize(s["font-size"], ctx.size);
     if (size === null) add(node.line, "font-size", "hold", s["font-size"], `font-size "${s["font-size"]}" can't be read. Write it in pixels, such as font-size="16".`);
-    const legend = ctx.legend || (tag === "g" && /\blegend\b/i.test(`${node.attrs.id ?? ""} ${node.attrs.class ?? ""}`));
-    const next = { ...ctx, dx: ctx.dx + shift[0], dy: ctx.dy + shift[1], opacity: ctx.opacity * num(s.opacity, 1), size: size ?? ctx.size, legend };
+    const legend = ctx.legend || (tag === "g" && isLegend(node));
+    const next = { ...ctx, dx: ctx.dx + shift[0], dy: ctx.dy + shift[1], opacity: ctx.opacity * opacityOf(s.opacity), size: size ?? ctx.size, sizeSet: ctx.sizeSet || (s["font-size"] !== undefined && size !== null), legend };
     if (tag === "marker" && node.attrs.id) markers.set(node.attrs.id, node);
     if (NOT_PAINTED.has(tag) || ctx.defs) {
       for (const c of node.children) walk(c, style, { ...next, defs: true });
       return;
     }
     const hidden = style.visibility === "hidden" || next.opacity === 0;
-    const alphaOf = (c, prop) => (c && typeof c === "object" ? c.alpha * num(style[`${prop}-opacity`], 1) * next.opacity : 0);
+    const alphaOf = (c, prop) => (c && typeof c === "object" ? c.alpha * opacityOf(style[`${prop}-opacity`]) * next.opacity : 0);
     if (SHAPES.has(tag) && !hidden) {
       let fill = style.fill === undefined ? { hex: "#000000", alpha: 1, unset: true } : paint(style.fill, node, "fill", style, true);
       if (fill?.unset && (tag === "line" || tag === "polyline")) fill = null;
@@ -208,7 +287,8 @@ export function checkSvg(source, config, palette, firstLine = 1) {
         item.geo.h = item.geo.full(item.geo.hRaw, canvas.h);
       }
       item.fill = fill && typeof fill === "object" && !fill.unset ? { hex: fill.hex, alpha: alphaOf(fill, "fill") } : null;
-      item.stroke = stroke && typeof stroke === "object" && num(style["stroke-width"], 1) > 0 ? { hex: stroke.hex, alpha: alphaOf(stroke, "stroke") } : null;
+      item.strokeWidth = num(style["stroke-width"], 1);
+      item.stroke = stroke && typeof stroke === "object" && item.strokeWidth > 0 ? { hex: stroke.hex, alpha: alphaOf(stroke, "stroke") } : null;
       item.markers = ["marker-start", "marker-mid", "marker-end", "marker"].map((k) => s[k]?.match(/url\(\s*#([^)\s]+)\s*\)/)?.[1]).filter(Boolean);
       items.push(item);
     } else if (tag === "text" && !hidden) {
@@ -218,12 +298,17 @@ export function checkSvg(source, config, palette, firstLine = 1) {
     for (const c of node.children) walk(c, style, next);
   };
 
+  // Words become runs: one per stretch of text with its own color, opacity
+  // and size, so a faint tspan can't hide behind its neighbors. Runs on one
+  // line share the line's position and width, and each run is measured
+  // against the whole line.
   const textItem = (node, style, ctx) => {
     const runs = [];
     let x = num(node.attrs.x) + ctx.dx;
     let y = num(node.attrs.y) + ctx.dy;
+    let line = 0;
     let current = null;
-    const visit = (el, st, opacity, size) => {
+    const visit = (el, st, opacity, size, sizeSet) => {
       for (const child of el.children) {
         if (child.text !== undefined) {
           if (!child.text.trim()) {
@@ -231,7 +316,7 @@ export function checkSvg(source, config, palette, firstLine = 1) {
             continue;
           }
           if (!current) {
-            current = { x, y, style: st, opacity, size, text: "" };
+            current = { x, y, line, style: st, opacity, size, sizeSet, node: el, text: "" };
             runs.push(current);
           }
           current.text += child.text;
@@ -239,51 +324,77 @@ export function checkSvg(source, config, palette, firstLine = 1) {
           const s = ownStyle(child);
           const st2 = { ...st };
           for (const k of INHERITED) if (s[k] !== undefined) st2[k] = s[k];
-          for (const prop of ["fill", "color"]) if (s[prop] !== undefined) paint(s[prop], child, prop, st2);
-          const size2 = fontSize(s["font-size"], size) ?? size;
+          for (const prop of ["fill", "stroke", "color"]) if (s[prop] !== undefined) paint(s[prop], child, prop, st2);
+          const size2 = fontSize(s["font-size"], size);
+          if (size2 === null) add(child.line, "font-size", "hold", s["font-size"], `font-size "${s["font-size"]}" can't be read. Write it in pixels, such as font-size="16".`);
           const moves = ["x", "y", "dx", "dy"].some((k) => child.attrs[k] !== undefined);
           if (child.attrs.x !== undefined) x = num(child.attrs.x) + ctx.dx;
           if (child.attrs.y !== undefined) y = num(child.attrs.y) + ctx.dy;
-          const delta = (v) => (String(v ?? "").trim().endsWith("em") ? num(v) * size2 : num(v));
+          const delta = (v) => (String(v ?? "").trim().endsWith("em") ? num(v) * (size2 ?? size) : num(v));
           x += delta(child.attrs.dx);
           y += delta(child.attrs.dy);
-          if (moves || st2.fill !== st.fill || size2 !== size) current = null;
-          visit(child, st2, opacity * num(s.opacity, 1), size2);
+          if (moves) line++;
           current = null;
+          visit(child, st2, opacity * opacityOf(s.opacity), size2 ?? size, sizeSet || s["font-size"] !== undefined);
+          current = null;
+        } else if (child.tag) {
+          walk(child, st, ctx);
         }
       }
     };
-    visit(node, style, ctx.opacity, ctx.size);
-    for (const r of runs) {
-      r.text = r.text.replace(/\s+/g, " ").trim();
-      const fill = r.style.fill === undefined ? null : paint(r.style.fill, node, "fill", r.style, true);
+    visit(node, style, ctx.opacity, ctx.size, ctx.sizeSet);
+    const kept = runs.filter((r) => (r.text = r.text.replace(/\s+/g, " ")).trim());
+    for (const r of kept) {
+      const fill = r.style.fill === undefined ? null : paint(r.style.fill, r.node, "fill", r.style, true);
       if (r.style.fill === undefined && !reported.has(node)) {
         reported.add(node);
-        add(node.line, "palette", "hold", r.text, `Words "${short(r.text)}" have no fill, so they draw black. Set fill to text (${palette.colors.text.hex}).`);
+        add(node.line, "palette", "hold", r.text.trim(), `Words "${short(r.text.trim())}" have no fill, so they draw black. Set fill to text (${palette.colors.text.hex}).`);
       }
-      r.fill = fill && typeof fill === "object" ? { hex: fill.hex, alpha: fill.alpha * num(r.style["fill-opacity"], 1) * r.opacity } : null;
-      const bold = /^(bold|bolder|[6-9]00)$/.test(String(r.style["font-weight"] ?? ""));
-      const w = r.text.length * r.size * (bold ? 0.6 : 0.55);
-      const anchor = r.style["text-anchor"] ?? "start";
-      r.left = anchor === "middle" ? r.x - w / 2 : anchor === "end" ? r.x - w : r.x;
-      r.right = r.left + w;
-      r.mid = /^(middle|central)$/.test(r.style["dominant-baseline"] ?? "") ? r.y : r.y - 0.35 * r.size;
+      const outlined = (r.style.stroke !== undefined && parseColor(r.style.stroke) !== "none") || (fill === null && r.style.fill !== undefined);
+      if (outlined && !reported.has(`${node.line}:outline`)) {
+        reported.add(`${node.line}:outline`);
+        add(node.line, "text-outline", "hold", r.text.trim(), `Words "${short(r.text.trim())}" are drawn as outlines. Give words a solid palette fill and no stroke, so the checker can measure them.`);
+      }
+      r.fill = fill && typeof fill === "object" ? { hex: fill.hex, alpha: fill.alpha * opacityOf(r.style["fill-opacity"]) * r.opacity } : null;
+      r.bold = /^(bold|bolder|[6-9]00)$/.test(String(r.style["font-weight"] ?? ""));
     }
-    const kept = runs.filter((r) => r.text);
+    const lines = new Map();
+    for (const r of kept) {
+      if (!lines.has(r.line)) lines.set(r.line, []);
+      lines.get(r.line).push(r);
+    }
+    for (const group of lines.values()) {
+      const head = group[0];
+      const text = group.map((r) => r.text).join("").trim();
+      const w = group.reduce((sum, r, k) => sum + (k === 0 ? r.text.trimStart() : k === group.length - 1 ? r.text.trimEnd() : r.text).length * r.size * (r.bold ? 0.6 : 0.55), 0);
+      const anchor = head.style["text-anchor"] ?? "start";
+      const left = anchor === "middle" ? head.x - w / 2 : anchor === "end" ? head.x - w : head.x;
+      const mid = /^(middle|central)$/.test(head.style["dominant-baseline"] ?? "") ? head.y : head.y - 0.35 * head.size;
+      for (const r of group) Object.assign(r, { left, right: left + w, mid, lineText: text });
+    }
+    for (const r of kept) r.text = r.text.trim();
     return { type: "text", node, line: node.line, legend: ctx.legend, runs: kept, label: textOf(node).replace(/\s+/g, " ").trim() };
   };
 
-  walk(root, {}, { dx: 0, dy: 0, opacity: 1, size: 16, legend: false, defs: false });
+  walk(root, {}, { dx: 0, dy: 0, opacity: 1, size: 16, sizeSet: false, legend: false, defs: false });
 
-  // What color shows at a point, from everything painted before `before`.
-  const colorAt = (x, y, before) => {
+  // What color shows at a point, from everything painted before `before`:
+  // fills that cover the point and, for words, edges and lines drawn across
+  // it. Lines and marks are measured against fills only, because a line that
+  // meets a box edge or another line is a join, not a background. `top` is the
+  // last filled shape under the point, the box the point sits in.
+  for (const it of items) if (it.type === "shape" && it.stroke) it.edges = edges(it);
+  const colorAt = (x, y, before, strokes = false) => {
     let c = bgHex;
     let top = null;
     for (let i = 0; i < before; i++) {
       const it = items[i];
-      if (it.type !== "shape" || !it.fill || !contains(it, x, y)) continue;
-      c = blend(it.fill.hex, it.fill.alpha, c);
-      top = it;
+      if (it.type !== "shape") continue;
+      if (it.fill && contains(it, x, y)) {
+        c = blend(it.fill.hex, it.fill.alpha, c);
+        top = it;
+      }
+      if (strokes && it.stroke && it.edges.some((e) => nearSegment(e, x, y, it.strokeWidth / 2))) c = blend(it.stroke.hex, it.stroke.alpha, c);
     }
     return { hex: c, top };
   };
@@ -291,15 +402,26 @@ export function checkSvg(source, config, palette, firstLine = 1) {
   // The background: the first shape, a rect of the background color over the whole canvas.
   const first = items[0];
   const backdrop = first?.kind === "rect" && first.geo.x <= canvas.x && first.geo.y <= canvas.y ? first : null;
+  const wanted = `<rect x="${canvas.x}" y="${canvas.y}" width="${canvas.w}" height="${canvas.h}" fill="${bgHex}"/>`;
   if (!backdrop) {
-    add(first?.line ?? root.line, "background", "hold", "", `The diagram needs a dark background. Make the first shape <rect x="0" y="0" width="100%" height="100%" fill="${bgHex}"/>.`);
+    add(first?.line ?? root.line, "background", "hold", "", `The diagram needs a dark background. Make the first shape ${wanted}.`);
   } else {
+    const a = backdrop.node.attrs;
+    if ([a.x ?? "0", a.y ?? "0", a.width, a.height].some((v) => pixels(v) === null)) {
+      add(backdrop.line, "background", "hold", "", `Give the background rect plain numbers, as in ${wanted}. Some image tools draw a rect sized in percent as white.`);
+    }
     if (!backdrop.fill || backdrop.fill.hex !== bgHex || backdrop.fill.alpha < 1) {
       add(backdrop.line, "background", "hold", "", `The background is ${backdrop.fill ? nameOf(backdrop.fill.hex) : "empty"}. It must be background (${bgHex}) with no transparency, so the diagram is dark on any page.`);
     }
     if (backdrop.geo.x + backdrop.geo.w < canvas.x + canvas.w || backdrop.geo.y + backdrop.geo.h < canvas.y + canvas.h) {
-      add(backdrop.line, "background", "hold", "", `The background rect doesn't cover the whole canvas (${canvas.w} by ${canvas.h}). Use width="100%" height="100%".`);
+      add(backdrop.line, "background", "hold", "", `The background rect doesn't cover the whole canvas (${canvas.w} by ${canvas.h}). Use ${wanted}.`);
     }
+  }
+  // Nothing else may turn most of the picture light.
+  for (const it of items) {
+    if (it.type !== "shape" || it === backdrop || !it.fill || byHex.get(it.fill.hex)?.kind === "surface") continue;
+    const share = coverage(it, canvas);
+    if (share >= 0.5) add(it.line, "background", "hold", it.kind, `This <${it.kind}> covers ${Math.round(share * 100)}% of the diagram in ${nameOf(it.fill.hex)}, which makes it a light or colored background. Large areas must be background, surface or raised.`);
   }
 
   const texts = items.map((it, i) => ({ it, i })).filter(({ it }) => it.type === "text" && it.runs.length);
@@ -314,7 +436,7 @@ export function checkSvg(source, config, palette, firstLine = 1) {
     for (const r of it.runs) {
       if (!r.fill) continue;
       for (const px of [r.left + 1, (r.left + r.right) / 2, r.right - 1]) {
-        const behind = colorAt(px, r.mid, i).hex;
+        const behind = colorAt(px, r.mid, i, true).hex;
         const ratio = contrast(blend(r.fill.hex, r.fill.alpha, behind), behind);
         if (!worst || ratio < worst.ratio) worst = { ratio, behind, r };
       }
@@ -322,10 +444,13 @@ export function checkSvg(source, config, palette, firstLine = 1) {
     if (worst && worst.ratio < LIMITS.text) {
       add(it.line, "text-contrast", "hold", worst.r.text, `Words "${short(worst.r.text)}" are ${fmt(worst.ratio)} to 1 against ${nameOf(worst.behind)} behind them. Words need at least ${LIMITS.text} to 1. Use text or muted text on a surface, or background-colored words on an accent.`);
     }
+    if (onPage && it.runs.some((r) => !r.sizeSet)) {
+      add(it.line, "font-size", "hold", it.label, `Words "${short(it.label)}" have no font size set inside the diagram, so on a page they take the page's size. Set font-size on the words or a group around them.`);
+    }
     const allowed = it.legend ? legendSize : minSize;
     const smallest = Math.min(...it.runs.map((r) => r.size * scale));
     if (smallest < allowed - 1e-9) {
-      const scaled = scale < 1 ? ` after the diagram is shrunk to its width of ${width} pixels` : "";
+      const scaled = scale < 1 ? ` after the diagram is shrunk to ${width} pixels` : "";
       add(it.line, "font-size", "hold", it.label, `Words "${short(it.label)}" are ${+smallest.toFixed(1)} pixels${scaled}. The smallest allowed is ${minSize} pixels, or ${legendSize} inside a legend.`);
     }
     if (it.runs.some((r) => r.left < canvas.x - 2 || r.right > canvas.x + canvas.w + 2)) {
@@ -397,7 +522,7 @@ export function checkSvg(source, config, palette, firstLine = 1) {
           }
           const c = parseColor(v);
           if (!c || c === "none" || !byHex.has(c.hex)) continue;
-          graphic(it, i, c.hex, c.alpha * num(st[`${prop}-opacity`], 1), ends, "arrowhead");
+          graphic(it, i, c.hex, c.alpha * opacityOf(st[`${prop}-opacity`]), ends, "arrowhead");
         }
       }
     }
@@ -432,8 +557,14 @@ export function checkSvg(source, config, palette, firstLine = 1) {
     const el = root.children.find((c) => c.tag === tag);
     if (el) parts.push({ line: el.line, text: textOf(el).replace(/\s+/g, " ").trim() });
   }
+  // Diagrams have no room to explain, so capital-letter words are held even
+  // when plain's common list allows them in prose. One passes if the glossary
+  // has it, or if the diagram's visible words spell it out somewhere.
+  const visible = parts.slice(0, texts.length).map((p) => p.text).join("\n");
+  const spelled = new Set();
+  for (const m of visible.matchAll(/[a-z][\w\s,'-]*\(\s*([A-Z][A-Z0-9&]*[A-Z])s?\s*\)|\b([A-Z][A-Z0-9&]*[A-Z])s?\s*\(\s*[a-z]/g)) spelled.add(m[1] ?? m[2]);
   const prose = parts.map((p) => p.text).join("\n\n");
-  for (const f of checkText(prose, config)) {
+  for (const f of checkText(prose, { ...config, common: spelled })) {
     const part = parts[Math.floor((f.line - 1) / 2)];
     found.push({ ...f, line: part?.line ?? root.line });
   }
@@ -441,15 +572,64 @@ export function checkSvg(source, config, palette, firstLine = 1) {
   return found;
 }
 
+// Page styles that can change a diagram the checker can't see. Any of these,
+// anywhere on the page, can reach the diagram through an ancestor.
+const PAGE_RISKY = new Set(["fill", "stroke", "fill-opacity", "stroke-opacity", "stroke-width", "paint-order", "opacity", "filter", "backdrop-filter", "mix-blend-mode", "transform", "scale", "rotate", "zoom", "mask", "clip-path", "-webkit-text-stroke", "-webkit-text-stroke-color", "-webkit-text-stroke-width", "-webkit-text-fill-color"]);
+// What a page may set on the diagram itself or on anything inside it.
+const PAGE_SAFE_ON_DIAGRAM = /^(display|margin(-\w+)?)$/;
+const SVG_NAMES = [...ALLOWED].filter((n) => !["a", "title", "desc", "metadata"].includes(n)).join("|");
+
+function checkPageStyles(raw, svgs) {
+  const found = [];
+  const lineAt = (i) => raw.slice(0, i).split("\n").length;
+  const outside = svgs.reduce((acc, m) => acc.slice(0, m.index) + m[0].replace(/[^\n]/g, " ") + acc.slice(m.index + m[0].length), raw);
+  const hold = (index, text, message) => found.push({ line: lineAt(index), rule: "page-style", level: "hold", text, message });
+  const names = new Set();
+  for (const m of svgs) {
+    for (const a of m[0].matchAll(/\b(id|class)\s*=\s*(?:"([^"]*)"|'([^']*)')/g)) {
+      for (const n of (a[2] ?? a[3]).split(/\s+/).filter(Boolean)) names.add(`${a[1] === "id" ? "#" : "."}${n}`);
+    }
+  }
+  const targets = (selector) =>
+    /\*/.test(selector) ||
+    new RegExp(`(^|[\\s>+~,(])(${SVG_NAMES})(?=$|[\\s>+~,.#:\\[)])`, "i").test(selector) ||
+    [...names].some((n) => new RegExp(`${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`).test(selector));
+  for (const m of outside.matchAll(/<link\b[^>]*\brel\s*=\s*["']?stylesheet[^>]*>/gi)) {
+    hold(m.index, "link", "The page loads a style sheet the checker can't read, and it could change the diagram. Put the page's styles in the page.");
+  }
+  for (const block of outside.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style\s*>/gi)) {
+    const start = block.index + block[0].indexOf(block[1]);
+    const css = block[1].replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, " "));
+    for (const imp of css.matchAll(/@import\b[^;]*;?/g)) hold(start + imp.index, "@import", "The page imports a style sheet the checker can't read, and it could change the diagram.");
+    for (const rule of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      const selector = rule[1].trim();
+      if (selector.startsWith("@")) continue;
+      const onDiagram = targets(selector);
+      for (const decl of rule[2].split(";")) {
+        const prop = decl.split(":")[0].trim().toLowerCase();
+        if (!prop) continue;
+        if (PAGE_RISKY.has(prop) || (onDiagram && !PAGE_SAFE_ON_DIAGRAM.test(prop))) {
+          hold(start + rule.index, `${selector} { ${prop} }`, `The page style "${selector} { ${decl.trim()} }" can change how the diagram looks, and the checker can't see that. Remove it, or style only things outside the diagram.`);
+        }
+      }
+    }
+  }
+  for (const attr of outside.matchAll(/\sstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) {
+    for (const decl of (attr[1] ?? attr[2]).split(";")) {
+      const prop = decl.split(":")[0].trim().toLowerCase();
+      if (PAGE_RISKY.has(prop)) hold(attr.index, prop, `The page's style="${decl.trim()}" can change how the diagram looks, and the checker can't see that. Remove it.`);
+    }
+  }
+  return found;
+}
+
 export function checkDiagram(raw, name, config, palette = loadPalette()) {
   if (!/\.html?$/i.test(name)) return sortFindings(checkSvg(raw, config, palette));
+  const svgs = [...raw.matchAll(/<svg\b[\s\S]*?<\/svg\s*>/gi)];
+  if (!svgs.length) return null;
   const found = [];
-  let count = 0;
-  for (const m of raw.matchAll(/<svg\b[\s\S]*?<\/svg\s*>/gi)) {
-    count++;
-    found.push(...checkSvg(m[0], config, palette, raw.slice(0, m.index).split("\n").length));
-  }
-  if (!count) return null;
+  for (const m of svgs) found.push(...checkSvg(m[0], config, palette, raw.slice(0, m.index).split("\n").length, true));
+  found.push(...checkPageStyles(raw, svgs));
   found.push(...checkText(prepare(raw, name), config));
   return sortFindings(found);
 }
