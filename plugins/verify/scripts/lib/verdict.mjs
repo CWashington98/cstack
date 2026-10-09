@@ -27,13 +27,16 @@ export function validateReport(r) {
   for (const [i, f] of (r?.findings ?? []).entries()) {
     const n = f.id ?? `#${i + 1}`;
     if (!f.claim) problems.push(`finding ${n} has no claim.`);
-    if (!["blocking", "note"].includes(f.severity)) problems.push(`finding ${n}: severity must be "blocking" or "note".`);
+    if (!["blocking", "decide", "note"].includes(f.severity)) problems.push(`finding ${n}: severity must be "blocking", "decide" or "note".`);
     if (typeof f.reproduced !== "boolean") problems.push(`finding ${n} has no reproduction result. A separate check must try to reproduce every finding before the verdict is recorded.`);
     if (f.reproduced === true && !f.reproduction) problems.push(`finding ${n} is marked reproduced but does not say how.`);
   }
+  if (r?.merge_risk !== undefined && !["low", "medium", "high"].includes(r.merge_risk?.level)) problems.push("merge_risk.level must be low, medium or high.");
   return problems;
 }
 
+// Only "blocking" findings the separate check reproduced make a verdict "not ready".
+// "decide" findings go to the owner as questions; "note" findings are worth fixing later.
 export function effectiveVerdict(r) {
   const blocking = r.findings.filter((f) => f.severity === "blocking" && f.reproduced === true);
   const dropped = r.findings.filter((f) => f.reproduced === false);
@@ -62,6 +65,8 @@ export function writeVerdict(repo, { reviewer, report, head, base, model = null,
   if (meta?.patchId && meta.patchId !== pid) throw new Error(`the change from ${short(mergeBase)} to ${short(headSha)} does not match the reviewed change in meta.json. Review it again.`);
   const eff = effectiveVerdict(report);
   const record = { reviewer, model, note, head: headSha, base, mergeBase, patchId: pid, said: report.verdict, verdict: eff.verdict, summary: report.summary, findings: report.findings, date: now.toISOString() };
+  // What the change does, its merge risk and what was and wasn't checked feed the review comment.
+  for (const k of ["what_it_does", "merge_risk", "checked", "not_checked"]) if (report[k] !== undefined) record[k] = report[k];
   const dir = verdictDir(repo);
   mkdirSync(dir, { recursive: true });
   const file = join(dir, `${headSha}.${reviewer}.json`);
@@ -95,25 +100,4 @@ export function checkVerdicts(repo, { base, head = "HEAD" }) {
     else if (karen.verdict !== "ready") problems.push("Both reviewers say not ready.");
   }
   return { ok: problems.length === 0, problems, head: headSha, patchId: pid, karen, other };
-}
-
-export function renderComment(v) {
-  const list = (items) => items.map((f) => `- ${f.claim}${f.file ? ` (\`${f.file}${f.line ? `:${f.line}` : ""}\`)` : ""}${f.reproduction ? `. Checked: ${f.reproduction}` : ""}`);
-  const blocking = v.findings.filter((f) => f.severity === "blocking" && f.reproduced === true);
-  const notes = v.findings.filter((f) => f.severity === "note" && f.reproduced === true);
-  const dropped = v.findings.filter((f) => f.reproduced === false);
-  const out = [
-    `<!-- verify-verdict reviewer=${v.reviewer} head=${v.head} patch-id=${v.patchId} -->`,
-    `## ${NAMES[v.reviewer]}: ${v.verdict}`,
-    "",
-    `For commit \`${short(v.head)}\`. A new commit clears this verdict, unless a rebase leaves the change identical.`,
-    "",
-    v.summary,
-  ];
-  if (v.note) out.push("", `Why a fallback reviewer: ${v.note}`);
-  if (v.said !== v.verdict) out.push("", `The reviewer said "${v.said}". Only findings a separate check reproduced count, so the verdict is "${v.verdict}".`);
-  if (blocking.length) out.push("", "### Must fix before merge", ...list(blocking));
-  if (notes.length) out.push("", "### Notes", ...list(notes));
-  if (dropped.length) out.push("", "### Dropped, because a separate check could not reproduce them", ...list(dropped));
-  return out.join("\n") + "\n";
 }

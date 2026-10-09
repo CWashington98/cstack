@@ -1,6 +1,6 @@
 {
   "name": "plain",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Plain-English writing check: rules, a checker script, a blank cold reader, a dark accessible diagram skill with its own checker, and a hold before posting to GitHub, publishing a page or committing a spec. A repository opts in with .claude/plain.json or .claude/plain.local.json.",
   "author": { "name": "Crishon Washington" },
   "license": "MIT"

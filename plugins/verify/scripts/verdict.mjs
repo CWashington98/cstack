@@ -7,13 +7,15 @@
 //        [--head <ref>] [--base <ref>] [--model <name>] [--note <why a fallback>]
 //        The verdict lands on the commit in meta.json; --head and --base must match it.
 //   node verdict.mjs check --base <ref> [--head <ref>] [--json]
-//   node verdict.mjs comment <verdict file>
+//   node verdict.mjs review --karen <verdict file> --other <verdict file> --writer <json>
+//        Prints the one review comment, or each problem with the writer's text and exit 1.
 // Exit 0 passes, 1 the check fails, 2 wrong use.
 import { readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { parseArgs, UsageError } from "./lib/args.mjs";
-import { patchId, writeVerdict, checkVerdicts, renderComment, mergeValidation } from "./lib/verdict.mjs";
+import { patchId, writeVerdict, checkVerdicts, mergeValidation } from "./lib/verdict.mjs";
+import { checkWriter, renderReview } from "./lib/review-comment.mjs";
 
 const readJson = (f) => JSON.parse(readFileSync(f, "utf8"));
 
@@ -56,12 +58,20 @@ function main(argv) {
       }
       return r.ok ? 0 : 1;
     }
-    if (cmd === "comment") {
-      if (!a._[0]) throw new UsageError("comment needs a verdict file");
-      process.stdout.write(renderComment(readJson(a._[0])));
+    if (cmd === "review") {
+      need("karen", "other", "writer");
+      const verdicts = { karen: readJson(a.karen), other: readJson(a.other) };
+      const writer = readJson(a.writer);
+      const problems = checkWriter(verdicts, writer);
+      if (problems.length) {
+        for (const p of problems) console.log(`hold  ${p}`);
+        console.log(`Held: ${problems.length} problem(s) with the writer's text. Fix them and run review again.`);
+        return 1;
+      }
+      process.stdout.write(renderReview({ ...verdicts, writer }));
       return 0;
     }
-    throw new UsageError(`unknown command "${cmd ?? ""}". Use patch-id, merge, write, check or comment.`);
+    throw new UsageError(`unknown command "${cmd ?? ""}". Use patch-id, merge, write, check or review.`);
   } catch (e) {
     console.error(`verdict: ${e.message}`);
     return 2;

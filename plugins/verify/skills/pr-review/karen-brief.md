@@ -41,13 +41,19 @@ Write your answer as JSON to `<OUT>/karen.json` with a Bash heredoc, then reply 
 {
   "verdict": "ready or not ready",
   "summary": "two or three plain sentences",
+  "what_it_does": "two or three plain sentences for someone who hasn't read the change: the problem, who had it, what changes for them",
+  "merge_risk": { "level": "low, medium or high", "why": "whether undoing the merge puts things back exactly, and whether it touches saved data, server code, sign-in or only the screen" },
+  "checked": ["what you ran or looked at, as a plain result, one per line"],
+  "not_checked": ["what you couldn't check, one per line"],
   "findings": [
     {
       "id": "karen-1",
       "claim": "what is wrong, in one sentence",
+      "impact": "what goes wrong for a person, in plain words: who notices, and when",
+      "fix": "the suggested fix, in one sentence",
       "file": "path/from/the/repository/root",
       "line": 42,
-      "severity": "blocking or note",
+      "severity": "blocking, decide or note",
       "trigger": "what a user or caller does that hits the problem",
       "how_to_reproduce": "the exact command or steps that show it"
     }
@@ -55,4 +61,4 @@ Write your answer as JSON to `<OUT>/karen.json` with a Bash heredoc, then reply 
 }
 ```
 
-Number the ids `karen-1`, `karen-2` and so on. Use "blocking" only for a problem that must be fixed before merge. A separate check will try to reproduce every finding; any it can't reproduce is dropped. So make `how_to_reproduce` exact.
+Number the ids `karen-1`, `karen-2` and so on. Use "blocking" only for a problem that must be fixed before merge. Use "decide" for a question the owner must answer, such as a spec that allows something that undermines its own goal. Use "note" for everything else; notes never block a merge. A separate check will try to reproduce every finding; any it can't reproduce is dropped. So make `how_to_reproduce` exact.

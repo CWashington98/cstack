@@ -46,6 +46,45 @@
         "Does not add reviewers",
         "Proves any claimed fix by watching its test fail without the fix and pass with it"
       ]
+    },
+    {
+      "id": 5,
+      "prompt": "Review this pull request: it fixes a typo in the sign-up page's heading. Both reviewers find nothing wrong.",
+      "expected_output": "Posts one comment, not one per reviewer. It opens with 'Review: ready to merge', says there is nothing to do, explains the change in plain words for someone who hasn't read the pull request, rates the merge risk low, and shows all three finding groups as 'None.'",
+      "files": [],
+      "expectations": [
+        "Posts one combined comment, not one per reviewer",
+        "The headline says ready to merge and 'What you need to do' says nothing",
+        "'What this change does' explains the change without code names",
+        "Merge risk is rated low, with a reason",
+        "Your decision, Must fix before merge and Worth fixing later each say None.",
+        "The comment passes the plain-English checker and the cold reader before it is posted"
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "Review this pull request: it changes how a shopping cart totals discounts. Karen finds a reproduced blocking bug where removing an item leaves the old total; Codex finds the same bug but marks it a note, and also notes that the spec lets two discounts stack, which undercuts its own goal.",
+      "expected_output": "One comment. The shared bug is one item marked 'both reviewers found this' under Must fix, because the strictest severity wins. The stacking question is a decision with options and one recommendation. 'What you need to do' says to fix the item, then answer the decision, and that the reviewers disagree so the owner decides. File paths and commands appear only in the closed technical detail.",
+      "files": [],
+      "expectations": [
+        "The bug both reviewers found appears once, marked as found by both reviewers",
+        "That item sits under Must fix before merge",
+        "The discount question is a decision with at least two options and exactly one recommended",
+        "'What you need to do' names the item to fix and the decision to answer",
+        "The comment says the reviewers disagree and the owner decides",
+        "File paths and commands appear only in the technical detail"
+      ]
+    },
+    {
+      "id": 7,
+      "prompt": "Codex hit its usage limit while reviewing this pull request, so a second Claude reviewer stood in. Write the review comment.",
+      "expected_output": "The comment names the stand-in reviewer, lists 'no opinion from a second AI company' under What nobody checked, and quotes Codex's error in the technical detail.",
+      "files": [],
+      "expectations": [
+        "The stand-in reviewer is named",
+        "What nobody checked says this review has no opinion from a second AI company",
+        "Codex's error is quoted in the technical detail"
+      ]
     }
   ]
 }
