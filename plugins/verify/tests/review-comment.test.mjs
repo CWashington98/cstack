@@ -176,3 +176,59 @@ test("a realistic comment passes the plain-English checker", () => {
   const r = spawnSync(process.execPath, [plainCheck, file], { encoding: "utf8" });
   assert.equal(r.status, 0, r.stdout + r.stderr);
 });
+
+test("both reports using the same finding id is refused, so no finding can hide another", () => {
+  const karen = record("karen", [finding("1", { severity: "blocking" })]);
+  const codex = record("codex", [finding("1")]);
+  assert.match(checkWriter({ karen, other: codex }, writer([item(["1"])])).join(), /both reviewers used the finding id 1/);
+});
+
+test("the comment can't say ready while a verdict says not ready, or the reverse", () => {
+  const karen = record("karen", [finding("karen-1")], { verdict: "not ready" });
+  assert.match(checkWriter({ karen, other: record("codex") }, writer([item(["karen-1"])])).join(), /Karen's verdict is not ready, but no item is a must-fix/);
+});
+
+test("a dropped finding with no notes still renders", () => {
+  const karen = record("karen", [finding("karen-1", { reproduced: false, reproduction: undefined })]);
+  assert.match(renderReview({ karen, other: record("codex"), writer: writer() }), /claim karen-1\. \(karen-1, from Karen\.\) Checked: no notes recorded\./);
+});
+
+test("an item that isn't an object is a problem, not a crash", () => {
+  assert.match(checkWriter({ karen: record("karen"), other: record("codex") }, writer([null])).join(), /item 1 must be an object/);
+});
+
+test("file names, function calls and commands are refused in the plain text even without backticks", () => {
+  const karen = record("karen", [finding("karen-1")]);
+  const run = (txt) => checkWriter({ karen, other: record("codex") }, writer([item(["karen-1"], { what_goes_wrong: txt })])).join();
+  assert.match(run("It breaks in src/cart.js."), /looks like code/);
+  assert.match(run("It calls total() too early."), /looks like code/);
+  assert.match(run("Ran npm test and it failed."), /looks like code/);
+  assert.equal(run("A shopper sees the old total."), "");
+});
+
+test("a decision finding accepted by the recorder, two recommended options refused, two items listed with 'and'", () => {
+  const karen = record("karen", [finding("karen-1", { severity: "blocking" }), finding("karen-2", { severity: "blocking" }), finding("karen-3", { severity: "decide" })], { verdict: "not ready" });
+  const opts = [{ label: "A", text: "x", recommended: true }, { label: "B", text: "y", recommended: true }];
+  assert.match(checkWriter({ karen, other: record("codex") }, writer([item(["karen-1"]), item(["karen-2"]), item(["karen-3"], { fix: undefined, options: opts })])).join(), /exactly one recommended option/);
+  opts[1].recommended = false;
+  const md = renderReview({ karen, other: record("codex"), writer: writer([item(["karen-1"]), item(["karen-2"]), item(["karen-3"], { fix: undefined, options: opts })]) });
+  assert.match(md, /fix items 2 and 3 before merging\. Then answer item 1\./);
+});
+
+test("word limits allow the limit and refuse one word more", () => {
+  const karen = record("karen", [finding("karen-1")]);
+  const run = (n) => checkWriter({ karen, other: record("codex") }, writer([item(["karen-1"], { what_goes_wrong: "word ".repeat(n).trim() + "." })])).join();
+  assert.equal(run(70), "");
+  assert.match(run(71), /70 words/);
+});
+
+test("two empty changes on different commits are not the same change", () => {
+  const a = record("karen", [], { patchId: "empty" });
+  const b = record("codex", [], { patchId: "empty", head: "c".repeat(40) });
+  assert.throws(() => renderReview({ karen: a, other: b, writer: writer() }), /different change/);
+});
+
+test("a reviewer whose own verdict differs from the confirmed one is explained in the detail", () => {
+  const karen = record("karen", [], { said: "not ready" });
+  assert.match(renderReview({ karen, other: record("codex"), writer: writer() }), /Karen \(Claude\) said "not ready"; only findings the checking agent confirmed count/);
+});

@@ -244,3 +244,9 @@ test("the write command names a --head or --base that is not the reviewed one", 
   assert.equal(base.status, 2);
   assert.match(base.stderr, /--base other is not the reviewed base main/);
 });
+
+test("a report with a decision finding can be recorded", () => {
+  const root = branchRepo();
+  const { record } = writeVerdict(root, { reviewer: "karen", report: { ...READY, findings: [finding({ id: "karen-1", severity: "decide" })] }, head: sha(root), base: "main" });
+  assert.equal(record.verdict, "ready");
+});

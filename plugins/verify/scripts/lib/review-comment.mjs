@@ -17,6 +17,8 @@ const RISK = ["low", "medium", "high"];
 const LIMITS = { title: 20, what_goes_wrong: 70, fix: 35, what_it_does: 80, why: 50, line: 35, option: 35 };
 
 const end = (s) => (/[.?!:]$/.test(s.trim()) ? s.trim() : `${s.trim()}.`);
+// Code-looking text: a file name with an extension, a function call, or a common command.
+const CODE = /\b[\w./-]+\.(?:m?js|cjs|jsx|tsx?|json|md|py|rb|go|css|html|ya?ml|sh)\b|\b\w+\(\)|\b(?:npm|npx|bun|bunx|yarn|pnpm|git|node|gh) [\w-]/;
 const words = (s) => (s ?? "").trim().split(/\s+/).filter(Boolean).length;
 const andList = (xs) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -39,6 +41,7 @@ export function checkWriter(verdicts, w) {
   const text = (name, value, limit, required = true) => {
     if (typeof value !== "string" || !value.trim()) { if (required) problems.push(`${name} is missing.`); return; }
     if (value.includes("`")) problems.push(`${name} has backticks. Keep code, file names and commands out of the plain text; the technical detail already shows them.`);
+    else if (CODE.test(value)) problems.push(`${name} looks like code ("${value.match(CODE)[0]}"). Say what it means for a person instead; the technical detail already shows file names and commands.`);
     if (words(value) > limit) problems.push(`${name} has ${words(value)} words; keep it to ${limit} words.`);
   };
   text("what_it_does", w?.what_it_does, LIMITS.what_it_does);
@@ -54,11 +57,14 @@ export function checkWriter(verdicts, w) {
   if (w?.not_checked !== undefined && !Array.isArray(w.not_checked)) problems.push("not_checked must be a list (empty when there's nothing to add).");
   else (w?.not_checked ?? []).forEach((l, i) => text(`not_checked line ${i + 1}`, l, LIMITS.line));
 
+  const kIds = new Set((karen.findings ?? []).map((f) => f.id));
+  for (const f of other.findings ?? []) if (kIds.has(f.id)) problems.push(`both reviewers used the finding id ${f.id}. Each reviewer numbers its own findings (karen-1, codex-1), so one can't hide the other. Fix the ids in the reports and record the verdicts again.`);
   const all = confirmed(verdicts);
   const seen = new Map();
   const items = Array.isArray(w?.items) ? w.items : (problems.push("items must be a list (empty when there are no findings)."), []);
   items.forEach((it, i) => {
     const n = `item ${i + 1}`;
+    if (!it || typeof it !== "object" || Array.isArray(it)) { problems.push(`${n} must be an object with sources, a title and what goes wrong.`); return; }
     if (!Array.isArray(it.sources) || !it.sources.length) { problems.push(`${n} has no sources: list the finding ids it covers.`); return; }
     for (const id of it.sources) {
       const f = all.get(id);
@@ -83,6 +89,13 @@ export function checkWriter(verdicts, w) {
     }
   });
   for (const [id, f] of all) if (f.reproduced === true && !seen.has(id)) problems.push(`${id} is not in any item. Every confirmed finding must appear once.`);
+  // The headline must agree with the verdicts: a must-fix item exactly when a verdict is "not ready".
+  const mustFix = items.some((it) => it && Array.isArray(it.sources) && it.sources.length && it.sources.every((id) => all.has(id)) && groupOf(it, all) === "blocking");
+  for (const v of [karen, other]) {
+    const name = FULL[v.reviewer].split(" (")[0];
+    if (v.verdict === "not ready" && !mustFix) problems.push(`${name}'s verdict is not ready, but no item is a must-fix. The comment would say it can merge.`);
+  }
+  if (mustFix && karen.verdict === "ready" && other.verdict === "ready") problems.push("an item is a must-fix, but both verdicts are ready. Record the verdicts again from the checked findings.");
   return problems;
 }
 
@@ -159,7 +172,7 @@ export function renderReview({ karen, other, writer: w }) {
     detail.push(`**Item ${it.n}.**`);
     for (const id of it.sources) {
       const f = all.get(id);
-      detail.push(`- ${id}, from ${FULL[f.reviewer]}: ${where(f)}${end(f.claim)} Trigger: ${end(f.trigger ?? "not given")} Shown by: ${end(f.reproduction)}`);
+      detail.push(`- ${id}, from ${FULL[f.reviewer]}: ${where(f)}${end(f.claim)} Trigger: ${end(f.trigger ?? "not given")} Shown by: ${end(f.reproduction ?? "no notes recorded")}`);
     }
     detail.push("");
   }
@@ -168,7 +181,7 @@ export function renderReview({ karen, other, writer: w }) {
   if (other.note) detail.push(`Why Codex could not run: ${other.note}`);
   detail.push("", `**Commit** \`${short(karen.head)}\`, change fingerprint \`${short(karen.patchId ?? "")}\`. A new commit clears this review, unless a rebase leaves the change identical.`, "");
   const dropped = [...all.values()].filter((f) => f.reproduced === false);
-  if (dropped.length) detail.push("Dropped, because the checking agent could not make them happen:", ...dropped.map((f) => `- ${end(f.claim)} (${f.id}, from ${WHO[f.reviewer]}.) Checked: ${end(f.reproduction)}`));
+  if (dropped.length) detail.push("Dropped, because the checking agent could not make them happen:", ...dropped.map((f) => `- ${end(f.claim ?? "no claim recorded")} (${f.id}, from ${WHO[f.reviewer]}.) Checked: ${end(f.reproduction ?? "no notes recorded")}`));
   else detail.push("Dropped findings: none.");
   detail.push("</details>");
   return [...out, ...detail].join("\n") + "\n";
