@@ -102,7 +102,7 @@ test("the writer's text stays short and plain, with code kept in the technical d
   const karen = record("karen", [finding("karen-1")]);
   const run = (over, itemOver = {}) => checkWriter({ karen, other: record("codex") }, writer([item(["karen-1"], itemOver)], over)).join("\n");
   assert.match(run({}, { what_goes_wrong: "The `total()` function double counts." }), /backticks/);
-  assert.match(run({}, { what_goes_wrong: "word ".repeat(71) }), /what_goes_wrong.*70 words/);
+  assert.match(run({}, { what_goes_wrong: "Word word word word word word word word word word. ".repeat(8) }), /what_goes_wrong.*70 words/);
   assert.match(run({ what_it_does: "" }), /what_it_does is missing/);
   assert.match(run({ checked: [] }), /checked needs at least one line/);
   assert.match(run({ merge_risk: { level: "tiny", why: "x" } }), /merge_risk\.level must be low, medium or high/);
@@ -217,7 +217,7 @@ test("a decision finding accepted by the recorder, two recommended options refus
 
 test("word limits allow the limit and refuse one word more", () => {
   const karen = record("karen", [finding("karen-1")]);
-  const run = (n) => checkWriter({ karen, other: record("codex") }, writer([item(["karen-1"], { what_goes_wrong: "word ".repeat(n).trim() + "." })])).join();
+  const run = (n) => checkWriter({ karen, other: record("codex") }, writer([item(["karen-1"], { what_goes_wrong: Array.from({ length: n }, (_, i) => (i % 10 === 9 ? "word." : "word")).join(" ") })])).join();
   assert.equal(run(70), "");
   assert.match(run(71), /70 words/);
 });
@@ -231,4 +231,12 @@ test("two empty changes on different commits are not the same change", () => {
 test("a reviewer whose own verdict differs from the confirmed one is explained in the detail", () => {
   const karen = record("karen", [], { said: "not ready" });
   assert.match(renderReview({ karen, other: record("codex"), writer: writer() }), /Karen \(Claude\) said "not ready"; only findings the checking agent confirmed count/);
+});
+
+test("a sentence longer than the plain-English checker allows is refused", () => {
+  const karen = record("karen", [finding("karen-1")]);
+  const long = "Add tests for the question rating, two recommended options, a two item list, each word limit, empty changes, and the note shown when the verdict a reviewer gave differs from the one its own checked problems give.";
+  const run = (fix) => checkWriter({ karen, other: record("codex") }, writer([item(["karen-1"], { fix })])).join();
+  assert.match(run(long), /a sentence of 37 words; split it so each sentence has at most 30/);
+  assert.equal(run("Add tests for each check. Start with the question rating."), "");
 });

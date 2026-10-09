@@ -97,7 +97,7 @@ node <the plain plugin>/scripts/plain-check.mjs "$OUT/comment.md"
 node <the plain plugin>/skills/cold-reader/scripts/cold-read.mjs "$OUT/comment.md" --json
 ```
 
-The cold reader skips code names in the technical detail. Both checks must pass before the comment is posted or shown.
+The plain-English checker must pass before the comment is posted or shown. The cold reader is advice: send its real gaps back to the writer, at most twice. It skips code names in the technical detail. It sometimes flags a term the comment already explains, such as a reviewer's name. Don't chase those; note them for the cold reader's own upkeep.
 
 ## 9. Report and post
 

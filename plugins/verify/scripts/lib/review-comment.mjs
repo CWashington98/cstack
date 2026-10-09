@@ -14,7 +14,7 @@ const GROUPS = [
   { key: "note", heading: "Worth fixing later" },
 ];
 const RISK = ["low", "medium", "high"];
-const LIMITS = { title: 20, what_goes_wrong: 70, fix: 35, what_it_does: 80, why: 50, line: 35, option: 35 };
+const LIMITS = { sentence: 30, title: 20, what_goes_wrong: 70, fix: 35, what_it_does: 80, why: 50, line: 35, option: 35 };
 
 const end = (s) => (/[.?!:]$/.test(s.trim()) ? s.trim() : `${s.trim()}.`);
 // Code-looking text: a file name with an extension, a function call, or a common command.
@@ -43,6 +43,9 @@ export function checkWriter(verdicts, w) {
     if (value.includes("`")) problems.push(`${name} has backticks. Keep code, file names and commands out of the plain text; the technical detail already shows them.`);
     else if (CODE.test(value)) problems.push(`${name} looks like code ("${value.match(CODE)[0]}"). Say what it means for a person instead; the technical detail already shows file names and commands.`);
     if (words(value) > limit) problems.push(`${name} has ${words(value)} words; keep it to ${limit} words.`);
+    // The plain-English checker holds a sentence over 35 words; the template adds a few after some fields.
+    const longest = Math.max(...value.split(/(?<=[.?!])\s+/).map(words));
+    if (longest > LIMITS.sentence) problems.push(`${name} has a sentence of ${longest} words; split it so each sentence has at most ${LIMITS.sentence}.`);
   };
   text("what_it_does", w?.what_it_does, LIMITS.what_it_does);
   if (!RISK.includes(w?.merge_risk?.level)) problems.push("merge_risk.level must be low, medium or high.");
