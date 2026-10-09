@@ -78,6 +78,13 @@ export function checkWriter(verdicts, w) {
     }
     text(`${n} title`, it.title, LIMITS.title);
     text(`${n} what_goes_wrong`, it.what_goes_wrong, LIMITS.what_goes_wrong);
+    if (it.after !== undefined) {
+      if (!Array.isArray(it.after)) problems.push(`${n}: after must be a list of finding ids.`);
+      else for (const id of it.after) {
+        if (it.sources.includes(id)) problems.push(`${n} can't wait for itself (${id} is one of its own sources).`);
+        else if (all.get(id)?.reproduced !== true) problems.push(`${n} waits for ${id}, which is not a confirmed finding.`);
+      }
+    }
     if (!it.sources.every((id) => all.get(id)?.reproduced === true)) return;
     const decide = groupOf(it, all) === "decide";
     if (decide) {
@@ -171,13 +178,37 @@ export function renderReview({ karen, other, writer: w }) {
   // Technical detail: everything a developer needs to check the claims, closed by default.
   const where = (f) => (f.file ? `\`${f.file}${f.line ? `:${f.line}` : ""}\`. ` : "");
   const detail = ["", "<details><summary>Technical detail, for engineers</summary>", ""];
+  detail.push("Each item below is a work packet: an agent can take one and fix it on its own. A machine-readable copy sits at the end of this comment.", "");
+  const LABEL = { decide: "your decision", blocking: "must fix", note: "worth fixing later" };
+  const JSON_GROUP = { decide: "decide", blocking: "must fix", note: "later" };
+  const itemOf = new Map();
+  for (const g of grouped) for (const it of g.items) for (const id of it.sources) itemOf.set(id, it.n);
+  const packets = [];
   for (const g of grouped) for (const it of g.items) {
-    detail.push(`**Item ${it.n}.**`);
-    for (const id of it.sources) {
-      const f = all.get(id);
-      detail.push(`- ${id}, from ${FULL[f.reviewer]}: ${where(f)}${end(f.claim)} Trigger: ${end(f.trigger ?? "not given")} Shown by: ${end(f.reproduction ?? "no notes recorded")}`);
-    }
+    const srcs = it.sources.map((id) => all.get(id));
+    const uniq = (xs) => [...new Set(xs.filter(Boolean))];
+    const files = uniq(srcs.flatMap((f) => [...(f.touches ?? []), f.file]));
+    const show = uniq(srcs.map((f) => f.how_to_reproduce));
+    const done = uniq(srcs.map((f) => f.done_when));
+    const after = uniq((it.after ?? []).map((id) => itemOf.get(id))).sort((a, b) => a - b);
+    detail.push(`**Item ${it.n}, ${LABEL[g.key]}: ${end(it.title)}**`);
+    detail.push(`- Files: ${files.length ? files.map((f) => `\`${f}\``).join(", ") : "not given"}`);
+    detail.push(`- Show the problem: ${show.length ? show.map((c) => `\`${c}\``).join("; ") : "not given"}`);
+    detail.push(`- Done when: ${done.length ? done.map(end).join(" ") : "not given"}`);
+    detail.push(g.key === "decide"
+      ? `- Options: ${it.options.map((o) => `${o.label.trim()}${o.recommended ? " (recommended)" : ""}: ${end(o.text)}`).join(" ")}`
+      : `- Suggested fix: ${end(it.fix)}`);
+    detail.push(`- Do after: ${after.length ? after.map((k) => `item ${k}`).join(", ") : "none"}`);
+    detail.push("- Found by:");
+    for (const f of srcs) detail.push(`  - ${f.id}, from ${FULL[f.reviewer]}: ${where(f)}${end(f.claim)} Trigger: ${end(f.trigger ?? "not given")} Shown by: ${end(f.reproduction ?? "no notes recorded")}`);
     detail.push("");
+    packets.push({
+      n: it.n, group: JSON_GROUP[g.key], title: end(it.title), what_goes_wrong: it.what_goes_wrong.trim(),
+      ...(g.key === "decide" ? { options: it.options } : { fix: it.fix.trim() }),
+      after, files, show, done_when: done,
+      sources: srcs.map((f) => ({ id: f.id, reviewer: f.reviewer, file: f.file ?? null, line: f.line ?? null, claim: f.claim, trigger: f.trigger ?? null, how_to_reproduce: f.how_to_reproduce ?? null, reproduction: f.reproduction ?? null })),
+      head: karen.head, patch_id: karen.patchId ?? null,
+    });
   }
   detail.push(`**Reviewers.** ${FULL[karen.reviewer]}: ${karen.verdict}. ${FULL[other.reviewer]}${other.model ? `, model ${other.model}` : ""}: ${other.verdict}.`);
   for (const v of [karen, other]) if (v.said && v.said !== v.verdict) detail.push(`${FULL[v.reviewer]} said "${v.said}"; only findings the checking agent confirmed count, so the verdict is "${v.verdict}".`);
@@ -187,5 +218,14 @@ export function renderReview({ karen, other, writer: w }) {
   if (dropped.length) detail.push("Dropped, because the checking agent could not make them happen:", ...dropped.map((f) => `- ${end(f.claim ?? "no claim recorded")} (${f.id}, from ${WHO[f.reviewer]}.) Checked: ${end(f.reproduction ?? "no notes recorded")}`));
   else detail.push("Dropped findings: none.");
   detail.push("</details>");
-  return [...out, ...detail].join("\n") + "\n";
+  // "--" can't appear inside an HTML comment, so escape it; JSON readers decode it back.
+  const hidden = `<!-- verify-review-items ${JSON.stringify(packets).replace(/--/g, "-\\u002d")} -->`;
+  return [...out, ...detail, "", hidden].join("\n") + "\n";
+}
+
+// Reads the work packets back out of a rendered review comment.
+export function extractItems(markdown) {
+  const m = markdown.match(/<!-- verify-review-items (.*) -->/);
+  if (!m) throw new Error("no work packets in this comment: it wasn't made by the review command.");
+  return JSON.parse(m[1]);
 }

@@ -30,6 +30,8 @@ export function validateReport(r) {
     if (!["blocking", "decide", "note"].includes(f.severity)) problems.push(`finding ${n}: severity must be "blocking", "decide" or "note".`);
     if (typeof f.reproduced !== "boolean") problems.push(`finding ${n} has no reproduction result. A separate check must try to reproduce every finding before the verdict is recorded.`);
     if (f.reproduced === true && !f.reproduction) problems.push(`finding ${n} is marked reproduced but does not say how.`);
+    if (f.touches !== undefined && !(Array.isArray(f.touches) && f.touches.every((t) => typeof t === "string"))) problems.push(`finding ${n}: touches must be a list of file paths.`);
+    if (f.done_when !== undefined && typeof f.done_when !== "string") problems.push(`finding ${n}: done_when must be text.`);
   }
   if (r?.merge_risk !== undefined && !["low", "medium", "high"].includes(r.merge_risk?.level)) problems.push("merge_risk.level must be low, medium or high.");
   return problems;

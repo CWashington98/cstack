@@ -5,7 +5,7 @@ import { join, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { checkWriter, renderReview } from "../scripts/lib/review-comment.mjs";
+import { checkWriter, renderReview, extractItems } from "../scripts/lib/review-comment.mjs";
 
 const script = join(dirname(fileURLToPath(import.meta.url)), "..", "scripts", "verdict.mjs");
 const HEAD = "a".repeat(40);
@@ -14,6 +14,7 @@ const PID = "b".repeat(40);
 const finding = (id, over = {}) => ({
   id, claim: `claim ${id}`, file: "src/cart.js", line: 12, severity: "note", trigger: "add an item twice",
   how_to_reproduce: "npm test", impact: "the total is wrong", fix: "count each item once",
+  done_when: "npm test -- cart passes, including the new removal test", touches: ["src/cart.js"],
   reproduced: true, reproduction: `ran npm test for ${id}; it failed`, ...over,
 });
 const record = (reviewer, findings = [], over = {}) => {
@@ -239,4 +240,50 @@ test("a sentence longer than the plain-English checker allows is refused", () =>
   const run = (fix) => checkWriter({ karen, other: record("codex") }, writer([item(["karen-1"], { fix })])).join();
   assert.match(run(long), /a sentence of 37 words; split it so each sentence has at most 30/);
   assert.equal(run("Add tests for each check. Start with the question rating."), "");
+});
+
+test("each item carries a work packet an agent can pick up on its own", () => {
+  const karen = record("karen", [finding("karen-1", { severity: "blocking", touches: ["src/cart.js", "src/cart.test.js"] }), finding("karen-2")]);
+  const codex = record("codex", [finding("codex-1", { touches: ["src/total.js"], done_when: "The total test passes" })]);
+  const md = renderReview({ karen, other: codex, writer: writer([item(["karen-1", "codex-1"]), item(["karen-2"], { after: ["karen-1"] })]) });
+  const detail = md.slice(md.indexOf("<details>"));
+  assert.match(detail, /\*\*Item 1, must fix: The total can still be wrong\.\*\*/);
+  assert.match(detail, /- Files: `src\/cart\.js`, `src\/cart\.test\.js`, `src\/total\.js`/);
+  assert.match(detail, /- Show the problem: `npm test`/);
+  assert.match(detail, /- Done when: npm test -- cart passes, including the new removal test\. The total test passes\./);
+  assert.match(detail, /- Suggested fix: Recount after a removal\./);
+  assert.match(detail, /- Do after: none/);
+  assert.match(detail, /\*\*Item 2, worth fixing later:[^\n]*\n(?:- [^\n]*\n)*- Do after: item 1/);
+});
+
+test("the packets round-trip through a hidden machine-readable block", () => {
+  const karen = record("karen", [finding("karen-1", { severity: "blocking", claim: "breaks on -->" }), finding("karen-2", { severity: "decide" })]);
+  const opts = [{ label: "A", text: "x", recommended: true }, { label: "B", text: "y", recommended: false }];
+  const md = renderReview({ karen, other: record("codex"), writer: writer([item(["karen-1"]), item(["karen-2"], { fix: undefined, options: opts })]) });
+  const items = extractItems(md);
+  assert.equal(items.length, 2);
+  assert.deepEqual(items.map((i) => [i.n, i.group]), [[1, "decide"], [2, "must fix"]]);
+  assert.equal(items[1].sources[0].claim, "breaks on -->");
+  assert.deepEqual(items[1].files, ["src/cart.js"]);
+  assert.equal(items[0].options.length, 2);
+  assert.equal(items[1].head, "a".repeat(40));
+  const block = md.slice(md.indexOf("<!-- verify-review-items")).trimEnd();
+  assert.equal(block.indexOf("-->"), block.length - 3, "nothing inside the hidden block can close it early");
+});
+
+test("an item can only wait for findings in other items, and never for itself", () => {
+  const karen = record("karen", [finding("karen-1"), finding("karen-2")]);
+  const run = (after) => checkWriter({ karen, other: record("codex") }, writer([item(["karen-1"]), item(["karen-2"], { after })])).join();
+  assert.match(run(["karen-9"]), /item 2 waits for karen-9, which is not a confirmed finding/);
+  assert.match(run(["karen-2"]), /item 2 can't wait for itself/);
+  assert.equal(run(["karen-1"]), "");
+});
+
+test("the items command prints the packets as JSON", () => {
+  const dir = mkdtempSync(join(tmpdir(), "items-"));
+  const md = renderReview({ karen: record("karen", [finding("karen-1")]), other: record("codex"), writer: writer([item(["karen-1"])]) });
+  const f = join(dir, "comment.md"); writeFileSync(f, md);
+  const r = spawnSync(process.execPath, [script, "items", f], { encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(JSON.parse(r.stdout)[0].title, "The total can still be wrong.");
 });

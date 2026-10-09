@@ -55,7 +55,9 @@ Write your answer as JSON to `<OUT>/karen.json` with a Bash heredoc, then reply 
       "line": 42,
       "severity": "blocking, decide or note",
       "trigger": "what a user or caller does that hits the problem",
-      "how_to_reproduce": "the exact command or steps that show it"
+      "how_to_reproduce": "the exact command or steps that show it",
+      "done_when": "the check that passes once it's fixed: a command and its expected result, or what to look for",
+      "touches": ["every file a fix would likely change, from the repository root"]
     }
   ]
 }

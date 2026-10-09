@@ -26,7 +26,8 @@ Write `<OUT>/writer.json`:
       "sources": ["karen-2", "codex-1"],
       "title": "What goes wrong, as a short sentence or question",
       "what_goes_wrong": "Who notices, when, and why it matters. Then how likely it is.",
-      "fix": "The suggested fix, in one sentence."
+      "fix": "The suggested fix, in one sentence.",
+      "after": ["karen-1"]
     }
   ],
   "checked": ["What the reviewers ran or looked at, as plain results."],
@@ -35,6 +36,7 @@ Write `<OUT>/writer.json`:
 ```
 
 - **Every confirmed finding goes in exactly one item.** When both reviewers found the same problem, put both ids in one item's `sources`. Leave out findings that weren't confirmed; the script lists them in the technical detail.
+- **`after` is optional.** List the finding ids whose item must be fixed first, only when one fix really depends on another. Leave it out otherwise, so items can be fixed side by side.
 - **A decision has options instead of a fix.** When any source has severity `decide`, give `options` (at least two, each with a one-letter `label`, a short `text` and `recommended`, with exactly one recommended) and leave out `fix`. Say what each option costs.
 - **Lead with the person, not the code.** Say what goes wrong for someone using the software ("people who turned on reduce motion still see the menu slide in"), not how the code fails ("the guard misses a prefixed class").
 - **No code in your text.** No backticks, file names, function names or commands. Replace a technical word, or explain it in a few words the first time.

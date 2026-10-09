@@ -9,13 +9,15 @@
 //   node verdict.mjs check --base <ref> [--head <ref>] [--json]
 //   node verdict.mjs review --karen <verdict file> --other <verdict file> --writer <json>
 //        Prints the one review comment, or each problem with the writer's text and exit 1.
+//   node verdict.mjs items <comment file>
+//        Prints the comment's work packets as JSON, one per item, for a fixer agent or the build loop.
 // Exit 0 passes, 1 the check fails, 2 wrong use.
 import { readFileSync, writeFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { parseArgs, UsageError } from "./lib/args.mjs";
 import { patchId, writeVerdict, checkVerdicts, mergeValidation } from "./lib/verdict.mjs";
-import { checkWriter, renderReview } from "./lib/review-comment.mjs";
+import { checkWriter, renderReview, extractItems } from "./lib/review-comment.mjs";
 
 const readJson = (f) => JSON.parse(readFileSync(f, "utf8"));
 
@@ -71,7 +73,12 @@ function main(argv) {
       process.stdout.write(renderReview({ ...verdicts, writer }));
       return 0;
     }
-    throw new UsageError(`unknown command "${cmd ?? ""}". Use patch-id, merge, write, check or review.`);
+    if (cmd === "items") {
+      if (!a._[0]) throw new UsageError("items needs a comment file");
+      console.log(JSON.stringify(extractItems(readFileSync(a._[0], "utf8")), null, 2));
+      return 0;
+    }
+    throw new UsageError(`unknown command "${cmd ?? ""}". Use patch-id, merge, write, check, review or items.`);
   } catch (e) {
     console.error(`verdict: ${e.message}`);
     return 2;

@@ -97,7 +97,9 @@ node <the plain plugin>/scripts/plain-check.mjs "$OUT/comment.md"
 node <the plain plugin>/skills/cold-reader/scripts/cold-read.mjs "$OUT/comment.md" --json
 ```
 
-The plain-English checker must pass before the comment is posted or shown. The cold reader is advice: send its real gaps back to the writer, at most twice. It skips code names in the technical detail. It sometimes flags a term the comment already explains, such as a reviewer's name. Don't chase those; note them for the cold reader's own upkeep.
+The plain-English checker must pass before the comment is posted or shown. The technical detail turns each item into a work packet: the files, the command that shows the problem, the check that proves it's fixed, the suggested fix, and which items must come first. A hidden copy at the end of the comment lets an agent split the review into separate fixes: `node <plugin>/scripts/verdict.mjs items "$OUT/comment.md"` prints one packet per item.
+
+The cold reader is advice: send its real gaps back to the writer, at most twice. It skips code names in the technical detail. It sometimes flags a term the comment already explains, such as a reviewer's name. Don't chase those; note them for the cold reader's own upkeep.
 
 ## 9. Report and post
 

@@ -72,7 +72,9 @@
           "line",
           "severity",
           "trigger",
-          "how_to_reproduce"
+          "how_to_reproduce",
+          "done_when",
+          "touches"
         ],
         "properties": {
           "id": {
@@ -118,6 +120,15 @@
           },
           "how_to_reproduce": {
             "type": "string"
+          },
+          "done_when": {
+            "type": "string"
+          },
+          "touches": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       }
