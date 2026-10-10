@@ -86,6 +86,26 @@ test("with no marketplace file anywhere, the command says so and exits 2 instead
   assert.match(err, /No marketplace file found/);
 });
 
+test("an installed plugin whose profile has no copy of the catalog exits 2 with a message", () => {
+  const profile = mkdtempSync(join(tmpdir(), "cstack-profile-"));
+  const scripts = join(profile, "plugins", "cache", "cstack", "cstack", "2.1.0", "scripts");
+  mkdirSync(scripts, { recursive: true });
+  copyFileSync(script, join(scripts, "check-pointers.mjs"));
+  let code = 0, err = "";
+  try { execFileSync("node", [join(scripts, "check-pointers.mjs")], { encoding: "utf8", stdio: "pipe" }); }
+  catch (e) { code = e.status; err = e.stderr; }
+  assert.equal(code, 2);
+  assert.match(err, /No marketplace file found/);
+});
+
+test("a marketplace path that doesn't exist exits 2 with a message, not a crash", () => {
+  let code = 0, err = "";
+  try { execFileSync("node", [script, join(tmpdir(), "no-such-folder", "marketplace.json")], { encoding: "utf8", stdio: "pipe" }); }
+  catch (e) { code = e.status; err = e.stderr; }
+  assert.equal(code, 2);
+  assert.match(err, /No marketplace file at/);
+});
+
 test("live: a pick that doesn't exist makes the command exit 1", { skip: !isLive() }, () => {
   const dir = mkdtempSync(join(tmpdir(), "cstack-bad-"));
   const bad = structuredClone(market);
