@@ -44,7 +44,7 @@ It writes the change, the file list, the spec and the description into `OUT`, an
 
 ## 5. Run the two reviewers at the same time
 
-- **Claims auditor:** use the Agent tool with `subagent_type` set to `claims-auditor` (or `cstack:claims-auditor` when it comes from the plugin), on the most capable model. Give it `claims-auditor-brief.md` from this folder, with its values filled in. It writes `OUT/claims-auditor.json`.
+- **Claims auditor:** use the Agent tool with `subagent_type` set to `claims-auditor` (or `cstack:claims-auditor` when it comes from the plugin, which needs the core plugin at version 3.0.0 or later; before that it was called `karen`), on the most capable model. Give it `claims-auditor-brief.md` from this folder, with its values filled in. It writes `OUT/claims-auditor.json`.
 - **Codex:** fill in `codex-prompt.md` and save it as `OUT/codex-prompt.md`. Keep the skeptic angle always. Add the architect angle for changes over about 100 lines, the minimalist angle for changes over about 300 lines, and the security angle when the risk is high. Then run, in the background:
 
 ```sh

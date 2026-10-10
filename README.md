@@ -35,6 +35,7 @@ always wins over the plugin version; both coexist (namespacing makes collisions 
 The core plugin also ships the **claims-auditor** agent. Run it after any agent claims work is
 done: it re-runs the tests and builds itself, checks the scope against the claim, and returns
 a "ready" or "not ready" verdict.
+It was called `karen` until core 3.0.0. If you called `cstack:karen`, call `cstack:claims-auditor` instead.
 
 ## Matt Pocock's skills
 
