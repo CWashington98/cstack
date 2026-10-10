@@ -1,38 +1,36 @@
 # Third-party notices
 
-Two ways external material appears in this repo, deliberately different:
+Outside material appears in this repository in two ways, on purpose:
 
-- **Pinned pointer** — cataloged in `marketplace.json` by upstream URL + commit SHA.
-  Nothing is redistributed here; the plugin system fetches from the source. This is
-  the DEFAULT for anything external (and the only option when upstream has no
-  license).
-- **Vendored copy** — the file lives in `plugins/core/skills/`, adapted, with a
-  provenance comment naming its origin. Done only for permissively-licensed
-  (MIT/Apache) material, for SHA-stability and the two-command install.
+- **Pinned pointer.** The marketplace file lists the outside repository's address and an exact commit. Nothing is copied here; Claude Code fetches the skill from its source. This is the default for anything outside, and the only option when the source has no license.
+- **Adapted copy.** The file lives in this repository and we have changed it. We do this only for MIT or Apache material we have rewritten for our own needs, and each file names where it came from.
 
-## Vendored (copies in `plugins/core/skills/`, per-file provenance comments)
+## Our own skills, and where each one started
 
-| Upstream                                                                                        | License | Skills derived from it                                                                            |
-| ----------------------------------------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------- |
-| [vercel-labs/web-interface-guidelines](https://github.com/vercel-labs/web-interface-guidelines) | MIT     | web-design-guidelines                                                                             |
+| Skill or agent | Plugin | Where it started |
+|---|---|---|
+| `bootstrap-agents`, `upkeep` | core | Written here |
+| `plain`, `cold-reader`, `to-diagram` | plain | Written here |
+| `verify`, `drive-web`, `drive-expo`, `pr-review` | verify | Written here |
+| `verify-setup`, `verify-upkeep` | verify | Adapted from Lauren Tan's `create-verification-skill` and `maintain-verification-skill` (pstack, MIT). See `plugins/verify/THIRD_PARTY.md`. |
+| `karen` agent | core | The idea and name come from the Karen agent in [darcyegb/ClaudeCodeAgents](https://github.com/darcyegb/ClaudeCodeAgents) (MIT). Ours is rewritten: she re-runs the tests herself, checks scope and returns a ready or not ready verdict. |
+| `write-a-skill` | core | Copied from an earlier version of [Matt Pocock's skills](https://github.com/mattpocock/skills) (MIT), which no longer ships it. |
+| `deslop` | core | Copied from a project's local skills folder in July 2026; its first source is unknown. |
 
-Matt Pocock's skills are no longer copied here; install his plugin instead (see README).
+Everything written or rewritten here is © Crishon Washington, MIT (see the license file). Copied material keeps its original license; this table and the comments in each file are the attribution those licenses ask for.
 
-Vendored copies retain their upstream MIT terms; this notice + the per-file
-provenance comments serve as the attribution and license preservation MIT requires.
-Original skills (caveman, deslop, write-a-skill, bootstrap-agents, the karen agent,
-recipes, templates) are © Crishon Washington, MIT (see LICENSE).
+## Pinned pointers (never copied)
 
-## Pinned pointers (never vendored)
+| Source | License | cstack entry |
+|---|---|---|
+| [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser) | Apache 2.0 | `agent-browser` |
+| [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | MIT | `ui-ux-pro-max` |
+| [cursor/plugins, pstack folder](https://github.com/cursor/plugins/tree/main/pstack) (Lauren Tan) | MIT | `pstack-picks`: TypeScript best practices, her engineering principles, and her review, design and system-building skills |
+| [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) | MIT | `ponytail-picks`: its six skills, without its always-on hooks |
+| [callstackincubator/agent-skills](https://github.com/callstackincubator/agent-skills) (Callstack) | MIT | `rn-callstack-picks`: three React Native skills |
+| [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | none stated | `rn-vercel-picks` and `vercel-react-picks`. **No license file, so never copied.** |
+| [expo/skills](https://github.com/expo/skills) (Expo) | MIT | `expo-picks`: Expo's own skills |
+| [vojtaholik/good-css](https://github.com/vojtaholik/good-css) | MIT | `good-css-picks` |
+| [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) | Apache 2.0 | `caveman-picks`. cstack used to carry an older copy of this skill, wrongly listed here as our own. |
 
-| External                                                                                        | License     | Why pointer-only                             |
-| ----------------------------------------------------------------------------------------------- | ----------- | -------------------------------------------- |
-| [vercel-labs/agent-browser](https://github.com/vercel-labs/agent-browser)                       | Apache-2.0  | No need to copy; pin gives stability         |
-| [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills)                         | none stated | **No license file — must never be vendored** |
-| [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) | MIT         | No need to copy; pin gives stability         |
-| [cursor/plugins, pstack folder](https://github.com/cursor/plugins/tree/main/pstack) (Lauren Tan) | MIT | `pstack-picks`: four skills picked by folder; no need to copy |
-| [callstackincubator/agent-skills](https://github.com/callstackincubator/agent-skills) (Callstack) | MIT | `rn-callstack-picks`: three React Native skills picked by folder |
-| [vercel-labs/agent-skills, react-native-skills](https://github.com/vercel-labs/agent-skills) | none stated | `rn-vercel-picks`: pointer only, never copied |
-
-License spot-check performed 2026-08-13 via the GitHub license API. Re-verify before
-vendoring anything new.
+Licenses were checked through GitHub's license information on 2026-10-09. Check again before copying anything new.

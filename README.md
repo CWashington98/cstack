@@ -15,7 +15,21 @@ claude plugin install cstack@cstack          # the core skills — everywhere
 claude plugin install ui-ux-pro-max@cstack   # externals — only where wanted
 ```
 
-Skills invoke as `cstack:deslop`, `cstack:caveman`, etc. A project-local `.claude/skills/deslop`
+Borrowed skills are pinned pointers, never copies. Install the ones a project needs:
+
+| Pointer | What it gives you | Install where |
+|---|---|---|
+| `pstack-picks` | TypeScript best practices, engineering principles, review and system-building skills | Everywhere |
+| `ponytail-picks` | The simplest change that fully works; call it with `/ponytail` | Everywhere |
+| `caveman-picks` | Terse replies that save tokens | Everywhere |
+| `vercel-react-picks` | React rules, composition patterns, view transitions, web interface review | React web apps |
+| `good-css-picks` | Modern styling techniques | Web apps |
+| `expo-picks` | Expo's own skills | Expo apps |
+| `rn-callstack-picks`, `rn-vercel-picks` | React Native performance, navigation and coding rules | React Native apps |
+
+Where each skill came from is in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+Skills invoke as `cstack:deslop`, `cstack:upkeep`, etc. A project-local `.claude/skills/deslop`
 always wins over the plugin version; both coexist (namespacing makes collisions impossible).
 The core plugin also ships the **karen** agent — independent verification after any agent
 claims "done": re-runs the gates herself, checks scope vs claim, returns READY / NOT READY.

@@ -27,8 +27,8 @@ understanding; the docs variant updates ADRs as decisions land · `to-prd` /
 session for the next agent · `prototype` — throwaway builds to flush out a design ·
 `improve-codebase-architecture` — deepening/refactoring survey.
 
-**Craft (Vercel-authored):** `web-design-guidelines` — UI/accessibility review ·
-`react-best-practices`, `next-best-practices` — framework review checklists ·
+**Craft (Vercel-authored, through the `vercel-react-picks` pointer):** `web-design-guidelines` — UI/accessibility review ·
+`react-best-practices`, `composition-patterns`, `react-view-transitions` — React review checklists ·
 `email-best-practices` — deliverability/compliance.
 
 **Plugins (official marketplace):** `superpowers` — the discipline layer (skill-first,
