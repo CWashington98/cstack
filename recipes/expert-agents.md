@@ -1,7 +1,7 @@
 # Expert agents — anatomy, routing, and why yours stay home
 
 How to build the domain-expert layer for a codebase. The finished example that ships
-with this plugin is **karen** (`plugins/core/agents/karen.md`); this recipe is how you
+with this plugin is **claims-auditor** (`plugins/core/agents/claims-auditor.md`); this recipe is how you
 build the rest — your billing expert, your compliance expert, your frontend expert.
 The generator wizard is the `bootstrap-agents` skill.
 
@@ -57,8 +57,8 @@ Rules that make it work:
 
 ## The verifier is not optional
 
-Every roster needs one agent whose only job is disbelief — karen. Builders self-report
+Every roster needs one agent whose only job is disbelief — claims-auditor. Builders self-report
 "done" against narrow criteria; the verifier re-runs the gates, checks scope against
-claim, and returns READY / NOT READY. She ships with this plugin; wire her into your
+claim, and returns READY / NOT READY. It ships with this plugin; wire it into your
 review pipeline (see [`review-pipeline.md`](./review-pipeline.md)) rather than calling
-her occasionally by hand.
+it occasionally by hand.

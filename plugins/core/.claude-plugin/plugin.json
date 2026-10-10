@@ -1,7 +1,7 @@
 {
   "name": "cstack",
-  "version": "2.1.0",
-  "description": "Crishon's own Claude Code skills (deslop, write-a-skill, bootstrap-agents, upkeep) and the karen verification agent. Borrowed skills are pinned pointers listed below, not copies.",
+  "version": "3.0.0",
+  "description": "Crishon's own Claude Code skills (deslop, write-a-skill, bootstrap-agents, upkeep) and the claims-auditor agent, which checks finished work against what was claimed. Borrowed skills are pinned pointers listed below, not copies.",
   "author": {
     "name": "Crishon Washington"
   }

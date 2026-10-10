@@ -4,10 +4,10 @@
     {
       "id": 1,
       "prompt": "Review this pull request: it fixes audio playback by changing how the player builds its audio address. Its new unit test checks that the address equals '/audio?id=42'.",
-      "expected_output": "Karen's audit flags the test as checking fixed text, a finding asks for a property check that requests the address and compares the bytes with the stored file, the review asks for live evidence, and the verdict is not ready until it exists.",
+      "expected_output": "The claims auditor's audit flags the test as checking fixed text, a finding asks for a property check that requests the address and compares the bytes with the stored file, the review asks for live evidence, and the verdict is not ready until it exists.",
       "files": [],
       "expectations": [
-        "Karen's audit flags the unit test as checking fixed text rather than a property",
+        "The claims auditor's audit flags the unit test as checking fixed text rather than a property",
         "A finding asks for a property check: request the address and compare the bytes with the stored file",
         "The review asks for live evidence of playback",
         "The verdict is not ready until live evidence exists"
@@ -16,10 +16,10 @@
     {
       "id": 2,
       "prompt": "Review this pull request: it adds two flags, `capped` on a list and `capped` on a total, and tests that both are false for a small fixture.",
-      "expected_output": "Karen flips each capped condition and reports that no test notices, says the fixture is too small to reach the cap, and both findings are reproduced by the validator before they count.",
+      "expected_output": "The claims auditor flips each capped condition and reports that no test notices, says the fixture is too small to reach the cap, and both findings are reproduced by the validator before they count.",
       "files": [],
       "expectations": [
-        "Karen flips each capped condition and reports that no test notices",
+        "The claims auditor flips each capped condition and reports that no test notices",
         "Says the fixture is too small to reach the cap",
         "Both findings are reproduced by a separate check before they count toward the verdict"
       ]
@@ -27,10 +27,10 @@
     {
       "id": 3,
       "prompt": "Codex says 'usage limit reached'. Finish the review.",
-      "expected_output": "Runs a Claude fallback reviewer on a model other than Karen's, records it as claude-fallback with a note quoting the error, and does not skip the second verdict.",
+      "expected_output": "Runs a Claude fallback reviewer on a model other than the claims auditor's, records it as claude-fallback with a note quoting the error, and does not skip the second verdict.",
       "files": [],
       "expectations": [
-        "Runs a Claude fallback reviewer on a model other than Karen's",
+        "Runs a Claude fallback reviewer on a model other than the claims auditor's",
         "Records its verdict as claude-fallback with a note quoting Codex's error",
         "Does not skip the second verdict"
       ]
@@ -63,7 +63,7 @@
     },
     {
       "id": 6,
-      "prompt": "Review this pull request: it changes how a shopping cart totals discounts. Karen finds a reproduced blocking bug where removing an item leaves the old total; Codex finds the same bug but marks it a note, and also notes that the spec lets two discounts stack, which undercuts its own goal.",
+      "prompt": "Review this pull request: it changes how a shopping cart totals discounts. The claims auditor finds a reproduced blocking bug where removing an item leaves the old total; Codex finds the same bug but marks it a note, and also notes that the spec lets two discounts stack, which undercuts its own goal.",
       "expected_output": "One comment. The shared bug is one item marked 'both reviewers found this' under Must fix, because the strictest severity wins. The stacking question is a decision with options and one recommendation. 'What you need to do' says to fix the item, then answer the decision, and that the reviewers disagree so the owner decides. File paths and commands appear only in the closed technical detail.",
       "files": [],
       "expectations": [

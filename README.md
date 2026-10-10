@@ -32,8 +32,9 @@ Where each skill came from is in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md
 
 Skills invoke as `cstack:deslop`, `cstack:upkeep`, etc. A project-local `.claude/skills/deslop`
 always wins over the plugin version; both coexist (namespacing makes collisions impossible).
-The core plugin also ships the **karen** agent — independent verification after any agent
-claims "done": re-runs the gates herself, checks scope vs claim, returns READY / NOT READY.
+The core plugin also ships the **claims-auditor** agent. Run it after any agent claims work is
+done: it re-runs the tests and builds itself, checks the scope against the claim, and returns
+a "ready" or "not ready" verdict.
 
 ## Matt Pocock's skills
 
@@ -120,6 +121,14 @@ Per-repo forks with minor edits are the failure mode this repo exists to end.
   with a one-line "what it's for." Vendor a copy only when the upstream license is
   verified permissive AND stability demands it — record it in THIRD-PARTY-NOTICES.md.
   Unlicensed upstreams are pointer-only, forever. See `recipes/skills-ecosystem.md`.
+
+## Names say what things do
+
+Agents, skills, scripts and plugins are named by their job, never by a person or a joke.
+A reader should know what something does from its name alone: `claims-auditor` checks
+claims that work is done, `check-pointers` checks pinned pointers. The description then
+says when to use it. The `bootstrap-agents` skill and its agent template follow the same
+rule. A test fails if an agent file's name doesn't match the name inside it.
 
 ## Layout
 

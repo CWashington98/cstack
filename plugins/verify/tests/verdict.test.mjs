@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { writeFileSync, mkdtempSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { writeFileSync, mkdtempSync, rmSync, readdirSync } from "node:fs";
+import { join, dirname, basename } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -24,7 +24,7 @@ function branchRepo() {
 const READY = { verdict: "ready", summary: "The change does what it says.", findings: [] };
 const finding = (over = {}) => ({ id: "codex-1", claim: "two is wrong", file: "a.txt", line: 2, severity: "blocking", trigger: "read a.txt", how_to_reproduce: "cat a.txt", reproduced: true, reproduction: "cat a.txt shows two", ...over });
 const both = (root, codex = READY) => {
-  writeVerdict(root, { reviewer: "karen", report: READY, head: sha(root), base: "main" });
+  writeVerdict(root, { reviewer: "claims-auditor", report: READY, head: sha(root), base: "main" });
   writeVerdict(root, { reviewer: "codex", report: codex, head: sha(root), base: "main" });
 };
 
@@ -37,7 +37,7 @@ test("both reviewers ready for the head commit passes", () => {
 
 test("a missing reviewer fails", () => {
   const root = branchRepo();
-  writeVerdict(root, { reviewer: "karen", report: READY, head: sha(root), base: "main" });
+  writeVerdict(root, { reviewer: "claims-auditor", report: READY, head: sha(root), base: "main" });
   assert.match(checkVerdicts(root, { base: "main" }).problems.join(), /No verdict from Codex/);
 });
 
@@ -46,7 +46,7 @@ test("a new commit clears the verdicts", () => {
   both(root);
   writeFileSync(join(root, "b.txt"), "y\n");
   git(root, "commit", "-qam", "more");
-  assert.match(checkVerdicts(root, { base: "main" }).problems.join(), /No verdict from Karen/);
+  assert.match(checkVerdicts(root, { base: "main" }).problems.join(), /No verdict from the claims auditor/);
 });
 
 test("a rebase that keeps the change identical keeps the verdict", () => {
@@ -59,7 +59,7 @@ test("a rebase that keeps the change identical keeps the verdict", () => {
   git(root, "rebase", "-q", "main");
   const r = checkVerdicts(root, { base: "main" });
   assert.equal(r.ok, true, r.problems.join("\n"));
-  assert.ok(r.karen.carriedFrom);
+  assert.ok(r.claimsAuditor.carriedFrom);
 });
 
 test("a rebase that changes the change clears the verdict", () => {
@@ -113,7 +113,7 @@ test("when the reviewers disagree, the owner decides", () => {
 test("a fallback reviewer must say why Codex could not review", () => {
   const root = branchRepo();
   assert.throws(() => writeVerdict(root, { reviewer: "claude-fallback", report: READY, head: sha(root), base: "main" }), /must say why/);
-  writeVerdict(root, { reviewer: "karen", report: READY, head: sha(root), base: "main" });
+  writeVerdict(root, { reviewer: "claims-auditor", report: READY, head: sha(root), base: "main" });
   writeVerdict(root, { reviewer: "claude-fallback", report: READY, head: sha(root), base: "main", note: "Codex usage limit reached", model: "sonnet" });
   assert.equal(checkVerdicts(root, { base: "main" }).ok, true);
 });
@@ -124,7 +124,7 @@ test("a decision for the owner never blocks, and the report's plain fields reach
   assert.match(validateReport({ ...READY, merge_risk: { level: "tiny" } }).join(), /merge_risk\.level/);
   const root = branchRepo();
   const extra = { what_it_does: "Adds a line.", merge_risk: { level: "low", why: "one file" }, checked: ["read a.txt"], not_checked: [] };
-  const { record } = writeVerdict(root, { reviewer: "karen", report: { ...READY, ...extra }, head: sha(root), base: "main" });
+  const { record } = writeVerdict(root, { reviewer: "claims-auditor", report: { ...READY, ...extra }, head: sha(root), base: "main" });
   for (const [k, v] of Object.entries(extra)) assert.deepEqual(record[k], v);
 });
 
@@ -139,8 +139,8 @@ const rebaseOntoNewMain = (root) => {
 
 test("a verdict must name the reviewed commit by its full commit ID", () => {
   const root = branchRepo();
-  assert.throws(() => writeVerdict(root, { reviewer: "karen", report: READY, base: "main" }), /full commit ID/);
-  assert.throws(() => writeVerdict(root, { reviewer: "karen", report: READY, head: "HEAD", base: "main" }), /full commit ID/);
+  assert.throws(() => writeVerdict(root, { reviewer: "claims-auditor", report: READY, base: "main" }), /full commit ID/);
+  assert.throws(() => writeVerdict(root, { reviewer: "claims-auditor", report: READY, head: "HEAD", base: "main" }), /full commit ID/);
 });
 
 test("a verdict written after a new commit still lands on the reviewed commit", () => {
@@ -148,11 +148,11 @@ test("a verdict written after a new commit still lands on the reviewed commit", 
   const meta = prepare({ repo: root, base: "main", copies: [], out: join(mkdtempSync(join(tmpdir(), "review-")), "r") });
   writeFileSync(join(root, "b.txt"), "changed after the review\n");
   git(root, "commit", "-qam", "commit B, made after the review started");
-  writeVerdict(root, { reviewer: "karen", report: READY, head: meta.head, base: "main", meta });
+  writeVerdict(root, { reviewer: "claims-auditor", report: READY, head: meta.head, base: "main", meta });
   writeVerdict(root, { reviewer: "codex", report: READY, head: meta.head, base: "main", meta });
   assert.equal(checkVerdicts(root, { base: "main" }).ok, false);
   assert.equal(checkVerdicts(root, { base: "main", head: meta.head }).ok, true);
-  assert.throws(() => writeVerdict(root, { reviewer: "karen", report: READY, head: sha(root), base: "main", meta }), /does not match the reviewed commit/);
+  assert.throws(() => writeVerdict(root, { reviewer: "claims-auditor", report: READY, head: sha(root), base: "main", meta }), /does not match the reviewed commit/);
 });
 
 test("the write command takes the reviewed commit from meta.json and refuses a mismatch", () => {
@@ -160,7 +160,7 @@ test("the write command takes the reviewed commit from meta.json and refuses a m
   const out = join(mkdtempSync(join(tmpdir(), "review-")), "r");
   prepare({ repo: root, base: "main", copies: [], out });
   writeFileSync(join(root, "report.json"), JSON.stringify(READY));
-  const run = (...a) => spawnSync("node", [script, "write", "--reviewer", "karen", "--report", "report.json", ...a], { cwd: root, encoding: "utf8" });
+  const run = (...a) => spawnSync("node", [script, "write", "--reviewer", "claims-auditor", "--report", "report.json", ...a], { cwd: root, encoding: "utf8" });
   assert.equal(run("--base", "main").status, 2, "refuses without --meta");
   const reviewed = sha(root);
   writeFileSync(join(root, "b.txt"), "later\n");
@@ -168,7 +168,7 @@ test("the write command takes the reviewed commit from meta.json and refuses a m
   assert.equal(run("--meta", join(out, "meta.json"), "--head", sha(root)).status, 2, "refuses a head that is not the reviewed one");
   const ok = run("--meta", join(out, "meta.json"));
   assert.equal(ok.status, 0, ok.stderr);
-  assert.match(ok.stdout, new RegExp(`${reviewed}\\.karen\\.json`));
+  assert.match(ok.stdout, new RegExp(`${reviewed}\\.claims-auditor\\.json`));
 });
 
 test("a whitespace-only change to the change clears the verdict", () => {
@@ -183,7 +183,7 @@ test("an exact fallback verdict for this commit wins over a carried Codex verdic
   const root = branchRepo();
   both(root);
   rebaseOntoNewMain(root);
-  writeVerdict(root, { reviewer: "karen", report: READY, head: sha(root), base: "main" });
+  writeVerdict(root, { reviewer: "claims-auditor", report: READY, head: sha(root), base: "main" });
   writeVerdict(root, { reviewer: "claude-fallback", report: NOT_READY, head: sha(root), base: "main", note: "Codex usage limit reached", model: "sonnet" });
   const r = checkVerdicts(root, { base: "main" });
   assert.equal(r.other.reviewer, "claude-fallback");
@@ -193,7 +193,7 @@ test("an exact fallback verdict for this commit wins over a carried Codex verdic
 test("the newest exact verdict for the commit wins", () => {
   const root = branchRepo();
   const t = (s) => new Date(Date.UTC(2026, 0, 1, 0, 0, s));
-  writeVerdict(root, { reviewer: "karen", report: READY, head: sha(root), base: "main" });
+  writeVerdict(root, { reviewer: "claims-auditor", report: READY, head: sha(root), base: "main" });
   writeVerdict(root, { reviewer: "codex", report: READY, head: sha(root), base: "main", now: t(1) });
   writeVerdict(root, { reviewer: "claude-fallback", report: NOT_READY, head: sha(root), base: "main", note: "Codex rerun failed", now: t(2) });
   assert.equal(checkVerdicts(root, { base: "main" }).other.reviewer, "claude-fallback");
@@ -203,7 +203,7 @@ test("the newest exact verdict for the commit wins", () => {
 
 test("any not-ready verdict blocks, including two that agree", () => {
   const root = branchRepo();
-  writeVerdict(root, { reviewer: "karen", report: { ...NOT_READY, findings: [finding({ id: "karen-1" })] }, head: sha(root), base: "main" });
+  writeVerdict(root, { reviewer: "claims-auditor", report: { ...NOT_READY, findings: [finding({ id: "claims-auditor-1" })] }, head: sha(root), base: "main" });
   writeVerdict(root, { reviewer: "codex", report: NOT_READY, head: sha(root), base: "main" });
   const r = checkVerdicts(root, { base: "main" });
   assert.equal(r.ok, false);
@@ -215,19 +215,19 @@ test("an exact verdict for this commit beats a newer one carried from an identic
   const before = sha(root);
   rebaseOntoNewMain(root);
   const t = (s) => new Date(Date.UTC(2026, 0, 1, 0, 0, s));
-  writeVerdict(root, { reviewer: "karen", report: { ...NOT_READY, findings: [finding({ id: "karen-1" })] }, head: sha(root), base: "main", now: t(1) });
-  writeVerdict(root, { reviewer: "karen", report: READY, head: before, base: "main", now: t(2) });
+  writeVerdict(root, { reviewer: "claims-auditor", report: { ...NOT_READY, findings: [finding({ id: "claims-auditor-1" })] }, head: sha(root), base: "main", now: t(1) });
+  writeVerdict(root, { reviewer: "claims-auditor", report: READY, head: before, base: "main", now: t(2) });
   writeVerdict(root, { reviewer: "codex", report: READY, head: sha(root), base: "main" });
   const r = checkVerdicts(root, { base: "main" });
-  assert.equal(r.karen.head, sha(root));
-  assert.equal(r.karen.carriedFrom, undefined);
+  assert.equal(r.claimsAuditor.head, sha(root));
+  assert.equal(r.claimsAuditor.carriedFrom, undefined);
   assert.equal(r.ok, false);
 });
 
 test("write refuses a meta.json whose change is not the one at that commit", () => {
   const root = branchRepo();
   const meta = prepare({ repo: root, base: "main", copies: [], out: join(mkdtempSync(join(tmpdir(), "review-")), "r") });
-  assert.throws(() => writeVerdict(root, { reviewer: "karen", report: READY, head: meta.head, base: "main", meta: { ...meta, patchId: "0".repeat(40) } }), /does not match the reviewed change/);
+  assert.throws(() => writeVerdict(root, { reviewer: "claims-auditor", report: READY, head: meta.head, base: "main", meta: { ...meta, patchId: "0".repeat(40) } }), /does not match the reviewed change/);
 });
 
 test("the write command names a --head or --base that is not the reviewed one", () => {
@@ -236,7 +236,7 @@ test("the write command names a --head or --base that is not the reviewed one", 
   prepare({ repo: root, base: "main", copies: [], out });
   writeFileSync(join(root, "report.json"), JSON.stringify(READY));
   git(root, "branch", "other", "main");
-  const run = (...a) => spawnSync("node", [script, "write", "--reviewer", "karen", "--report", "report.json", "--meta", join(out, "meta.json"), ...a], { cwd: root, encoding: "utf8" });
+  const run = (...a) => spawnSync("node", [script, "write", "--reviewer", "claims-auditor", "--report", "report.json", "--meta", join(out, "meta.json"), ...a], { cwd: root, encoding: "utf8" });
   const head = run("--head", "main");
   assert.equal(head.status, 2);
   assert.match(head.stderr, /--head main is not the reviewed commit/);
@@ -247,6 +247,56 @@ test("the write command names a --head or --base that is not the reviewed one", 
 
 test("a report with a decision finding can be recorded", () => {
   const root = branchRepo();
-  const { record } = writeVerdict(root, { reviewer: "karen", report: { ...READY, findings: [finding({ id: "karen-1", severity: "decide" })] }, head: sha(root), base: "main" });
+  const { record } = writeVerdict(root, { reviewer: "claims-auditor", report: { ...READY, findings: [finding({ id: "claims-auditor-1", severity: "decide" })] }, head: sha(root), base: "main" });
   assert.equal(record.verdict, "ready");
+});
+
+// The claims auditor used to be called karen. Verdicts written before the rename are
+// stored as <commit>.karen.json with reviewer "karen", and must keep counting.
+const writeOldKarenVerdict = (root, over = {}) => {
+  const { file, record } = writeVerdict(root, { reviewer: "claims-auditor", report: READY, head: sha(root), base: "main", ...over });
+  const old = { ...record, reviewer: "karen" };
+  rmSync(file);
+  writeFileSync(join(dirname(file), `${record.head}.karen.json`), JSON.stringify(old, null, 2) + "\n");
+  return old;
+};
+
+test("new claims auditor verdicts are stored as <commit>.claims-auditor.json", () => {
+  const root = branchRepo();
+  const { file } = writeVerdict(root, { reviewer: "claims-auditor", report: READY, head: sha(root), base: "main" });
+  assert.equal(basename(file), `${sha(root)}.claims-auditor.json`);
+  assert.ok(!readdirSync(dirname(file)).some((f) => f.includes("karen")));
+});
+
+test("a new verdict cannot be written under the old name karen", () => {
+  const root = branchRepo();
+  assert.throws(() => writeVerdict(root, { reviewer: "karen", report: READY, head: sha(root), base: "main" }), /reviewer must be one of/);
+});
+
+test("an old <commit>.karen.json verdict still counts as the claims auditor's", () => {
+  const root = branchRepo();
+  writeOldKarenVerdict(root);
+  writeVerdict(root, { reviewer: "codex", report: READY, head: sha(root), base: "main" });
+  const r = checkVerdicts(root, { base: "main" });
+  assert.equal(r.ok, true, r.problems.join("\n"));
+  assert.equal(r.claimsAuditor.reviewer, "claims-auditor");
+});
+
+test("an old karen verdict that says not ready still blocks", () => {
+  const root = branchRepo();
+  writeOldKarenVerdict(root, { report: NOT_READY });
+  writeVerdict(root, { reviewer: "codex", report: READY, head: sha(root), base: "main" });
+  const r = checkVerdicts(root, { base: "main" });
+  assert.equal(r.ok, false);
+  assert.match(r.problems.join(), /disagree/);
+});
+
+test("an old karen verdict carries over after a rebase that keeps the change identical", () => {
+  const root = branchRepo();
+  writeOldKarenVerdict(root);
+  writeVerdict(root, { reviewer: "codex", report: READY, head: sha(root), base: "main" });
+  rebaseOntoNewMain(root);
+  const r = checkVerdicts(root, { base: "main" });
+  assert.equal(r.ok, true, r.problems.join("\n"));
+  assert.ok(r.claimsAuditor.carriedFrom);
 });

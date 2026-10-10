@@ -9,8 +9,13 @@ const git = (repo, args, input) => execFileSync("git", args, { cwd: repo, encodi
 const rev = (repo, ref) => git(repo, ["rev-parse", `${ref}^{commit}`]).trim();
 const short = (sha) => sha.slice(0, 12);
 
-export const REVIEWERS = ["karen", "codex", "claude-fallback"];
-export const NAMES = { karen: "Karen (Claude)", codex: "Codex (OpenAI)", "claude-fallback": "Fallback reviewer (Claude, standing in for Codex)" };
+export const REVIEWERS = ["claims-auditor", "codex", "claude-fallback"];
+export const NAMES = { "claims-auditor": "Claims auditor (Claude)", codex: "Codex (OpenAI)", "claude-fallback": "Fallback reviewer (Claude, standing in for Codex)" };
+// The claims auditor used to be called karen. Verdicts written before the rename are
+// stored as <commit>.karen.json with reviewer "karen"; read them as the claims auditor's
+// so they keep counting. New verdicts are never written under the old name.
+const OLD_NAMES = { karen: "claims-auditor" };
+export const currentName = (v) => (v && OLD_NAMES[v.reviewer] ? { ...v, reviewer: OLD_NAMES[v.reviewer] } : v);
 
 export function patchId(repo, from, to) {
   const diff = git(repo, ["diff", from, to]);
@@ -81,7 +86,7 @@ export function checkVerdicts(repo, { base, head = "HEAD" }) {
   const mergeBase = git(repo, ["merge-base", base, headSha]).trim();
   const pid = patchId(repo, mergeBase, headSha);
   const dir = verdictDir(repo);
-  const all = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => JSON.parse(readFileSync(join(dir, f), "utf8"))) : [];
+  const all = existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".json")).map((f) => currentName(JSON.parse(readFileSync(join(dir, f), "utf8")))) : [];
   const newest = (list) => list.sort((a, b) => a.date.localeCompare(b.date)).at(-1) ?? null;
   // An exact verdict for this commit, from any acceptable reviewer, beats one carried over
   // from an identical change. Within each group the newest wins.
@@ -92,14 +97,14 @@ export function checkVerdicts(repo, { base, head = "HEAD" }) {
     const carried = newest(mine.filter((v) => pid !== "empty" && v.patchId === pid));
     return carried ? { ...carried, carriedFrom: carried.head } : null;
   };
-  const karen = pick(["karen"]);
+  const claimsAuditor = pick(["claims-auditor"]);
   const other = pick(["codex", "claude-fallback"]);
   const problems = [];
-  if (!karen) problems.push(`No verdict from Karen for commit ${short(headSha)}. A new commit clears earlier verdicts unless the change is identical.`);
+  if (!claimsAuditor) problems.push(`No verdict from the claims auditor for commit ${short(headSha)}. A new commit clears earlier verdicts unless the change is identical.`);
   if (!other) problems.push(`No verdict from Codex, or from a fallback reviewer standing in for it, for commit ${short(headSha)}.`);
-  if (karen && other) {
-    if (karen.verdict !== other.verdict) problems.push(`The reviewers disagree: Karen says "${karen.verdict}" and ${NAMES[other.reviewer]} says "${other.verdict}". The owner decides.`);
-    else if (karen.verdict !== "ready") problems.push("Both reviewers say not ready.");
+  if (claimsAuditor && other) {
+    if (claimsAuditor.verdict !== other.verdict) problems.push(`The reviewers disagree: the claims auditor says "${claimsAuditor.verdict}" and ${NAMES[other.reviewer]} says "${other.verdict}". The owner decides.`);
+    else if (claimsAuditor.verdict !== "ready") problems.push("Both reviewers say not ready.");
   }
-  return { ok: problems.length === 0, problems, head: headSha, patchId: pid, karen, other };
+  return { ok: problems.length === 0, problems, head: headSha, patchId: pid, claimsAuditor, other };
 }

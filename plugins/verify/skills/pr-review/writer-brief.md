@@ -8,7 +8,7 @@ You turn two code reviews into the plain-English part of one review comment. The
 
 ## What you have
 
-- `<KAREN_VERDICT>` and `<OTHER_VERDICT>`: the two reviewers' recorded verdicts. Each finding has `claim`, `impact`, `fix`, `severity` and `reproduced`. Only findings with `reproduced: true` were confirmed by a separate check.
+- `<CLAIMS_AUDITOR_VERDICT>` and `<OTHER_VERDICT>`: the two reviewers' recorded verdicts. Each finding has `claim`, `impact`, `fix`, `severity` and `reproduced`. Only findings with `reproduced: true` were confirmed by a separate check.
 - `<OUT>/pr.md`: the pull request description, if it exists.
 
 You don't change any verdict or severity, and you add no findings of your own.
@@ -23,11 +23,11 @@ Write `<OUT>/writer.json`:
   "merge_risk": { "level": "low, medium or high", "why": "Whether undoing the merge puts things back exactly, and what it touches: saved data, server code, sign-in, or only the screen." },
   "items": [
     {
-      "sources": ["karen-2", "codex-1"],
+      "sources": ["claims-auditor-2", "codex-1"],
       "title": "What goes wrong, as a short sentence or question",
       "what_goes_wrong": "Who notices, when, and why it matters. Then how likely it is.",
       "fix": "The suggested fix, in one sentence.",
-      "after": ["karen-1"]
+      "after": ["claims-auditor-1"]
     }
   ],
   "checked": ["What the reviewers ran or looked at, as plain results."],
@@ -44,4 +44,4 @@ Write `<OUT>/writer.json`:
 - **Merge risk** is at least as high as the higher level either reviewer gave.
 - **`checked`** comes from the reviewers' `checked` lists; merge duplicates. **`not_checked`** comes from their `not_checked` lists. Say nothing about Codex being missing; the script adds that line itself.
 
-Then run `node <PLUGIN>/scripts/verdict.mjs review --karen <KAREN_VERDICT> --other <OTHER_VERDICT> --writer <OUT>/writer.json`. It prints the comment, or each problem with your text. Fix every problem and run it again until it prints the comment. Reply with the comment.
+Then run `node <PLUGIN>/scripts/verdict.mjs review --claims-auditor <CLAIMS_AUDITOR_VERDICT> --other <OTHER_VERDICT> --writer <OUT>/writer.json`. It prints the comment, or each problem with your text. Fix every problem and run it again until it prints the comment. Reply with the comment.

@@ -40,7 +40,7 @@ When the builder claims done, spawn reviewers **in parallel, in one message**:
   hardcoded secrets, injection; HIGH = compliance gaps, breaking schema changes,
   missing error handling, race conditions, sensitive data in logs; MEDIUM = dead code,
   missing tests, type-safety gaps.
-- **karen** — re-runs the full suites + build herself, checks
+- **claims-auditor** — re-runs the full suites + build itself, checks
   `git diff --stat` proportionality, verifies each specific claim, returns
   READY / NOT READY.
 
@@ -91,4 +91,4 @@ Two vocabularies, used consistently so orchestrators can act without interpretat
 
 - Reviewers: **BLOCK / APPROVE WITH NOTES / APPROVE** — any blocking issue, failing
   test, or failed build is BLOCK, never "approve with notes."
-- Verifier (karen): **READY / NOT READY** — never softened when a hard gate failed.
+- Verifier (claims-auditor): **READY / NOT READY** — never softened when a hard gate failed.

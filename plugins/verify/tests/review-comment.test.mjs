@@ -32,8 +32,8 @@ const writer = (items = [], over = {}) => ({
 const item = (sources, over = {}) => ({ sources, title: "The total can still be wrong", what_goes_wrong: "A shopper who removes an item sees the old total.", fix: "Recount after a removal.", ...over });
 
 test("a clean review says ready and that nothing needs doing", () => {
-  const md = renderReview({ karen: record("karen"), other: record("codex"), writer: writer() });
-  assert.match(md, /^<!-- verify-review head=a{40} patch-id=b{40} karen=ready other=codex:ready -->/);
+  const md = renderReview({ claimsAuditor: record("claims-auditor"), other: record("codex"), writer: writer() });
+  assert.match(md, /^<!-- verify-review head=a{40} patch-id=b{40} claims-auditor=ready other=codex:ready -->/);
   assert.match(md, /## Review: ready to merge\n/);
   assert.match(md, /\*\*What you need to do:\*\* nothing\. It can merge\./);
   assert.match(md, /### Your decision\n\nNone\./);
@@ -41,67 +41,67 @@ test("a clean review says ready and that nothing needs doing", () => {
   assert.match(md, /### Worth fixing later\n\nNone\./);
   assert.match(md, /\*\*Merge risk: low\.\*\* It changes one calculation/);
   assert.match(md, /### What nobody checked\n\n- Nothing the reviewers know of\./);
-  assert.match(md, /\*\*Who reviewed it:\*\* two AI reviewers from different companies.*Karen, which runs on Claude \(made by Anthropic\), and Codex \(made by OpenAI\).*the checking agent/);
+  assert.match(md, /\*\*Who reviewed it:\*\* two AI reviewers from different companies.*the claims auditor, which runs on Claude \(made by Anthropic\), and Codex \(made by OpenAI\).*the checking agent/);
 });
 
 test("titles end in a full stop so they don't run into the next sentence", () => {
-  const karen = record("karen", [finding("karen-1")]);
-  const md = renderReview({ karen, other: record("codex"), writer: writer([item(["karen-1"], { title: "The total is stale" })]) });
+  const claimsAuditor = record("claims-auditor", [finding("claims-auditor-1")]);
+  const md = renderReview({ claimsAuditor, other: record("codex"), writer: writer([item(["claims-auditor-1"], { title: "The total is stale" })]) });
   assert.match(md, /\*\*1\. The total is stale\.\*\* A shopper/);
 });
 
 test("findings are grouped, numbered once in order, and the strictest source sets the group", () => {
-  const karen = record("karen", [finding("karen-1", { severity: "blocking" }), finding("karen-2", { severity: "decide" }), finding("karen-3")]);
+  const claimsAuditor = record("claims-auditor", [finding("claims-auditor-1", { severity: "blocking" }), finding("claims-auditor-2", { severity: "decide" }), finding("claims-auditor-3")]);
   const codex = record("codex", [finding("codex-1"), finding("codex-2")]);
   const w = writer([
-    item(["karen-3"], { title: "Later thing" }),
-    item(["karen-1", "codex-1"], { title: "Blocking thing" }),
-    item(["karen-2"], { title: "Decision thing", fix: undefined, options: [{ label: "A", text: "Tighten it.", recommended: true }, { label: "B", text: "Leave it.", recommended: false }] }),
+    item(["claims-auditor-3"], { title: "Later thing" }),
+    item(["claims-auditor-1", "codex-1"], { title: "Blocking thing" }),
+    item(["claims-auditor-2"], { title: "Decision thing", fix: undefined, options: [{ label: "A", text: "Tighten it.", recommended: true }, { label: "B", text: "Leave it.", recommended: false }] }),
     item(["codex-2"], { title: "Second later thing" }),
   ]);
-  const md = renderReview({ karen, other: codex, writer: w });
+  const md = renderReview({ claimsAuditor, other: codex, writer: w });
   const order = ["1. Decision thing", "2. Blocking thing", "3. Later thing", "4. Second later thing"].map((t) => md.indexOf(`**${t}`));
   assert.ok(order.every((i) => i > 0) && order.every((v, i) => i === 0 || v > order[i - 1]), md);
   assert.match(md, /## Review: not ready, 1 item to fix before merging/);
   assert.match(md, /\*\*What you need to do:\*\* fix item 2 before merging\. Then answer item 1\./);
   assert.match(md, /\*\*A \(recommended\):\*\* Tighten it\./);
   assert.match(md, /Both reviewers found this, and the checking agent made it happen\./);
-  assert.match(md, /Found by Karen, and the checking agent made it happen\./);
+  assert.match(md, /Found by the claims auditor, and the checking agent made it happen\./);
 });
 
 test("a decision with nothing to fix says so in the headline", () => {
-  const karen = record("karen", [finding("karen-1", { severity: "decide" })]);
-  const w = writer([item(["karen-1"], { fix: undefined, options: [{ label: "A", text: "x", recommended: true }, { label: "B", text: "y", recommended: false }] })]);
-  const md = renderReview({ karen, other: record("codex"), writer: w });
+  const claimsAuditor = record("claims-auditor", [finding("claims-auditor-1", { severity: "decide" })]);
+  const w = writer([item(["claims-auditor-1"], { fix: undefined, options: [{ label: "A", text: "x", recommended: true }, { label: "B", text: "y", recommended: false }] })]);
+  const md = renderReview({ claimsAuditor, other: record("codex"), writer: w });
   assert.match(md, /## Review: ready to merge, with 1 decision for you/);
   assert.match(md, /answer item 1\. Nothing has to be fixed before merging\./);
 });
 
 test("the writer must cover every confirmed finding exactly once, and nothing else", () => {
-  const karen = record("karen", [finding("karen-1"), finding("karen-2", { reproduced: false, reproduction: "could not see it" })]);
+  const claimsAuditor = record("claims-auditor", [finding("claims-auditor-1"), finding("claims-auditor-2", { reproduced: false, reproduction: "could not see it" })]);
   const codex = record("codex", [finding("codex-1")]);
-  const problems = (items) => checkWriter({ karen, other: codex }, writer(items)).join("\n");
-  assert.match(problems([item(["karen-1"])]), /codex-1 is not in any item/);
-  assert.match(problems([item(["karen-1", "codex-1"]), item(["codex-1"])]), /codex-1 is in more than one item/);
-  assert.match(problems([item(["karen-1", "codex-1", "karen-2"])]), /karen-2 was not confirmed/);
-  assert.match(problems([item(["karen-1", "codex-1", "karen-9"])]), /karen-9 is not a finding/);
-  assert.match(problems([item(["karen-1", "codex-1"]), item([])]), /item 2 has no sources/);
-  assert.equal(problems([item(["karen-1", "codex-1"])]), "");
+  const problems = (items) => checkWriter({ claimsAuditor, other: codex }, writer(items)).join("\n");
+  assert.match(problems([item(["claims-auditor-1"])]), /codex-1 is not in any item/);
+  assert.match(problems([item(["claims-auditor-1", "codex-1"]), item(["codex-1"])]), /codex-1 is in more than one item/);
+  assert.match(problems([item(["claims-auditor-1", "codex-1", "claims-auditor-2"])]), /claims-auditor-2 was not confirmed/);
+  assert.match(problems([item(["claims-auditor-1", "codex-1", "claims-auditor-9"])]), /claims-auditor-9 is not a finding/);
+  assert.match(problems([item(["claims-auditor-1", "codex-1"]), item([])]), /item 2 has no sources/);
+  assert.equal(problems([item(["claims-auditor-1", "codex-1"])]), "");
 });
 
 test("decisions need options with exactly one recommended; other items need a fix and no options", () => {
-  const karen = record("karen", [finding("karen-1", { severity: "decide" }), finding("karen-2")]);
+  const claimsAuditor = record("claims-auditor", [finding("claims-auditor-1", { severity: "decide" }), finding("claims-auditor-2")]);
   const opts = (r1, r2) => [{ label: "A", text: "x", recommended: r1 }, { label: "B", text: "y", recommended: r2 }];
-  const run = (i1, i2) => checkWriter({ karen, other: record("codex") }, writer([i1, i2])).join("\n");
-  assert.match(run(item(["karen-1"], { options: opts(false, false) }), item(["karen-2"])), /exactly one recommended option/);
-  assert.match(run(item(["karen-1"], { options: [opts(true)[0]] }), item(["karen-2"])), /at least two options/);
-  assert.match(run(item(["karen-1"], { options: opts(true, false) }), item(["karen-2"], { fix: "" })), /item 2 needs a suggested fix/);
-  assert.match(run(item(["karen-1"], { options: opts(true, false) }), item(["karen-2"], { options: opts(true, false) })), /only a decision has options/);
+  const run = (i1, i2) => checkWriter({ claimsAuditor, other: record("codex") }, writer([i1, i2])).join("\n");
+  assert.match(run(item(["claims-auditor-1"], { options: opts(false, false) }), item(["claims-auditor-2"])), /exactly one recommended option/);
+  assert.match(run(item(["claims-auditor-1"], { options: [opts(true)[0]] }), item(["claims-auditor-2"])), /at least two options/);
+  assert.match(run(item(["claims-auditor-1"], { options: opts(true, false) }), item(["claims-auditor-2"], { fix: "" })), /item 2 needs a suggested fix/);
+  assert.match(run(item(["claims-auditor-1"], { options: opts(true, false) }), item(["claims-auditor-2"], { options: opts(true, false) })), /only a decision has options/);
 });
 
 test("the writer's text stays short and plain, with code kept in the technical detail", () => {
-  const karen = record("karen", [finding("karen-1")]);
-  const run = (over, itemOver = {}) => checkWriter({ karen, other: record("codex") }, writer([item(["karen-1"], itemOver)], over)).join("\n");
+  const claimsAuditor = record("claims-auditor", [finding("claims-auditor-1")]);
+  const run = (over, itemOver = {}) => checkWriter({ claimsAuditor, other: record("codex") }, writer([item(["claims-auditor-1"], itemOver)], over)).join("\n");
   assert.match(run({}, { what_goes_wrong: "The `total()` function double counts." }), /backticks/);
   assert.match(run({}, { what_goes_wrong: "Word word word word word word word word word word. ".repeat(8) }), /what_goes_wrong.*70 words/);
   assert.match(run({ what_it_does: "" }), /what_it_does is missing/);
@@ -110,13 +110,13 @@ test("the writer's text stays short and plain, with code kept in the technical d
 });
 
 test("merge risk can't be lower than any reviewer's", () => {
-  const karen = record("karen", [], { merge_risk: { level: "high", why: "changes sign-in" } });
-  assert.match(checkWriter({ karen, other: record("codex") }, writer()).join(), /Karen rated the merge risk high/);
+  const claimsAuditor = record("claims-auditor", [], { merge_risk: { level: "high", why: "changes sign-in" } });
+  assert.match(checkWriter({ claimsAuditor, other: record("codex") }, writer()).join(), /Claims auditor rated the merge risk high/);
 });
 
 test("a fallback reviewer is named, and the missing second opinion is listed as unchecked", () => {
   const other = record("claude-fallback", [], { note: "Codex hit its usage limit", model: "sonnet" });
-  const md = renderReview({ karen: record("karen"), other, writer: writer() });
+  const md = renderReview({ claimsAuditor: record("claims-auditor"), other, writer: writer() });
   assert.match(md, /other=claude-fallback:ready/);
   assert.match(md, /Codex could not run, so a second Claude reviewer stood in\. This review has no opinion from a second AI company\./);
   assert.match(md, /Why Codex could not run: Codex hit its usage limit/);
@@ -124,83 +124,83 @@ test("a fallback reviewer is named, and the missing second opinion is listed as 
 });
 
 test("when the reviewers disagree, the owner is told to decide", () => {
-  const karen = record("karen", [finding("karen-1", { severity: "blocking" })]);
-  const md = renderReview({ karen, other: record("codex"), writer: writer([item(["karen-1"])]) });
-  assert.match(md, /The reviewers disagree: Karen says not ready and Codex says ready\. You decide\./);
+  const claimsAuditor = record("claims-auditor", [finding("claims-auditor-1", { severity: "blocking" })]);
+  const md = renderReview({ claimsAuditor, other: record("codex"), writer: writer([item(["claims-auditor-1"])]) });
+  assert.match(md, /The reviewers disagree: the claims auditor says not ready and Codex says ready\. You decide\./);
 });
 
 test("the technical detail keeps file, line, proof, verdicts, commit and dropped findings, closed by default", () => {
-  const karen = record("karen", [finding("karen-1"), finding("karen-2", { reproduced: false, reproduction: "could not see it" })]);
-  const md = renderReview({ karen, other: record("codex"), writer: writer([item(["karen-1"])]) });
+  const claimsAuditor = record("claims-auditor", [finding("claims-auditor-1"), finding("claims-auditor-2", { reproduced: false, reproduction: "could not see it" })]);
+  const md = renderReview({ claimsAuditor, other: record("codex"), writer: writer([item(["claims-auditor-1"])]) });
   const detail = md.slice(md.indexOf("<details>"));
   assert.ok(md.indexOf("<details>") > md.indexOf("### What nobody checked"));
   assert.match(detail, /<summary>Technical detail, for engineers<\/summary>/);
   assert.match(detail, /`src\/cart\.js:12`/);
-  assert.match(detail, /ran npm test for karen-1; it failed/);
-  assert.match(detail, /Karen \(Claude\): ready/);
+  assert.match(detail, /ran npm test for claims-auditor-1; it failed/);
+  assert.match(detail, /Claims auditor \(Claude\): ready/);
   assert.match(detail, /Codex \(OpenAI\): ready/);
   assert.match(detail, /`aaaaaaaaaaaa`/);
   assert.match(detail, /A new commit clears this review/);
-  assert.match(detail, /Dropped, because the checking agent could not make them happen:\n- claim karen-2\./);
+  assert.match(detail, /Dropped, because the checking agent could not make them happen:\n- claim claims-auditor-2\./);
 });
 
 test("rendering refuses a writer that fails the check, and verdicts for different changes", () => {
-  const karen = record("karen", [finding("karen-1")]);
-  assert.throws(() => renderReview({ karen, other: record("codex"), writer: writer() }), /karen-1 is not in any item/);
-  assert.throws(() => renderReview({ karen: record("karen"), other: record("codex", [], { head: "c".repeat(40), patchId: "d".repeat(40) }), writer: writer() }), /different change/);
+  const claimsAuditor = record("claims-auditor", [finding("claims-auditor-1")]);
+  assert.throws(() => renderReview({ claimsAuditor, other: record("codex"), writer: writer() }), /claims-auditor-1 is not in any item/);
+  assert.throws(() => renderReview({ claimsAuditor: record("claims-auditor"), other: record("codex", [], { head: "c".repeat(40), patchId: "d".repeat(40) }), writer: writer() }), /different change/);
 });
 
 test("the review command prints the comment, or the problems and exit 1", () => {
   const dir = mkdtempSync(join(tmpdir(), "review-"));
   const put = (name, v) => { const p = join(dir, name); writeFileSync(p, JSON.stringify(v)); return p; };
-  const k = put("k.json", record("karen", [finding("karen-1")]));
+  const k = put("k.json", record("claims-auditor", [finding("claims-auditor-1")]));
   const o = put("o.json", record("codex"));
-  const ok = spawnSync(process.execPath, [script, "review", "--karen", k, "--other", o, "--writer", put("w.json", writer([item(["karen-1"])]))], { encoding: "utf8" });
+  const ok = spawnSync(process.execPath, [script, "review", "--claims-auditor", k, "--other", o, "--writer", put("w.json", writer([item(["claims-auditor-1"])]))], { encoding: "utf8" });
   assert.equal(ok.status, 0, ok.stderr);
   assert.match(ok.stdout, /## Review: ready to merge/);
-  const bad = spawnSync(process.execPath, [script, "review", "--karen", k, "--other", o, "--writer", put("w2.json", writer())], { encoding: "utf8" });
+  const bad = spawnSync(process.execPath, [script, "review", "--claims-auditor", k, "--other", o, "--writer", put("w2.json", writer())], { encoding: "utf8" });
   assert.equal(bad.status, 1);
-  assert.match(bad.stdout, /hold  karen-1 is not in any item/);
+  assert.match(bad.stdout, /hold  claims-auditor-1 is not in any item/);
 });
 
 test("a realistic comment passes the plain-English checker", () => {
   const plainCheck = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "plain", "scripts", "plain-check.mjs");
-  const karen = record("karen", [finding("karen-1", { severity: "decide" }), finding("karen-2")], { merge_risk: { level: "low", why: "screen only" } });
+  const claimsAuditor = record("claims-auditor", [finding("claims-auditor-1", { severity: "decide" }), finding("claims-auditor-2")], { merge_risk: { level: "low", why: "screen only" } });
   const codex = record("claude-fallback", [finding("codex-1"), finding("codex-2", { reproduced: false, reproduction: "the total was right" })], { note: "Codex hit its usage limit", model: "sonnet" });
   const w = writer([
-    item(["karen-1"], { title: "Should a second discount be allowed on the same item?", what_goes_wrong: "The spec allows it today, but then a shopper can pay less than the store's lowest price. No test covers it.", fix: undefined, options: [{ label: "A", text: "Allow one discount per item. About ten lines.", recommended: true }, { label: "B", text: "Keep both, and decide later.", recommended: false }] }),
-    item(["karen-2", "codex-1"], { title: "Removing an item leaves the old total on screen", what_goes_wrong: "A shopper who removes an item still sees the old total until they reload the page. They pay the right amount, but the screen is wrong.", fix: "Recount the total after every removal." }),
+    item(["claims-auditor-1"], { title: "Should a second discount be allowed on the same item?", what_goes_wrong: "The spec allows it today, but then a shopper can pay less than the store's lowest price. No test covers it.", fix: undefined, options: [{ label: "A", text: "Allow one discount per item. About ten lines.", recommended: true }, { label: "B", text: "Keep both, and decide later.", recommended: false }] }),
+    item(["claims-auditor-2", "codex-1"], { title: "Removing an item leaves the old total on screen", what_goes_wrong: "A shopper who removes an item still sees the old total until they reload the page. They pay the right amount, but the screen is wrong.", fix: "Recount the total after every removal." }),
   ]);
   const dir = mkdtempSync(join(tmpdir(), "review-plain-"));
   const file = join(dir, "comment.md");
-  writeFileSync(file, renderReview({ karen, other: codex, writer: w }));
+  writeFileSync(file, renderReview({ claimsAuditor, other: codex, writer: w }));
   const r = spawnSync(process.execPath, [plainCheck, file], { encoding: "utf8" });
   assert.equal(r.status, 0, r.stdout + r.stderr);
 });
 
 test("both reports using the same finding id is refused, so no finding can hide another", () => {
-  const karen = record("karen", [finding("1", { severity: "blocking" })]);
+  const claimsAuditor = record("claims-auditor", [finding("1", { severity: "blocking" })]);
   const codex = record("codex", [finding("1")]);
-  assert.match(checkWriter({ karen, other: codex }, writer([item(["1"])])).join(), /both reviewers used the finding id 1/);
+  assert.match(checkWriter({ claimsAuditor, other: codex }, writer([item(["1"])])).join(), /both reviewers used the finding id 1/);
 });
 
 test("the comment can't say ready while a verdict says not ready, or the reverse", () => {
-  const karen = record("karen", [finding("karen-1")], { verdict: "not ready" });
-  assert.match(checkWriter({ karen, other: record("codex") }, writer([item(["karen-1"])])).join(), /Karen's verdict is not ready, but no item is a must-fix/);
+  const claimsAuditor = record("claims-auditor", [finding("claims-auditor-1")], { verdict: "not ready" });
+  assert.match(checkWriter({ claimsAuditor, other: record("codex") }, writer([item(["claims-auditor-1"])])).join(), /Claims auditor's verdict is not ready, but no item is a must-fix/);
 });
 
 test("a dropped finding with no notes still renders", () => {
-  const karen = record("karen", [finding("karen-1", { reproduced: false, reproduction: undefined })]);
-  assert.match(renderReview({ karen, other: record("codex"), writer: writer() }), /claim karen-1\. \(karen-1, from Karen\.\) Checked: no notes recorded\./);
+  const claimsAuditor = record("claims-auditor", [finding("claims-auditor-1", { reproduced: false, reproduction: undefined })]);
+  assert.match(renderReview({ claimsAuditor, other: record("codex"), writer: writer() }), /claim claims-auditor-1\. \(claims-auditor-1, from the claims auditor\.\) Checked: no notes recorded\./);
 });
 
 test("an item that isn't an object is a problem, not a crash", () => {
-  assert.match(checkWriter({ karen: record("karen"), other: record("codex") }, writer([null])).join(), /item 1 must be an object/);
+  assert.match(checkWriter({ claimsAuditor: record("claims-auditor"), other: record("codex") }, writer([null])).join(), /item 1 must be an object/);
 });
 
 test("file names, function calls and commands are refused in the plain text even without backticks", () => {
-  const karen = record("karen", [finding("karen-1")]);
-  const run = (txt) => checkWriter({ karen, other: record("codex") }, writer([item(["karen-1"], { what_goes_wrong: txt })])).join();
+  const claimsAuditor = record("claims-auditor", [finding("claims-auditor-1")]);
+  const run = (txt) => checkWriter({ claimsAuditor, other: record("codex") }, writer([item(["claims-auditor-1"], { what_goes_wrong: txt })])).join();
   assert.match(run("It breaks in src/cart.js."), /looks like code/);
   assert.match(run("It calls total() too early."), /looks like code/);
   assert.match(run("Ran npm test and it failed."), /looks like code/);
@@ -208,44 +208,44 @@ test("file names, function calls and commands are refused in the plain text even
 });
 
 test("a decision finding accepted by the recorder, two recommended options refused, two items listed with 'and'", () => {
-  const karen = record("karen", [finding("karen-1", { severity: "blocking" }), finding("karen-2", { severity: "blocking" }), finding("karen-3", { severity: "decide" })], { verdict: "not ready" });
+  const claimsAuditor = record("claims-auditor", [finding("claims-auditor-1", { severity: "blocking" }), finding("claims-auditor-2", { severity: "blocking" }), finding("claims-auditor-3", { severity: "decide" })], { verdict: "not ready" });
   const opts = [{ label: "A", text: "x", recommended: true }, { label: "B", text: "y", recommended: true }];
-  assert.match(checkWriter({ karen, other: record("codex") }, writer([item(["karen-1"]), item(["karen-2"]), item(["karen-3"], { fix: undefined, options: opts })])).join(), /exactly one recommended option/);
+  assert.match(checkWriter({ claimsAuditor, other: record("codex") }, writer([item(["claims-auditor-1"]), item(["claims-auditor-2"]), item(["claims-auditor-3"], { fix: undefined, options: opts })])).join(), /exactly one recommended option/);
   opts[1].recommended = false;
-  const md = renderReview({ karen, other: record("codex"), writer: writer([item(["karen-1"]), item(["karen-2"]), item(["karen-3"], { fix: undefined, options: opts })]) });
+  const md = renderReview({ claimsAuditor, other: record("codex"), writer: writer([item(["claims-auditor-1"]), item(["claims-auditor-2"]), item(["claims-auditor-3"], { fix: undefined, options: opts })]) });
   assert.match(md, /fix items 2 and 3 before merging\. Then answer item 1\./);
 });
 
 test("word limits allow the limit and refuse one word more", () => {
-  const karen = record("karen", [finding("karen-1")]);
-  const run = (n) => checkWriter({ karen, other: record("codex") }, writer([item(["karen-1"], { what_goes_wrong: Array.from({ length: n }, (_, i) => (i % 10 === 9 ? "word." : "word")).join(" ") })])).join();
+  const claimsAuditor = record("claims-auditor", [finding("claims-auditor-1")]);
+  const run = (n) => checkWriter({ claimsAuditor, other: record("codex") }, writer([item(["claims-auditor-1"], { what_goes_wrong: Array.from({ length: n }, (_, i) => (i % 10 === 9 ? "word." : "word")).join(" ") })])).join();
   assert.equal(run(70), "");
   assert.match(run(71), /70 words/);
 });
 
 test("two empty changes on different commits are not the same change", () => {
-  const a = record("karen", [], { patchId: "empty" });
+  const a = record("claims-auditor", [], { patchId: "empty" });
   const b = record("codex", [], { patchId: "empty", head: "c".repeat(40) });
-  assert.throws(() => renderReview({ karen: a, other: b, writer: writer() }), /different change/);
+  assert.throws(() => renderReview({ claimsAuditor: a, other: b, writer: writer() }), /different change/);
 });
 
 test("a reviewer whose own verdict differs from the confirmed one is explained in the detail", () => {
-  const karen = record("karen", [], { said: "not ready" });
-  assert.match(renderReview({ karen, other: record("codex"), writer: writer() }), /Karen \(Claude\) said "not ready"; only findings the checking agent confirmed count/);
+  const claimsAuditor = record("claims-auditor", [], { said: "not ready" });
+  assert.match(renderReview({ claimsAuditor, other: record("codex"), writer: writer() }), /Claims auditor \(Claude\) said "not ready"; only findings the checking agent confirmed count/);
 });
 
 test("a sentence longer than the plain-English checker allows is refused", () => {
-  const karen = record("karen", [finding("karen-1")]);
+  const claimsAuditor = record("claims-auditor", [finding("claims-auditor-1")]);
   const long = "Add tests for the question rating, two recommended options, a two item list, each word limit, empty changes, and the note shown when the verdict a reviewer gave differs from the one its own checked problems give.";
-  const run = (fix) => checkWriter({ karen, other: record("codex") }, writer([item(["karen-1"], { fix })])).join();
+  const run = (fix) => checkWriter({ claimsAuditor, other: record("codex") }, writer([item(["claims-auditor-1"], { fix })])).join();
   assert.match(run(long), /a sentence of 37 words; split it so each sentence has at most 30/);
   assert.equal(run("Add tests for each check. Start with the question rating."), "");
 });
 
 test("each item carries a work packet an agent can pick up on its own", () => {
-  const karen = record("karen", [finding("karen-1", { severity: "blocking", touches: ["src/cart.js", "src/cart.test.js"] }), finding("karen-2")]);
+  const claimsAuditor = record("claims-auditor", [finding("claims-auditor-1", { severity: "blocking", touches: ["src/cart.js", "src/cart.test.js"] }), finding("claims-auditor-2")]);
   const codex = record("codex", [finding("codex-1", { touches: ["src/total.js"], done_when: "The total test passes" })]);
-  const md = renderReview({ karen, other: codex, writer: writer([item(["karen-1", "codex-1"]), item(["karen-2"], { after: ["karen-1"] })]) });
+  const md = renderReview({ claimsAuditor, other: codex, writer: writer([item(["claims-auditor-1", "codex-1"]), item(["claims-auditor-2"], { after: ["claims-auditor-1"] })]) });
   const detail = md.slice(md.indexOf("<details>"));
   assert.match(detail, /\*\*Item 1, must fix: The total can still be wrong\.\*\*/);
   assert.match(detail, /- Files: `src\/cart\.js`, `src\/cart\.test\.js`, `src\/total\.js`/);
@@ -257,9 +257,9 @@ test("each item carries a work packet an agent can pick up on its own", () => {
 });
 
 test("the packets round-trip through a hidden machine-readable block", () => {
-  const karen = record("karen", [finding("karen-1", { severity: "blocking", claim: "breaks on -->" }), finding("karen-2", { severity: "decide" })]);
+  const claimsAuditor = record("claims-auditor", [finding("claims-auditor-1", { severity: "blocking", claim: "breaks on -->" }), finding("claims-auditor-2", { severity: "decide" })]);
   const opts = [{ label: "A", text: "x", recommended: true }, { label: "B", text: "y", recommended: false }];
-  const md = renderReview({ karen, other: record("codex"), writer: writer([item(["karen-1"]), item(["karen-2"], { fix: undefined, options: opts })]) });
+  const md = renderReview({ claimsAuditor, other: record("codex"), writer: writer([item(["claims-auditor-1"]), item(["claims-auditor-2"], { fix: undefined, options: opts })]) });
   const items = extractItems(md);
   assert.equal(items.length, 2);
   assert.deepEqual(items.map((i) => [i.n, i.group]), [[1, "decide"], [2, "must fix"]]);
@@ -272,18 +272,40 @@ test("the packets round-trip through a hidden machine-readable block", () => {
 });
 
 test("an item can only wait for findings in other items, and never for itself", () => {
-  const karen = record("karen", [finding("karen-1"), finding("karen-2")]);
-  const run = (after) => checkWriter({ karen, other: record("codex") }, writer([item(["karen-1"]), item(["karen-2"], { after })])).join();
-  assert.match(run(["karen-9"]), /item 2 waits for karen-9, which is not a confirmed finding/);
-  assert.match(run(["karen-2"]), /item 2 can't wait for itself/);
-  assert.equal(run(["karen-1"]), "");
+  const claimsAuditor = record("claims-auditor", [finding("claims-auditor-1"), finding("claims-auditor-2")]);
+  const run = (after) => checkWriter({ claimsAuditor, other: record("codex") }, writer([item(["claims-auditor-1"]), item(["claims-auditor-2"], { after })])).join();
+  assert.match(run(["claims-auditor-9"]), /item 2 waits for claims-auditor-9, which is not a confirmed finding/);
+  assert.match(run(["claims-auditor-2"]), /item 2 can't wait for itself/);
+  assert.equal(run(["claims-auditor-1"]), "");
 });
 
 test("the items command prints the packets as JSON", () => {
   const dir = mkdtempSync(join(tmpdir(), "items-"));
-  const md = renderReview({ karen: record("karen", [finding("karen-1")]), other: record("codex"), writer: writer([item(["karen-1"])]) });
+  const md = renderReview({ claimsAuditor: record("claims-auditor", [finding("claims-auditor-1")]), other: record("codex"), writer: writer([item(["claims-auditor-1"])]) });
   const f = join(dir, "comment.md"); writeFileSync(f, md);
   const r = spawnSync(process.execPath, [script, "items", f], { encoding: "utf8" });
   assert.equal(r.status, 0, r.stderr);
   assert.equal(JSON.parse(r.stdout)[0].title, "The total can still be wrong.");
+});
+
+// The claims auditor used to be called karen; its verdicts saved before the rename say
+// reviewer "karen" and must still make a review comment that uses the new name.
+test("an old verdict saved under the name karen renders as the claims auditor's", () => {
+  const old = record("karen", [finding("karen-1", { severity: "blocking" })]);
+  const md = renderReview({ claimsAuditor: old, other: record("codex"), writer: writer([item(["karen-1"])]) });
+  assert.match(md, /claims-auditor=not ready/);
+  assert.match(md, /Found by the claims auditor, and the checking agent made it happen\./);
+  assert.match(md, /Claims auditor \(Claude\): not ready/);
+  assert.doesNotMatch(md, /Karen|undefined/);
+  assert.equal(extractItems(md)[0].sources[0].reviewer, "claims-auditor");
+});
+
+test("the review command takes the claims auditor's verdict with --claims-auditor", () => {
+  const dir = mkdtempSync(join(tmpdir(), "review-"));
+  const put = (name, v) => { const p = join(dir, name); writeFileSync(p, JSON.stringify(v)); return p; };
+  const args = (flag) => [script, "review", flag, put("k.json", record("karen")), "--other", put("o.json", record("codex")), "--writer", put("w.json", writer())];
+  const ok = spawnSync(process.execPath, args("--claims-auditor"), { encoding: "utf8" });
+  assert.equal(ok.status, 0, ok.stderr);
+  assert.match(ok.stdout, /## Review: ready to merge/);
+  assert.equal(spawnSync(process.execPath, args("--karen"), { encoding: "utf8" }).status, 2);
 });

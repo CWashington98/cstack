@@ -36,8 +36,8 @@ that made it.
   and bypass flags are banned — if a hook is wrong, fix the hook. Layer in ratchets as
   they earn their place: mutation testing on money-critical code, an accessibility
   contrast test, lockfile guards, a supply-chain release-age quarantine.
-- **karen** — the independent READY / NOT READY verifier (ships with this plugin).
-  After any agent claims "done," karen re-runs the gates herself, checks scope against
+- **claims-auditor** — the independent READY / NOT READY verifier (ships with this plugin).
+  After any agent claims "done," claims-auditor re-runs the gates itself, checks scope against
   the claim, and cuts through framing like "pre-existing" and "merge-ready."
 - **Domain expert agents** — 2–3 to start (your billing / compliance / frontend
   equivalents), mapped to file patterns so edits route by risk, not size: three lines
@@ -51,7 +51,7 @@ that made it.
 ## Layer 2 — install from the ecosystem
 
 - **This marketplace** — the generic skills (tdd, diagnose, triage, grill-me, to-prd,
-  to-issues, …) + karen + templates. Two commands, see [`bootstrap.md`](./bootstrap.md).
+  to-issues, …) + claims-auditor + templates. Two commands, see [`bootstrap.md`](./bootstrap.md).
 - **superpowers** (official marketplace) — the discipline layer: skill-check before any
   action, brainstorm before building, verification before completion claims.
 - **code-review** — diff/PR review at variable effort, up to multi-agent deep review.

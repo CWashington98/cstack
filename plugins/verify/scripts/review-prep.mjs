@@ -3,7 +3,7 @@
 // request description, and one private copy of the code per reviewer. Each copy has
 // two commits, "base" and "change under review", so no author reasoning travels with it.
 // Usage: node review-prep.mjs --base <ref> [--head <ref>] [--spec <file>]... [--pr-body <file>]
-//        [--copies karen,codex,validator] --out <folder>
+//        [--copies claims-auditor,codex,validator] --out <folder>
 //        node review-prep.mjs --remove <folder>
 // Exit 0 done, 2 wrong use.
 import { execFileSync } from "node:child_process";
@@ -33,7 +33,7 @@ export function makeCopy(repo, mergeBase, head, dest) {
   git(dest, "commit", "-qm", "change under review", "--allow-empty");
 }
 
-export function prepare({ repo, base, head = "HEAD", specs = [], prBody = null, copies = ["karen", "codex", "validator"], out }) {
+export function prepare({ repo, base, head = "HEAD", specs = [], prBody = null, copies = ["claims-auditor", "codex", "validator"], out }) {
   if (existsSync(out) && readdirSync(out).length) throw new Error(`${out} already has files. Use a new folder for each review.`);
   const headSha = git(repo, "rev-parse", `${head}^{commit}`).trim();
   const mergeBase = git(repo, "merge-base", base, headSha).trim();
@@ -63,7 +63,7 @@ function main(argv) {
     const meta = prepare({
       repo: process.cwd(), base: a.base, head: a.head ?? "HEAD",
       specs: (a.spec ?? []).map((s) => resolve(s)), prBody: a["pr-body"] ? resolve(a["pr-body"]) : null,
-      copies: (a.copies ?? "karen,codex,validator").split(",").map((s) => s.trim()).filter(Boolean),
+      copies: (a.copies ?? "claims-auditor,codex,validator").split(",").map((s) => s.trim()).filter(Boolean),
       out: resolve(a.out),
     });
     console.log(JSON.stringify(meta, null, 2));
