@@ -23,6 +23,7 @@ Borrowed skills are pinned pointers, never copies. Install the ones a project ne
 | `ponytail-picks` | The simplest change that fully works; call it with `/ponytail` | Everywhere |
 | `caveman-picks` | Terse replies that save tokens | Everywhere |
 | `vercel-react-picks` | React rules, composition patterns, view transitions, web interface review | React web apps |
+| `vercel-deploy-picks` | Deploying to Vercel, its command line, making a deployed app faster | Apps hosted on Vercel |
 | `good-css-picks` | Modern styling techniques | Web apps |
 | `expo-picks` | Expo's own skills | Expo apps |
 | `rn-callstack-picks`, `rn-vercel-picks` | React Native performance, navigation and coding rules | React Native apps |

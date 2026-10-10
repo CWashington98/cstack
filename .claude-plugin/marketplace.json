@@ -131,7 +131,7 @@
     },
     {
       "name": "rn-vercel-picks",
-      "description": "Pinned pointer to Vercel's React Native coding rules (lists, animation, navigation, UI patterns, state, monorepos). Pointer only: the source repository has no license. Install only in projects with a React Native app.",
+      "description": "Pinned pointer to Vercel's React Native coding rules (lists, animation, navigation, UI patterns, state, monorepos). Pointer only: the source repository has no license file. Install only in projects with a React Native app.",
       "source": {
         "source": "git-subdir",
         "url": "https://github.com/vercel-labs/agent-skills.git",
@@ -174,7 +174,6 @@
         "./expo-overview",
         "./expo-project-structure",
         "./expo-router",
-        "./expo-skill-feedback",
         "./expo-ui",
         "./expo-upgrade",
         "./expo-web-to-native"
@@ -182,7 +181,7 @@
     },
     {
       "name": "vercel-react-picks",
-      "description": "Pinned pointer to Vercel's React and web interface skills: React performance rules, component composition patterns, view transitions, and the web interface guidelines review. Pointer only: the source repository has no license. Install only in projects with a React web app.",
+      "description": "Pinned pointer to Vercel's React and web interface skills: React performance rules, component composition patterns, view transitions, and the web interface guidelines review. Pointer only: the repository has no license file, though its readme says MIT. Install only in projects with a React web app.",
       "source": {
         "source": "git-subdir",
         "url": "https://github.com/vercel-labs/agent-skills.git",
@@ -195,6 +194,22 @@
         "./composition-patterns",
         "./react-view-transitions",
         "./web-design-guidelines"
+      ]
+    },
+    {
+      "name": "vercel-deploy-picks",
+      "description": "Pinned pointer to Vercel's deploy skills: deploying to Vercel, using its command line with tokens, and making a deployed app faster and cheaper. Pointer only, for the same license reason. Install only in projects hosted on Vercel.",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/vercel-labs/agent-skills.git",
+        "path": "skills",
+        "sha": "063bee94c3f4df8453406c830b0a7df0f2860278"
+      },
+      "strict": false,
+      "skills": [
+        "./deploy-to-vercel",
+        "./vercel-cli-with-tokens",
+        "./vercel-optimize"
       ]
     },
     {
@@ -213,7 +228,7 @@
     },
     {
       "name": "caveman-picks",
-      "description": "Pinned pointer to caveman (Julius Brussee, Apache 2.0): a terse reply mode that cuts tokens while keeping every technical fact. cstack used to carry an older copy of it.",
+      "description": "Pinned pointer to caveman (Julius Brussee, Apache 2.0): a terse reply mode that cuts tokens while keeping every technical fact, with its two stronger modes (ultra and wenyan). cstack used to carry an older copy of it.",
       "source": {
         "source": "git-subdir",
         "url": "https://github.com/JuliusBrussee/caveman.git",
@@ -222,7 +237,9 @@
       },
       "strict": false,
       "skills": [
-        "./caveman"
+        "./caveman",
+        "./ultracave",
+        "./megacave"
       ]
     }
   ]

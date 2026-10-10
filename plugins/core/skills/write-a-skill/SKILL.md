@@ -3,7 +3,7 @@ name: write-a-skill
 description: Create new agent skills with proper structure, progressive disclosure, and bundled resources. Use when user wants to create, write, or build a new skill.
 ---
 
-<!-- provenance: vendored 2026-07-05 from client-B/.agents/skills/write-a-skill (identical to HERMES copy); also existed in: HERMES -->
+<!-- provenance: vendored 2026-07-05 from client-B/.agents/skills/write-a-skill (identical to HERMES copy); also existed in: HERMES; upstream origin: mattpocock/skills (MIT, Matt Pocock), copied word for word; see LICENSE in this folder -->
 
 ## Project context
 Read the repo's CLAUDE.md for commands and conventions. If `.claude/cstack.md` exists and has a `## write-a-skill` section, apply those overrides — they are per-repo facts (commands, paths, policies) that take precedence over generic guidance below.

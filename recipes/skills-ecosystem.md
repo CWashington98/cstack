@@ -28,7 +28,7 @@ session for the next agent · `prototype` — throwaway builds to flush out a de
 `improve-codebase-architecture` — deepening/refactoring survey.
 
 **Craft (Vercel-authored, through the `vercel-react-picks` pointer):** `web-design-guidelines` — UI/accessibility review ·
-`react-best-practices`, `composition-patterns`, `react-view-transitions` — React review checklists ·
+`vercel-react-best-practices`, `vercel-composition-patterns`, `vercel-react-view-transitions` — React review checklists (these are the installed names; the folders drop the `vercel-` prefix) ·
 `email-best-practices` — deliverability/compliance.
 
 **Plugins (official marketplace):** `superpowers` — the discipline layer (skill-first,

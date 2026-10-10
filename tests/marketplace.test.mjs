@@ -103,10 +103,20 @@ test("the Vercel React pointer picks the React and web interface skills, and the
   assert.ok(!market.plugins.some((p) => p.name === "vercel-agent-skills"));
 });
 
-test("the caveman pointer picks only the caveman skill from its author's repository", () => {
+test("the caveman pointer picks caveman and the two modes it hands off to", () => {
   const p = pointer("caveman-picks");
   assert.equal(p.source.url, "https://github.com/JuliusBrussee/caveman.git");
-  assert.deepEqual(p.skills, ["./caveman"]);
+  assert.deepEqual([...p.skills].sort(), ["./caveman", "./megacave", "./ultracave"]);
+});
+
+test("the Expo pointer leaves out the feedback skill, whose command breaks when picked by folder", () => {
+  assert.ok(!pointer("expo-picks").skills.includes("./expo-skill-feedback"));
+});
+
+test("Vercel's deploy skills have their own pointer", () => {
+  const p = pointer("vercel-deploy-picks");
+  assert.equal(p.source.url, "https://github.com/vercel-labs/agent-skills.git");
+  assert.deepEqual([...p.skills].sort(), ["./deploy-to-vercel", "./vercel-cli-with-tokens", "./vercel-optimize"]);
 });
 
 test("the pstack pointer includes TypeScript best practices and the simplicity principles", () => {
