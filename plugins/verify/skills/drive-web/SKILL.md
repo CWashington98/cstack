@@ -58,8 +58,8 @@ There are four ways to drive a browser. Pick by what the step needs:
 |---|---|---|---|
 | **Playwright, headless** (Chromium with no window) | Proof. The steps are a script, so they're saved and can be run again, and later become a replay. | Screenshots of the page, the full page or one element; video of the whole run; a trace of every step | Sign-in providers that block automated browsers; autoplay needs the flag below |
 | **Playwright, with a window** (`headless: false`) | Watching a script run while you fix it | The same | Slower; not for unattended runs |
-| **Chrome DevTools** (the `chrome-devtools` tools) | Exploring a page you don't know yet: the console, network requests, performance traces and an accessibility audit | Screenshots, console and network logs, performance traces | A fresh browser profile, so you're not signed in unless you sign in |
-| **Claude in Chrome** (the `claude-in-chrome` tools) | Pages that need a real person's browser: a sign-in provider that blocks automation, or checking what a real signed-in session sees | Screenshots and an animated recording of the steps | It is the owner's real Chrome, with real accounts. Only use the test identity and the backends the app skill allows. Never trigger browser pop-up dialogs, which freeze the tools. |
+| **Chrome DevTools** (the `chrome-devtools` tools) | Exploring a page you don't know yet: the console, network requests, performance traces and an accessibility audit | Screenshots, console and network logs, performance traces | A separate browser profile, not your everyday Chrome, but it stays signed in between sessions. Check who is signed in before acting, and sign in as the test identity. Start its server with `--isolated` for a clean profile each time. |
+| **Claude in Chrome** (the `claude-in-chrome` tools) | Pages that need a real browser: a sign-in provider that blocks automation, or what the test identity sees in a real signed-in session | Screenshots and an animated recording of the steps | It is the owner's real Chrome, with real accounts. Only use the test identity and the backends the app skill allows. Never trigger alert, confirm or prompt dialogs, which freeze the tools. |
 
 Explore with Chrome DevTools or Claude in Chrome, then write the proof as a Playwright script at `"$RUN/drive.mjs"` and run it with the project's own Playwright install. A finding from exploring is only a lead: the proof is the script's run. Launch Chromium with `--autoplay-policy=no-user-gesture-required` when the feature plays audio or video.
 
@@ -75,7 +75,7 @@ const { RUN, BASE_URL, STORAGE_STATE, CAPTURE } = process.env;
 const browser = await chromium.launch({ args: ["--autoplay-policy=no-user-gesture-required"] });
 const context = await browser.newContext({
   ...(STORAGE_STATE ? { storageState: STORAGE_STATE } : {}),
-  recordVideo: { dir: RUN }, // one .webm of the whole run, saved when the context closes
+  recordVideo: { dir: RUN }, // one .webm per page (a second tab gets its own), saved when the context closes
 });
 await context.tracing.start({ screenshots: true, snapshots: true });
 const page = await context.newPage();

@@ -93,10 +93,22 @@ test("pr-review records each verdict against the reviewed commit from meta.json"
   for (const l of writes) assert.match(l, /--meta "\$OUT\/meta\.json"/, l);
 });
 
-test("drive-web names each way to drive a browser and when to use it", () => {
+test("drive-web has a table row for each way to drive a browser, with its safety notes", () => {
   const text = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "skills", "drive-web", "SKILL.md"), "utf8");
   for (const driver of ["Playwright, headless", "Playwright, with a window", "Chrome DevTools", "Claude in Chrome"]) {
-    assert.ok(text.includes(driver), `drive-web should cover ${driver}`);
+    assert.ok(text.includes(`| **${driver}**`), `drive-web should have a table row for ${driver}`);
   }
-  for (const capture of ["fullPage", "recordVideo", "tracing.start"]) assert.ok(text.includes(capture), `drive-web should show ${capture}`);
+  const row = (name) => text.split("\n").find((l) => l.startsWith(`| **${name}**`)) ?? "";
+  assert.match(row("Claude in Chrome"), /test identity/, "the Claude in Chrome row limits it to the test identity");
+  assert.match(row("Claude in Chrome"), /alert, confirm or prompt dialogs/, "the Claude in Chrome row names the dialogs that freeze it");
+  assert.match(row("Chrome DevTools"), /stays signed in between sessions/, "the Chrome DevTools row warns that its profile keeps sign-ins");
+  assert.match(row("Chrome DevTools"), /--isolated/, "the Chrome DevTools row says how to get a clean profile");
+});
+
+test("drive-web's starting script captures video, a trace and screenshots, and closes the context so the video is saved", () => {
+  const text = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "skills", "drive-web", "SKILL.md"), "utf8");
+  for (const capture of ["recordVideo", "tracing.start", "tracing.stop", "await context.close()", "fullPage: true", '.screenshot({ path: join(RUN, "save-dialog.png") })']) {
+    assert.ok(text.includes(capture), `drive-web should show ${capture}`);
+  }
+  assert.ok(text.indexOf("await context.close()") < text.indexOf("await browser.close()"), "the context closes before the browser");
 });
