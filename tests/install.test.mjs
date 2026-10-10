@@ -168,3 +168,9 @@ test("piped into bash, the script survives claude reading input and runs every p
 test("it ends by telling you to restart Claude Code", () => {
   assert.match(run().out, /Restart Claude Code/);
 });
+
+test("when a project-only plugin fails, it is named and the exit code is 1", () => {
+  const { code, err } = run(["expo"], { fail: ["expo-picks"] });
+  assert.equal(code, 1);
+  assert.match(err, /didn't install or update: expo-picks/);
+});
