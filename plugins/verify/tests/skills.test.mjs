@@ -99,14 +99,18 @@ test("drive-web has a table row for each way to drive a browser, with its safety
     assert.ok(text.includes(`| **${driver}**`), `drive-web should have a table row for ${driver}`);
   }
   const row = (name) => text.split("\n").find((l) => l.startsWith(`| **${name}**`)) ?? "";
-  assert.match(row("Claude in Chrome"), /test identity/, "the Claude in Chrome row limits it to the test identity");
-  assert.match(row("Claude in Chrome"), /alert, confirm or prompt dialogs/, "the Claude in Chrome row names the dialogs that freeze it");
+  const watchOut = (name) => row(name).split("|")[4] ?? "";
+  assert.match(watchOut("Claude in Chrome"), /owner's real Chrome, with real accounts/, "the Claude in Chrome row warns it is the owner's real browser");
+  assert.match(watchOut("Claude in Chrome"), /Only use the test identity and the backends the app skill allows/, "the Claude in Chrome row limits it to the test identity and allowed backends");
+  assert.match(watchOut("Claude in Chrome"), /Never trigger alert, confirm or prompt dialogs/, "the Claude in Chrome row names the dialogs that freeze it");
   assert.match(row("Chrome DevTools"), /stays signed in between sessions/, "the Chrome DevTools row warns that its profile keeps sign-ins");
   assert.match(row("Chrome DevTools"), /--isolated/, "the Chrome DevTools row says how to get a clean profile");
 });
 
 test("drive-web's starting script captures video, a trace and screenshots, and closes the context so the video is saved", () => {
   const text = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "skills", "drive-web", "SKILL.md"), "utf8");
+  assert.ok(text.includes('await import("playwright").catch(() => import("@playwright/test"))'), "the starting script loads whichever Playwright package the project installs");
+  assert.ok(text.includes("one .webm per page"), "the video note says one file per page");
   for (const capture of ["recordVideo", "tracing.start", "tracing.stop", "await context.close()", "fullPage: true", '.screenshot({ path: join(RUN, "save-dialog.png") })']) {
     assert.ok(text.includes(capture), `drive-web should show ${capture}`);
   }

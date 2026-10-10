@@ -67,7 +67,8 @@ A starting point for `drive.mjs`:
 
 ```js
 // Written fresh for each run. Run with the project's Playwright: RUN=... BASE_URL=... node drive.mjs
-import { chromium } from "playwright"; // or "@playwright/test": use whichever package the project installs
+// Projects install either playwright or @playwright/test; this loads whichever is there.
+const { chromium } = await import("playwright").catch(() => import("@playwright/test"));
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
