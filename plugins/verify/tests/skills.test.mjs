@@ -107,11 +107,11 @@ test("drive-web has a table row for each way to drive a browser, with its safety
   assert.match(row("Chrome DevTools"), /--isolated/, "the Chrome DevTools row says how to get a clean profile");
 });
 
-test("drive-web's starting script captures video, a trace and screenshots, and closes the context so the video is saved", () => {
+test("drive-web's starting script records video and a trace and closes the context so the video is saved; its screenshot examples cover on-screen, full-page and one element", () => {
   const text = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "skills", "drive-web", "SKILL.md"), "utf8");
   assert.ok(text.includes('await import("playwright").catch(() => import("@playwright/test"))'), "the starting script loads whichever Playwright package the project installs");
   assert.ok(text.includes("one .webm per page"), "the video note says one file per page");
-  for (const capture of ["recordVideo", "tracing.start", "tracing.stop", "await context.close()", "fullPage: true", '.screenshot({ path: join(RUN, "save-dialog.png") })']) {
+  for (const capture of ["recordVideo", "tracing.start", "tracing.stop", "await context.close()", "fullPage: true", '.screenshot({ path: join(RUN, "save-dialog.png") })', 'page.screenshot({ path: join(RUN, "save-before.png") })']) {
     assert.ok(text.includes(capture), `drive-web should show ${capture}`);
   }
   assert.ok(text.indexOf("await context.close()") < text.indexOf("await browser.close()"), "the context closes before the browser");
