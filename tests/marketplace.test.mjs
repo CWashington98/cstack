@@ -44,9 +44,9 @@ test("a version in the marketplace matches the plugin's own manifest, and plain 
 
 import { readdirSync } from "node:fs";
 
-test("the core plugin ships only our own skills plus the web design guidelines", () => {
+test("the core plugin ships only our own skills; borrowed ones are pointers", () => {
   const skills = readdirSync(join(root, "plugins", "core", "skills")).sort();
-  assert.deepEqual(skills, ["bootstrap-agents", "caveman", "deslop", "upkeep", "web-design-guidelines", "write-a-skill"]);
+  assert.deepEqual(skills, ["bootstrap-agents", "deslop", "upkeep", "write-a-skill"]);
 });
 
 test("the plain skill and its reference files exist", () => {
@@ -74,4 +74,54 @@ test("the good-css pointer picks only its one skill, from the skills folder", ()
   assert.equal(p.source.url, "https://github.com/vojtaholik/good-css.git");
   assert.equal(p.source.path, "skills");
   assert.deepEqual(p.skills, ["./good-css"]);
+});
+
+function pointer(name) {
+  const p = market.plugins.find((p) => p.name === name);
+  assert.ok(p, `${name} is missing`);
+  return p;
+}
+
+test("the ponytail pointer picks all six of its skills, without its always-on hooks", () => {
+  const p = pointer("ponytail-picks");
+  assert.equal(p.source.url, "https://github.com/DietrichGebert/ponytail.git");
+  assert.equal(p.source.path, "skills");
+  assert.deepEqual([...p.skills].sort(), ["./ponytail", "./ponytail-audit", "./ponytail-debt", "./ponytail-gain", "./ponytail-help", "./ponytail-review"]);
+});
+
+test("the Expo pointer picks Expo's own skills from its expo plugin folder", () => {
+  const p = pointer("expo-picks");
+  assert.equal(p.source.url, "https://github.com/expo/skills.git");
+  assert.equal(p.source.path, "plugins/expo/skills");
+  for (const s of ["./expo-router", "./expo-ui", "./expo-upgrade", "./eas-workflows"]) assert.ok(p.skills.includes(s), s);
+});
+
+test("the Vercel React pointer picks the React and web interface skills, and the old whole-repository entry is gone", () => {
+  const p = pointer("vercel-react-picks");
+  assert.equal(p.source.url, "https://github.com/vercel-labs/agent-skills.git");
+  assert.deepEqual([...p.skills].sort(), ["./composition-patterns", "./react-best-practices", "./react-view-transitions", "./web-design-guidelines"]);
+  assert.ok(!market.plugins.some((p) => p.name === "vercel-agent-skills"));
+});
+
+test("the caveman pointer picks caveman and the two modes it hands off to", () => {
+  const p = pointer("caveman-picks");
+  assert.equal(p.source.url, "https://github.com/JuliusBrussee/caveman.git");
+  assert.deepEqual([...p.skills].sort(), ["./caveman", "./megacave", "./ultracave"]);
+});
+
+test("the Expo pointer leaves out the feedback skill, whose command breaks when picked by folder", () => {
+  assert.ok(!pointer("expo-picks").skills.includes("./expo-skill-feedback"));
+});
+
+test("Vercel's deploy skills have their own pointer", () => {
+  const p = pointer("vercel-deploy-picks");
+  assert.equal(p.source.url, "https://github.com/vercel-labs/agent-skills.git");
+  assert.deepEqual([...p.skills].sort(), ["./deploy-to-vercel", "./vercel-cli-with-tokens", "./vercel-optimize"]);
+});
+
+test("the pstack pointer includes TypeScript best practices and the simplicity principles", () => {
+  const p = pointer("pstack-picks");
+  for (const s of ["./typescript-best-practices", "./principle-laziness-protocol", "./principle-subtract-before-you-add", "./principle-type-system-discipline", "./principle-test-behavior-not-implementation"]) {
+    assert.ok(p.skills.includes(s), s);
+  }
 });

@@ -27,8 +27,9 @@ Add `--repo <path>` to check another repository once, `--no-refresh` to skip ref
 2. Installed plugins that are behind, deprecated, or no longer listed.
 3. Project installs that still load an older version than the main install.
 4. Pinned cstack pointers whose picked skills changed upstream, with a link to the changes.
-5. Skills copied into a repository that a plugin already provides.
-6. Pinned tools with a newer release, such as OpenSpec.
+5. Picked skills that no longer exist at their pinned commit. Run `node <this skill's folder>/../../scripts/check-pointers.mjs`; Claude Code reports a misspelled or moved pick as a successful install that loads nothing.
+6. Skills copied into a repository that a plugin already provides.
+7. Pinned tools with a newer release, such as OpenSpec.
 
 ## Then
 

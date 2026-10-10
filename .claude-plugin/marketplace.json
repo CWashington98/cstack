@@ -8,7 +8,7 @@
     {
       "name": "cstack",
       "source": "./plugins/core",
-      "description": "Crishon's own Claude Code skills (caveman, deslop, write-a-skill, bootstrap-agents, web-design-guidelines) and the karen verification agent. Matt Pocock's skills now come from his own plugin."
+      "description": "Crishon's own Claude Code skills (deslop, write-a-skill, bootstrap-agents, upkeep) and the karen verification agent. Borrowed skills are pinned pointers listed below, not copies."
     },
     {
       "name": "plain",
@@ -40,17 +40,8 @@
       "description": "Pinned external: UI/UX design skill"
     },
     {
-      "name": "vercel-agent-skills",
-      "source": {
-        "source": "url",
-        "url": "https://github.com/vercel-labs/agent-skills.git",
-        "sha": "f8a72b9603728bb92a217a879b7e62e43ad76c81"
-      },
-      "description": "Pinned external: vercel-labs agent skills (composition patterns etc.)"
-    },
-    {
       "name": "pstack-picks",
-      "description": "Pinned pointer to six of Lauren Tan's pstack skills (pstack 0.15.13, MIT): never block on the human, show your work (a reviewable decision log), encode lessons in structure, unslop, and her two verification tools (create and maintain a per-app verification skill). Kept as reference while cstack's verify plugin grows its own Claude Code versions.",
+      "description": "Pinned pointer to Lauren Tan's pstack skills (pstack 0.15.13, MIT). Coding: TypeScript best practices and her engineering principles (simplicity, types, boundaries, testing behavior, root causes). Review and design: architect, blast radius, correct, interrogate, how, why, no comments. Building the system itself: swarm, arena, reflect, figure it out, benchmark checklist, recall, show your work, never block on the human, encode lessons in structure. Also unslop and her two verification tools. Most principles are invoked by name, not loaded automatically.",
       "source": {
         "source": "git-subdir",
         "url": "https://github.com/cursor/plugins.git",
@@ -64,7 +55,62 @@
         "./principle-encode-lessons-in-structure",
         "./unslop",
         "./create-verification-skill",
-        "./maintain-verification-skill"
+        "./maintain-verification-skill",
+        "./typescript-best-practices",
+        "./principle-type-system-discipline",
+        "./principle-boundary-discipline",
+        "./principle-model-the-domain",
+        "./principle-foundational-thinking",
+        "./principle-test-behavior-not-implementation",
+        "./principle-fix-root-causes",
+        "./principle-laziness-protocol",
+        "./principle-subtract-before-you-add",
+        "./principle-minimize-reader-load",
+        "./principle-make-operations-idempotent",
+        "./principle-separate-before-serializing-shared-state",
+        "./principle-migrate-callers-then-delete-legacy-apis",
+        "./principle-redesign-from-first-principles",
+        "./principle-exhaust-the-design-space",
+        "./principle-attack-the-premise",
+        "./principle-prove-it-works",
+        "./principle-sequence-verifiable-units",
+        "./principle-experience-first",
+        "./principle-outcome-oriented-execution",
+        "./principle-build-the-lever",
+        "./principle-explain-the-number",
+        "./principle-guard-the-context-window",
+        "./architect",
+        "./blast-radius",
+        "./correct",
+        "./interrogate",
+        "./how",
+        "./why",
+        "./no-comments",
+        "./swarm",
+        "./arena",
+        "./reflect",
+        "./figure-it-out",
+        "./benchmark-checklist",
+        "./recall"
+      ]
+    },
+    {
+      "name": "ponytail-picks",
+      "description": "Pinned pointer to Ponytail (Dietrich Gebert, MIT): the simplest change that fully solves the task. You aren't going to need it, use what already exists, standard library first, delete before adding. Six skills: ponytail, review, audit, debt, gain, help. Only the skills are picked, so its always-on hooks are not installed; call it when wanted.",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/DietrichGebert/ponytail.git",
+        "path": "skills",
+        "sha": "9cc65d03aa2da1db7121b912d03596409ee340b8"
+      },
+      "strict": false,
+      "skills": [
+        "./ponytail",
+        "./ponytail-review",
+        "./ponytail-audit",
+        "./ponytail-debt",
+        "./ponytail-gain",
+        "./ponytail-help"
       ]
     },
     {
@@ -85,7 +131,7 @@
     },
     {
       "name": "rn-vercel-picks",
-      "description": "Pinned pointer to Vercel's React Native coding rules (lists, animation, navigation, UI patterns, state, monorepos). Pointer only: the source repository has no license. Install only in projects with a React Native app.",
+      "description": "Pinned pointer to Vercel's React Native coding rules (lists, animation, navigation, UI patterns, state, monorepos). Pointer only: the source repository has no license file. Install only in projects with a React Native app.",
       "source": {
         "source": "git-subdir",
         "url": "https://github.com/vercel-labs/agent-skills.git",
@@ -95,6 +141,75 @@
       "strict": false,
       "skills": [
         "./react-native-skills"
+      ]
+    },
+    {
+      "name": "expo-picks",
+      "description": "Pinned pointer to Expo's own skills (Expo, MIT): the router, native UI, data fetching, animation, modules, app store builds, over-the-air updates, workflows and upgrades. Install only in projects with an Expo app.",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/expo/skills.git",
+        "path": "plugins/expo/skills",
+        "sha": "d4f484024fec15196bfd3c272e953e3f983972cf"
+      },
+      "strict": false,
+      "skills": [
+        "./eas-app-stores",
+        "./eas-hosting",
+        "./eas-observe",
+        "./eas-simulator",
+        "./eas-update-insights",
+        "./eas-update",
+        "./eas-workflows",
+        "./expo-animation",
+        "./expo-app-clip",
+        "./expo-brownfield",
+        "./expo-data-fetching",
+        "./expo-design-system",
+        "./expo-dev-client",
+        "./expo-dom",
+        "./expo-examples",
+        "./expo-module",
+        "./expo-native-ui",
+        "./expo-overview",
+        "./expo-project-structure",
+        "./expo-router",
+        "./expo-ui",
+        "./expo-upgrade",
+        "./expo-web-to-native"
+      ]
+    },
+    {
+      "name": "vercel-react-picks",
+      "description": "Pinned pointer to Vercel's React and web interface skills: React performance rules, component composition patterns, view transitions, and the web interface guidelines review. Pointer only: the repository has no license file, though its readme says MIT. Install only in projects with a React web app.",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/vercel-labs/agent-skills.git",
+        "path": "skills",
+        "sha": "063bee94c3f4df8453406c830b0a7df0f2860278"
+      },
+      "strict": false,
+      "skills": [
+        "./react-best-practices",
+        "./composition-patterns",
+        "./react-view-transitions",
+        "./web-design-guidelines"
+      ]
+    },
+    {
+      "name": "vercel-deploy-picks",
+      "description": "Pinned pointer to Vercel's deploy skills: deploying to Vercel, using its command line with tokens, and making a deployed app faster and cheaper. Pointer only, for the same license reason. Install only in projects hosted on Vercel.",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/vercel-labs/agent-skills.git",
+        "path": "skills",
+        "sha": "063bee94c3f4df8453406c830b0a7df0f2860278"
+      },
+      "strict": false,
+      "skills": [
+        "./deploy-to-vercel",
+        "./vercel-cli-with-tokens",
+        "./vercel-optimize"
       ]
     },
     {
@@ -109,6 +224,22 @@
       "strict": false,
       "skills": [
         "./good-css"
+      ]
+    },
+    {
+      "name": "caveman-picks",
+      "description": "Pinned pointer to caveman (Julius Brussee, Apache 2.0): a terse reply mode that cuts tokens while keeping every technical fact, with its two stronger modes (ultra and wenyan). cstack used to carry an older copy of it.",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/JuliusBrussee/caveman.git",
+        "path": "skills",
+        "sha": "2e08b9177c07bb7249a8a2d1a6758e5db281d002"
+      },
+      "strict": false,
+      "skills": [
+        "./caveman",
+        "./ultracave",
+        "./megacave"
       ]
     }
   ]
