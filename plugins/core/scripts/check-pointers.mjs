@@ -53,6 +53,10 @@ if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToP
     console.error("No marketplace file found. Run this from a cstack checkout, or pass the path to marketplace.json.");
     process.exit(2);
   }
+  if (!existsSync(file)) {
+    console.error(`No marketplace file at ${file}.`);
+    process.exit(2);
+  }
   const market = JSON.parse(readFileSync(file, "utf8"));
   const missing = await missingSkills(market, githubTree);
   const picked = market.plugins.filter((p) => p.source?.source === "git-subdir").reduce((n, p) => n + p.skills.length, 0);
