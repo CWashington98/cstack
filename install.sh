@@ -26,11 +26,16 @@ usage() {
 groups=()
 if [ "$#" -eq 0 ]; then
   # Detect from this project's package.json files, skipping installed packages.
-  pkgs=$(find . -maxdepth 4 -name package.json -not -path "*/node_modules/*" 2>/dev/null || true)
-  if [ -n "$pkgs" ]; then
-    if grep -l '"expo"' $pkgs >/dev/null 2>&1; then groups+=(expo); fi
-    if grep -lE '"(react-dom|next)"' $pkgs >/dev/null 2>&1; then groups+=(web); fi
-  fi
+  pkgs=$(find . -maxdepth 4 -name package.json -not -path "*/node_modules/*" -not -path "*/.*/*" 2>/dev/null || true)
+  expo=0; web=0
+  for f in $pkgs; do
+    # An Expo app often lists react-dom for Expo's own web support, so an Expo package.json counts only as Expo.
+    if grep -q '"expo"' "$f"; then expo=1
+    elif grep -qE '"(react-dom|next)"' "$f"; then web=1
+    fi
+  done
+  if [ "$expo" = 1 ]; then groups+=(expo); fi
+  if [ "$web" = 1 ]; then groups+=(web); fi
   if [ -n "$(find . -maxdepth 3 \( -name vercel.json -o -name .vercel \) -not -path "*/node_modules/*" 2>/dev/null)" ]; then groups+=(vercel); fi
   echo "Detected for this project: ${groups[*]:-nothing extra}"
 else

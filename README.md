@@ -9,11 +9,23 @@ third-party skill repos, plus stable python snippets. Licensing/attribution:
 
 ## Install
 
+From your project's folder, run:
+
 ```bash
-claude plugin marketplace add CWashington98/cstack
-claude plugin install cstack@cstack          # the core skills — everywhere
-claude plugin install ui-ux-pro-max@cstack   # externals — only where wanted
+curl -fsSL https://raw.githubusercontent.com/CWashington98/cstack/main/install.sh | bash
 ```
+
+Inside Claude Code, put `!` in front to run it there. Run the same command again later to update.
+
+It installs the everyday set: `cstack`, `plain`, `verify`, `pstack-picks`, `ponytail-picks` and `caveman-picks`. Then it looks at the project's `package.json` files and adds what the project uses:
+
+| Group | Added when | Plugins |
+|---|---|---|
+| `expo` | A `package.json` lists `expo` | `expo-picks`, `rn-callstack-picks`, `rn-vercel-picks` |
+| `web` | A `package.json` without `expo` lists `react-dom` or `next` | `vercel-react-picks`, `good-css-picks` |
+| `vercel` | The project has `vercel.json` or a `.vercel` folder | `vercel-deploy-picks` |
+
+To choose the groups yourself, name them: `... | bash -s -- expo web`, or `all`. Plugins already installed are updated instead. Restart Claude Code afterwards. To install one plugin by hand: `claude plugin install <name>@cstack`.
 
 Borrowed skills are pinned pointers, never copies. Install the ones a project needs:
 

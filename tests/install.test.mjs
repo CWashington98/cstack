@@ -86,3 +86,20 @@ test("an unknown group stops before installing anything", () => {
 test("it ends by telling you to restart Claude Code", () => {
   assert.match(run().out, /[Rr]estart Claude Code/);
 });
+
+test("an Expo app that lists react-dom for Expo's web support doesn't count as a web app", () => {
+  const names = installedNames(run([], { pkgs: { "package.json": { expo: "54", react: "19", "react-dom": "19", "react-native": "0.81" } } }).calls);
+  assert.ok(names.includes("expo-picks"));
+  assert.ok(!names.includes("vercel-react-picks"));
+});
+
+test("a monorepo with an Expo app and a separate Next.js app gets both", () => {
+  const names = installedNames(run([], { pkgs: { "apps/mobile/package.json": { expo: "54", "react-dom": "19" }, "apps/web/package.json": { next: "16", "react-dom": "19" } } }).calls);
+  assert.ok(names.includes("expo-picks") && names.includes("vercel-react-picks"));
+});
+
+test("package.json files in hidden folders, such as old worktree copies, are ignored", () => {
+  const names = installedNames(run([], { pkgs: { ".claude/worktrees/old/package.json": { expo: "54" }, "apps/web/.next/package.json": { next: "16" } } }).calls);
+  assert.ok(!names.includes("expo-picks"));
+  assert.ok(!names.includes("vercel-react-picks"));
+});
