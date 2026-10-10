@@ -92,3 +92,11 @@ test("pr-review records each verdict against the reviewed commit from meta.json"
   assert.ok(writes.length >= 2, "the skill shows the write commands");
   for (const l of writes) assert.match(l, /--meta "\$OUT\/meta\.json"/, l);
 });
+
+test("drive-web names each way to drive a browser and when to use it", () => {
+  const text = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "skills", "drive-web", "SKILL.md"), "utf8");
+  for (const driver of ["Playwright, headless", "Playwright, with a window", "Chrome DevTools", "Claude in Chrome"]) {
+    assert.ok(text.includes(driver), `drive-web should cover ${driver}`);
+  }
+  for (const capture of ["fullPage", "recordVideo", "tracing.start"]) assert.ok(text.includes(capture), `drive-web should show ${capture}`);
+});
