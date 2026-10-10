@@ -28,8 +28,8 @@ session for the next agent · `prototype` — throwaway builds to flush out a de
 `improve-codebase-architecture` — deepening/refactoring survey.
 
 **Craft (Vercel-authored, through the `vercel-react-picks` pointer):** `web-design-guidelines` — UI/accessibility review ·
-`vercel-react-best-practices`, `vercel-composition-patterns`, `vercel-react-view-transitions` — React review checklists (these are the installed names; the folders drop the `vercel-` prefix) ·
-`email-best-practices` — deliverability/compliance.
+`vercel-react-best-practices`, `vercel-composition-patterns`, `vercel-react-view-transitions` — React review checklists (these are the installed names; the folders drop the `vercel-` prefix).
+**Deploy (Vercel-authored, through the `vercel-deploy-picks` pointer):** `deploy-to-vercel`, `vercel-cli-with-tokens`, `vercel-optimize`.
 
 **Plugins (official marketplace):** `superpowers` — the discipline layer (skill-first,
 brainstorm-first, verify-before-done) · `code-review` — variable-effort diff review ·
