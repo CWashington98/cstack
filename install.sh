@@ -12,11 +12,12 @@
 # The everyday set is installed for you, in every project. The groups are installed for this
 # project only, so an Expo app's skills don't load in a web project.
 
+SOURCE="CWashington98/cstack"
+
 # Everything is inside main, which runs on the last line. When this file is piped into bash,
 # a half-downloaded copy then runs nothing, and nothing below can be eaten as input.
 main() {
   set -euo pipefail
-  local SOURCE="CWashington98/cstack"
 
   # Each group names plugins from .claude-plugin/marketplace.json. A test checks every name is there.
   local GROUP_EVERYDAY="cstack plain verify pstack-picks ponytail-picks caveman-picks"
@@ -119,7 +120,7 @@ install_or_update() {
     claude plugin update "$p@cstack" --scope "$have" </dev/null
   else
     echo "Installing $p ($scope)"
-    claude plugin install "$p" --marketplace "CWashington98/cstack" --scope "$scope" </dev/null
+    claude plugin install "$p" --marketplace "$SOURCE" --scope "$scope" </dev/null
   fi
 }
 

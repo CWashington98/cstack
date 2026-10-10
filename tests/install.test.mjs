@@ -55,7 +55,9 @@ const callFor = (calls, p) => acted(calls).find((c) => c.split(" ")[2].replace(/
 test("every plugin the script can install is listed in the marketplace", () => {
   const text = readFileSync(script, "utf8");
   const known = new Set(market.plugins.map((p) => p.name));
-  for (const m of text.matchAll(/^GROUP_[A-Z]+="([^"]*)"/gm)) for (const n of m[1].split(" ").filter(Boolean)) assert.ok(known.has(n), `${n} is not in the marketplace`);
+  const groups = [...text.matchAll(/^\s*(?:local\s+)?GROUP_[A-Z]+="([^"]*)"/gm)];
+  assert.equal(groups.length, 4, "the four groups (everyday, web, vercel, expo) are found, so this check can't go quiet");
+  for (const m of groups) for (const n of m[1].split(" ").filter(Boolean)) assert.ok(known.has(n), `${n} is not in the marketplace`);
 });
 
 test("with no arguments and no package.json, it installs the everyday set for the user", () => {
