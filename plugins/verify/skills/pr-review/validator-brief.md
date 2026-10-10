@@ -25,7 +25,7 @@ Write `<OUT>/validation.json` with a Bash heredoc, then reply with the same JSON
 
 ```json
 [
-  { "id": "karen-1", "reproduced": true, "reproduction": "ran npm test -- cap.test.mjs after flipping line 42; 0 tests failed" },
+  { "id": "claims-auditor-1", "reproduced": true, "reproduction": "ran npm test -- cap.test.mjs after flipping line 42; 0 tests failed" },
   { "id": "codex-1", "reproduced": false, "reproduction": "ran the steps given; the list showed all 3 rows, as expected" }
 ]
 ```

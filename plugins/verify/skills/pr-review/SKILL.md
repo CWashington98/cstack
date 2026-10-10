@@ -1,11 +1,11 @@
 ---
 name: pr-review
-description: Review a pull request with two independent verdicts, from Karen (Claude) and Codex (OpenAI), tied to the exact commit. It posts them as one plain-English comment a person can read in two minutes. Every finding must be reproduced by a separate check, or it is dropped. Use it before opening any pull request, again on its final commit before merge, and when asked to review a teammate's pull request.
+description: Review a pull request with two independent verdicts, from the claims auditor (Claude) and Codex (OpenAI), tied to the exact commit. It posts them as one plain-English comment a person can read in two minutes. Every finding must be reproduced by a separate check, or it is dropped. Use it before opening any pull request, again on its final commit before merge, and when asked to review a teammate's pull request.
 ---
 
 # Reviewing a pull request
 
-Every pull request gets two verdicts: one from Karen, our independent reviewer agent on Claude, and one from Codex, OpenAI's coding agent. Models from different companies catch different mistakes. Both verdicts are required.
+Every pull request gets two verdicts: one from the claims auditor, our independent reviewer agent on Claude, which checks what was built against what was claimed, and one from Codex, OpenAI's coding agent. Models from different companies catch different mistakes. Both verdicts are required.
 
 Below, `<plugin>` means this skill's folder followed by `/../..`, which is the plugin's root folder.
 
@@ -40,11 +40,11 @@ Make `OUT` a new, empty folder in the scratch directory, then:
 node <plugin>/scripts/review-prep.mjs --base <base> --spec <spec file> --pr-body <description file> --out "$OUT"
 ```
 
-It writes the change, the file list, the spec and the description into `OUT`, and one private copy of the code each for Karen, Codex and the validator. Each copy has only two commits, "base" and "change under review", so no commit message from the author travels with it. It prints `meta.json`, which holds the head commit.
+It writes the change, the file list, the spec and the description into `OUT`, and one private copy of the code each for the claims auditor, Codex and the validator. Each copy has only two commits, "base" and "change under review", so no commit message from the author travels with it. It prints `meta.json`, which holds the head commit.
 
 ## 5. Run the two reviewers at the same time
 
-- **Karen:** use the Agent tool with `subagent_type` set to `karen` (or `cstack:karen` when it comes from the plugin), on the most capable model. Give her `karen-brief.md` from this folder, with its values filled in. She writes `OUT/karen.json`.
+- **Claims auditor:** use the Agent tool with `subagent_type` set to `claims-auditor` (or `cstack:claims-auditor` when it comes from the plugin, which needs the core plugin at version 3.0.0 or later; before that it was called `karen`), on the most capable model. Give it `claims-auditor-brief.md` from this folder, with its values filled in. It writes `OUT/claims-auditor.json`.
 - **Codex:** fill in `codex-prompt.md` and save it as `OUT/codex-prompt.md`. Keep the skeptic angle always. Add the architect angle for changes over about 100 lines, the minimalist angle for changes over about 300 lines, and the security angle when the risk is high. Then run, in the background:
 
 ```sh
@@ -53,7 +53,7 @@ codex exec -s read-only -C "$OUT/codex/repo" --ephemeral --output-schema <this s
 
 Confirm the flags with `codex exec --help` first. If it doesn't read the prompt from standard input with `-`, pass the prompt file's contents as the argument instead.
 
-- **When Codex can't run:** if Codex stops with a usage limit or quota message, run a Claude reviewer in its place. Use the Agent tool with `subagent_type` set to `general-purpose` and `model` set to a model other than Karen's, such as `sonnet`. Give it the same prompt, and have it write `OUT/fallback.json`. Its verdict is recorded as `claude-fallback`, with a note quoting Codex's error. Never skip the second verdict.
+- **When Codex can't run:** if Codex stops with a usage limit or quota message, run a Claude reviewer in its place. Use the Agent tool with `subagent_type` set to `general-purpose` and `model` set to a model other than the claims auditor's, such as `sonnet`. Give it the same prompt, and have it write `OUT/fallback.json`. Its verdict is recorded as `claude-fallback`, with a note quoting Codex's error. Never skip the second verdict.
 
 ## 6. Reproduce every finding
 
@@ -62,7 +62,7 @@ Combine the findings from both answers into `OUT/findings.json`, keeping only `i
 Then merge its results into each answer:
 
 ```sh
-node <plugin>/scripts/verdict.mjs merge --report "$OUT/karen.json" --validation "$OUT/validation.json" --out "$OUT/karen.final.json"
+node <plugin>/scripts/verdict.mjs merge --report "$OUT/claims-auditor.json" --validation "$OUT/validation.json" --out "$OUT/claims-auditor.final.json"
 node <plugin>/scripts/verdict.mjs merge --report "$OUT/codex.json" --validation "$OUT/validation.json" --out "$OUT/codex.final.json"
 ```
 
@@ -71,21 +71,21 @@ Only reproduced blocking findings can make a verdict "not ready". Findings marke
 ## 7. Record the verdicts
 
 ```sh
-node <plugin>/scripts/verdict.mjs write --reviewer karen --report "$OUT/karen.final.json" --meta "$OUT/meta.json"
+node <plugin>/scripts/verdict.mjs write --reviewer claims-auditor --report "$OUT/claims-auditor.final.json" --meta "$OUT/meta.json"
 node <plugin>/scripts/verdict.mjs write --reviewer codex --report "$OUT/codex.final.json" --meta "$OUT/meta.json"
 node <plugin>/scripts/verdict.mjs check --base <base> --head "$(node -p "require('$OUT/meta.json').head")"
 ```
 
 Each verdict lands on the commit in `meta.json`, the one the reviewers actually saw, even if someone commits while the review runs. `write` refuses a `--head` or `--base` that doesn't match it. It prints the path of the verdict file it wrote; the next step needs both paths.
 
-For a fallback reviewer, write `--reviewer claude-fallback --note "<Codex's error>" --model <model>`. Verdicts are stored in the repository's git folder, keyed by commit. They are never committed.
+For a fallback reviewer, write `--reviewer claude-fallback --note "<Codex's error>" --model <model>`. Verdicts are stored in the repository's git folder as `<commit>.<reviewer>.json`. They are never committed. Verdicts saved before the claims auditor got its name are stored as `<commit>.karen.json`, and still count as the claims auditor's.
 
 ## 8. Write the comment
 
 Both verdicts become one comment. Use the Agent tool with `subagent_type` set to `general-purpose` and `model` set to `sonnet`, and give it `writer-brief.md` from this folder with its values filled in: the two verdict file paths from step 7. It writes `OUT/writer.json`, the plain sentences, and runs the `review` command until the text passes its check. Then render the comment yourself:
 
 ```sh
-node <plugin>/scripts/verdict.mjs review --karen <Karen's verdict file> --other <the other verdict file> --writer "$OUT/writer.json" > "$OUT/comment.md"
+node <plugin>/scripts/verdict.mjs review --claims-auditor <the claims auditor's verdict file> --other <the other verdict file> --writer "$OUT/writer.json" > "$OUT/comment.md"
 ```
 
 The script builds the layout, the numbering, the headline, "what you need to do" and the technical detail from the verdicts. It refuses a writer's text that leaves out a confirmed finding, adds one, rates the merge risk lower than a reviewer did, or puts code in the plain part. The writer can't change a verdict.
@@ -123,7 +123,7 @@ Run `node <plugin>/scripts/verdict.mjs check --base <base>` on the final commit.
 
 Fetch the head with `git fetch origin pull/<number>/head:review/<number>`, and use `review/<number>` as the head. On top of the rules above:
 
-- Prove each fix by watching its test fail without the fix and pass with it, in Karen's copy.
+- Prove each fix by watching its test fail without the fix and pass with it, in the claims auditor's copy.
 - Check that mirror pull requests are byte-identical, by comparing `verdict.mjs patch-id` for each.
 - Draft the comment the same way, in the same layout, and show it to the owner. Post it only after they approve.
 - Never add reviewers the owner didn't ask for.

@@ -1,6 +1,6 @@
-# Karen's brief
+# The claims auditor's brief
 
-The `pr-review` skill fills in the values in angle brackets and gives this text to Karen.
+The `pr-review` skill fills in the values in angle brackets and gives this text to the claims auditor.
 
 ---
 
@@ -14,7 +14,7 @@ The review folder is `<OUT>`. You may read only these:
 - `<OUT>/files.txt`: every file the change adds, edits or deletes;
 - `<OUT>/spec/`: the spec, with its "Proved by" lines (it may be empty);
 - `<OUT>/pr.md`: the pull request description (it may be missing before the pull request opens);
-- `<OUT>/karen/repo`: your private copy of the code at commit `<HEAD>`.
+- `<OUT>/claims-auditor/repo`: your private copy of the code at commit `<HEAD>`.
 
 You never get the author's reasoning, and you don't need it. Judge the change by what it does.
 
@@ -35,7 +35,7 @@ The plugin's scripts are in `<PLUGIN>/scripts`.
 
 ## Your answer
 
-Write your answer as JSON to `<OUT>/karen.json` with a Bash heredoc, then reply with the same JSON:
+Write your answer as JSON to `<OUT>/claims-auditor.json` with a Bash heredoc, then reply with the same JSON:
 
 ```json
 {
@@ -47,7 +47,7 @@ Write your answer as JSON to `<OUT>/karen.json` with a Bash heredoc, then reply 
   "not_checked": ["what you couldn't check, one per line"],
   "findings": [
     {
-      "id": "karen-1",
+      "id": "claims-auditor-1",
       "claim": "what is wrong, in one sentence",
       "impact": "what goes wrong for a person, in plain words: who notices, and when",
       "fix": "the suggested fix, in one sentence",
@@ -63,4 +63,4 @@ Write your answer as JSON to `<OUT>/karen.json` with a Bash heredoc, then reply 
 }
 ```
 
-Number the ids `karen-1`, `karen-2` and so on. Use "blocking" only for a problem that must be fixed before merge. Use "decide" for a question the owner must answer, such as a spec that allows something that undermines its own goal. Use "note" for everything else; notes never block a merge. A separate check will try to reproduce every finding; any it can't reproduce is dropped. So make `how_to_reproduce` exact.
+Number the ids `claims-auditor-1`, `claims-auditor-2` and so on. Use "blocking" only for a problem that must be fixed before merge. Use "decide" for a question the owner must answer, such as a spec that allows something that undermines its own goal. Use "note" for everything else; notes never block a merge. A separate check will try to reproduce every finding; any it can't reproduce is dropped. So make `how_to_reproduce` exact.

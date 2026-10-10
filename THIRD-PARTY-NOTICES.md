@@ -13,7 +13,7 @@ Outside material appears in this repository in two ways, on purpose:
 | `plain`, `cold-reader`, `to-diagram` | plain | Written here |
 | `verify`, `drive-web`, `drive-expo`, `pr-review` | verify | Written here |
 | `verify-setup`, `verify-upkeep` | verify | Adapted from Lauren Tan's `create-verification-skill` and `maintain-verification-skill` (pstack, MIT). See `plugins/verify/THIRD_PARTY.md`. |
-| `karen` agent | core | The idea and name come from the Karen agent in [darcyegb/ClaudeCodeAgents](https://github.com/darcyegb/ClaudeCodeAgents) (MIT). Ours is rewritten: she re-runs the tests herself, checks scope and returns a ready or not ready verdict. |
+| `claims-auditor` agent | core | The idea comes from the Karen agent in [darcyegb/ClaudeCodeAgents](https://github.com/darcyegb/ClaudeCodeAgents) (MIT), and ours was called karen until we renamed it for what it does. Ours is rewritten: it re-runs the tests itself, checks scope and returns a ready or not ready verdict. |
 | `write-a-skill` | core | Copied word for word from an earlier version of [Matt Pocock's skills](https://github.com/mattpocock/skills) (MIT), which no longer ships it. We added two lines that read the project's notes. His copyright and license travel with it in `plugins/core/skills/write-a-skill/LICENSE`. |
 | `deslop` | core | Copied from a project's local skills folder in July 2026; its first source is unknown. |
 

@@ -36,4 +36,4 @@ A file is only "verified" when its colocated tests ran.
 | <**/__tests__/**> | <test engineer>     |
 
 Risk decides delegation, not size: 3 lines of billing → expert; 50 lines of CSS → direct.
-After any agent claims done: run **karen** (independent verification) before merge.
+After any agent claims done: run **claims-auditor** (independent verification) before merge.

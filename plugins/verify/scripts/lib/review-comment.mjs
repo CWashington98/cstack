@@ -3,9 +3,11 @@
 // detail come from this file; the writer only supplies short plain sentences, and a check
 // makes sure it covered every confirmed finding and changed no verdict.
 
+import { currentName } from "./verdict.mjs";
+
 const short = (sha) => sha.slice(0, 12);
-const WHO = { karen: "Karen", codex: "Codex", "claude-fallback": "the stand-in for Codex" };
-const FULL = { karen: "Karen (Claude)", codex: "Codex (OpenAI)", "claude-fallback": "Stand-in for Codex (Claude)" };
+const WHO = { "claims-auditor": "the claims auditor", codex: "Codex", "claude-fallback": "the stand-in for Codex" };
+const FULL = { "claims-auditor": "Claims auditor (Claude)", codex: "Codex (OpenAI)", "claude-fallback": "Stand-in for Codex (Claude)" };
 // Severity words in the reviewers' reports, strictest first, and the group each lands in.
 const RANK = { blocking: 0, decide: 1, note: 2 };
 const GROUPS = [
@@ -23,9 +25,9 @@ const words = (s) => (s ?? "").trim().split(/\s+/).filter(Boolean).length;
 const andList = (xs) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}`);
 const plural = (n, one, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-function confirmed({ karen, other }) {
+function confirmed({ claimsAuditor, other }) {
   const all = new Map();
-  for (const v of [karen, other]) for (const f of v.findings ?? []) all.set(f.id, { ...f, reviewer: v.reviewer });
+  for (const v of [claimsAuditor, other]) for (const f of v.findings ?? []) all.set(f.id, { ...f, reviewer: v.reviewer });
   return all;
 }
 
@@ -35,8 +37,10 @@ function groupOf(item, all) {
 }
 
 // Returns a list of problems; empty means the writer's text can be rendered.
-export function checkWriter(verdicts, w) {
-  const { karen, other } = verdicts;
+export function checkWriter(given, w) {
+  // Verdicts saved before the claims auditor was renamed say reviewer "karen".
+  const verdicts = { claimsAuditor: currentName(given.claimsAuditor), other: currentName(given.other) };
+  const { claimsAuditor, other } = verdicts;
   const problems = [];
   const text = (name, value, limit, required = true) => {
     if (typeof value !== "string" || !value.trim()) { if (required) problems.push(`${name} is missing.`); return; }
@@ -50,7 +54,7 @@ export function checkWriter(verdicts, w) {
   text("what_it_does", w?.what_it_does, LIMITS.what_it_does);
   if (!RISK.includes(w?.merge_risk?.level)) problems.push("merge_risk.level must be low, medium or high.");
   text("merge_risk.why", w?.merge_risk?.why, LIMITS.why);
-  for (const v of [karen, other]) {
+  for (const v of [claimsAuditor, other]) {
     const theirs = v.merge_risk?.level;
     if (RISK.includes(theirs) && RISK.includes(w?.merge_risk?.level) && RISK.indexOf(w.merge_risk.level) < RISK.indexOf(theirs))
       problems.push(`${FULL[v.reviewer].split(" (")[0]} rated the merge risk ${theirs}; the comment can't rate it lower.`);
@@ -60,8 +64,8 @@ export function checkWriter(verdicts, w) {
   if (w?.not_checked !== undefined && !Array.isArray(w.not_checked)) problems.push("not_checked must be a list (empty when there's nothing to add).");
   else (w?.not_checked ?? []).forEach((l, i) => text(`not_checked line ${i + 1}`, l, LIMITS.line));
 
-  const kIds = new Set((karen.findings ?? []).map((f) => f.id));
-  for (const f of other.findings ?? []) if (kIds.has(f.id)) problems.push(`both reviewers used the finding id ${f.id}. Each reviewer numbers its own findings (karen-1, codex-1), so one can't hide the other. Fix the ids in the reports and record the verdicts again.`);
+  const kIds = new Set((claimsAuditor.findings ?? []).map((f) => f.id));
+  for (const f of other.findings ?? []) if (kIds.has(f.id)) problems.push(`both reviewers used the finding id ${f.id}. Each reviewer numbers its own findings (claims-auditor-1, codex-1), so one can't hide the other. Fix the ids in the reports and record the verdicts again.`);
   const all = confirmed(verdicts);
   const seen = new Map();
   const items = Array.isArray(w?.items) ? w.items : (problems.push("items must be a list (empty when there are no findings)."), []);
@@ -101,23 +105,26 @@ export function checkWriter(verdicts, w) {
   for (const [id, f] of all) if (f.reproduced === true && !seen.has(id)) problems.push(`${id} is not in any item. Every confirmed finding must appear once.`);
   // The headline must agree with the verdicts: a must-fix item exactly when a verdict is "not ready".
   const mustFix = items.some((it) => it && Array.isArray(it.sources) && it.sources.length && it.sources.every((id) => all.has(id)) && groupOf(it, all) === "blocking");
-  for (const v of [karen, other]) {
+  for (const v of [claimsAuditor, other]) {
     const name = FULL[v.reviewer].split(" (")[0];
     if (v.verdict === "not ready" && !mustFix) problems.push(`${name}'s verdict is not ready, but no item is a must-fix. The comment would say it can merge.`);
   }
-  if (mustFix && karen.verdict === "ready" && other.verdict === "ready") problems.push("an item is a must-fix, but both verdicts are ready. Record the verdicts again from the checked findings.");
+  if (mustFix && claimsAuditor.verdict === "ready" && other.verdict === "ready") problems.push("an item is a must-fix, but both verdicts are ready. Record the verdicts again from the checked findings.");
   return problems;
 }
 
-function sameChange(karen, other) {
-  return karen.head === other.head || (karen.patchId && karen.patchId !== "empty" && karen.patchId === other.patchId);
+function sameChange(claimsAuditor, other) {
+  return claimsAuditor.head === other.head || (claimsAuditor.patchId && claimsAuditor.patchId !== "empty" && claimsAuditor.patchId === other.patchId);
 }
 
-export function renderReview({ karen, other, writer: w }) {
-  if (!sameChange(karen, other)) throw new Error(`the two verdicts are for a different change (${short(karen.head)} and ${short(other.head)}). Review the same commit with both reviewers.`);
-  const problems = checkWriter({ karen, other }, w);
+export function renderReview({ claimsAuditor: givenAuditor, other: givenOther, writer: w }) {
+  // Verdicts saved before the claims auditor was renamed say reviewer "karen".
+  const claimsAuditor = currentName(givenAuditor);
+  const other = currentName(givenOther);
+  if (!sameChange(claimsAuditor, other)) throw new Error(`the two verdicts are for a different change (${short(claimsAuditor.head)} and ${short(other.head)}). Review the same commit with both reviewers.`);
+  const problems = checkWriter({ claimsAuditor, other }, w);
   if (problems.length) throw new Error(problems.join("\n"));
-  const all = confirmed({ karen, other });
+  const all = confirmed({ claimsAuditor, other });
 
   // Number items once, in group order, so a reply can say "fix 2".
   const grouped = GROUPS.map((g) => ({ ...g, items: w.items.filter((it) => groupOf(it, all) === g.key) }));
@@ -134,7 +141,7 @@ export function renderReview({ karen, other, writer: w }) {
   if (fix.length) todo = `fix ${fix.length === 1 ? "item" : "items"} ${andList(fix.map(String))} before merging.${decide.length ? ` Then answer ${decide.length === 1 ? "item" : "items"} ${andList(decide.map(String))}.` : ""}`;
   else if (decide.length) todo = `answer ${decide.length === 1 ? "item" : "items"} ${andList(decide.map(String))}. Nothing has to be fixed before merging.`;
   else todo = "nothing. It can merge.";
-  if (karen.verdict !== other.verdict) todo += ` The reviewers disagree: Karen says ${karen.verdict} and ${WHO[other.reviewer].replace(/^the /, "The ")} says ${other.verdict}. You decide.`;
+  if (claimsAuditor.verdict !== other.verdict) todo += ` The reviewers disagree: the claims auditor says ${claimsAuditor.verdict} and ${WHO[other.reviewer].replace(/^the /, "The ")} says ${other.verdict}. You decide.`;
 
   const sure = (it) => {
     const by = [...new Set(it.sources.map((id) => all.get(id).reviewer))];
@@ -143,7 +150,7 @@ export function renderReview({ karen, other, writer: w }) {
   };
 
   const out = [
-    `<!-- verify-review head=${karen.head} patch-id=${karen.patchId} karen=${karen.verdict} other=${other.reviewer}:${other.verdict} -->`,
+    `<!-- verify-review head=${claimsAuditor.head} patch-id=${claimsAuditor.patchId} claims-auditor=${claimsAuditor.verdict} other=${other.reviewer}:${other.verdict} -->`,
     `## Review: ${headline}`,
     "",
     `**What you need to do:** ${todo}`,
@@ -153,8 +160,8 @@ export function renderReview({ karen, other, writer: w }) {
     `**Merge risk: ${w.merge_risk.level}.** ${w.merge_risk.why.trim()}`,
     "",
     `**Who reviewed it:** ${other.reviewer === "claude-fallback"
-      ? "Karen, an AI reviewer that runs on Claude (made by Anthropic), and a second Claude reviewer standing in for Codex (OpenAI's AI reviewer), each read the change on their own."
-      : "two AI reviewers from different companies each read the change on their own: Karen, which runs on Claude (made by Anthropic), and Codex (made by OpenAI)."} Then a third AI agent, called the checking agent here, ran the code to try to make each reported problem happen. It never saw the reviews, only the problems. The comment lists only the problems it could make happen.`,
+      ? "the claims auditor, an AI reviewer that runs on Claude (made by Anthropic), and a second Claude reviewer standing in for Codex (OpenAI's AI reviewer), each read the change on their own."
+      : "two AI reviewers from different companies each read the change on their own: the claims auditor, which runs on Claude (made by Anthropic), and Codex (made by OpenAI)."} Then a third AI agent, called the checking agent here, ran the code to try to make each reported problem happen. It never saw the reviews, only the problems. The comment lists only the problems it could make happen.`,
   ];
   for (const g of grouped) {
     out.push("", `### ${g.heading}`, "");
@@ -207,13 +214,13 @@ export function renderReview({ karen, other, writer: w }) {
       ...(g.key === "decide" ? { options: it.options } : { fix: it.fix.trim() }),
       after, files, show, done_when: done,
       sources: srcs.map((f) => ({ id: f.id, reviewer: f.reviewer, file: f.file ?? null, line: f.line ?? null, claim: f.claim, trigger: f.trigger ?? null, how_to_reproduce: f.how_to_reproduce ?? null, reproduction: f.reproduction ?? null })),
-      head: karen.head, patch_id: karen.patchId ?? null,
+      head: claimsAuditor.head, patch_id: claimsAuditor.patchId ?? null,
     });
   }
-  detail.push(`**Reviewers.** ${FULL[karen.reviewer]}: ${karen.verdict}. ${FULL[other.reviewer]}${other.model ? `, model ${other.model}` : ""}: ${other.verdict}.`);
-  for (const v of [karen, other]) if (v.said && v.said !== v.verdict) detail.push(`${FULL[v.reviewer]} said "${v.said}"; only findings the checking agent confirmed count, so the verdict is "${v.verdict}".`);
+  detail.push(`**Reviewers.** ${FULL[claimsAuditor.reviewer]}: ${claimsAuditor.verdict}. ${FULL[other.reviewer]}${other.model ? `, model ${other.model}` : ""}: ${other.verdict}.`);
+  for (const v of [claimsAuditor, other]) if (v.said && v.said !== v.verdict) detail.push(`${FULL[v.reviewer]} said "${v.said}"; only findings the checking agent confirmed count, so the verdict is "${v.verdict}".`);
   if (other.note) detail.push(`Why Codex could not run: ${other.note}`);
-  detail.push("", `**Commit** \`${short(karen.head)}\`, change fingerprint \`${short(karen.patchId ?? "")}\`. A new commit clears this review, unless a rebase leaves the change identical.`, "");
+  detail.push("", `**Commit** \`${short(claimsAuditor.head)}\`, change fingerprint \`${short(claimsAuditor.patchId ?? "")}\`. A new commit clears this review, unless a rebase leaves the change identical.`, "");
   const dropped = [...all.values()].filter((f) => f.reproduced === false);
   if (dropped.length) detail.push("Dropped, because the checking agent could not make them happen:", ...dropped.map((f) => `- ${end(f.claim ?? "no claim recorded")} (${f.id}, from ${WHO[f.reviewer]}.) Checked: ${end(f.reproduction ?? "no notes recorded")}`));
   else detail.push("Dropped findings: none.");

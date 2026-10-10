@@ -8,7 +8,7 @@ command, what you stamp from templates, and the doctrine that makes it hold toge
 ```bash
 # This marketplace:
 claude plugin marketplace add CWashington98/cstack
-claude plugin install cstack@cstack          # core skills + the karen agent
+claude plugin install cstack@cstack          # core skills + the claims-auditor agent
 claude plugin install ui-ux-pro-max@cstack   # externals — only where wanted
 
 # Companion plugins from Anthropic's official marketplace (built in — no setup):
@@ -38,7 +38,7 @@ agents, the routing table, and the hooks skeleton from these templates. Manual p
   non-negotiables, source-of-truth table, validate-before-done commands, and routing table.
 - `templates/cstack.md.template` → `<project>/.claude/cstack.md` — per-repo factual deltas
   for the skills ("change what a skill KNOWS, not what it DOES").
-- The **karen** agent ships with the plugin — invoke after any agent claims "done":
+- The **claims-auditor** agent ships with the plugin — invoke after any agent claims "done":
   independent re-run of the gates, scope check, explicit READY / NOT READY.
 
 ## 3. Enforcement hooks — the fool-proof layer

@@ -8,7 +8,7 @@
     {
       "name": "cstack",
       "source": "./plugins/core",
-      "description": "Crishon's own Claude Code skills (deslop, write-a-skill, bootstrap-agents, upkeep) and the karen verification agent. Borrowed skills are pinned pointers listed below, not copies."
+      "description": "Crishon's own Claude Code skills (deslop, write-a-skill, bootstrap-agents, upkeep) and the claims-auditor agent, which checks finished work against what was claimed. Borrowed skills are pinned pointers listed below, not copies."
     },
     {
       "name": "plain",
@@ -19,7 +19,7 @@
     {
       "name": "verify",
       "source": "./plugins/verify",
-      "description": "Proves that work works, not only that tests pass: a proof standard, a check that specs and plans name their evidence, one verification skill per app (created by verify-setup, kept honest by verify-upkeep), shared guides for driving web and Expo apps, and the pr-review skill: Karen plus Codex verdicts tied to the commit, posted as one plain-English comment."
+      "description": "Proves that work works, not only that tests pass: a proof standard, a check that specs and plans name their evidence, one verification skill per app (created by verify-setup, kept honest by verify-upkeep), shared guides for driving web and Expo apps, and the pr-review skill: claims auditor plus Codex verdicts tied to the commit, posted as one plain-English comment."
     },
     {
       "name": "agent-browser",

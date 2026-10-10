@@ -42,18 +42,22 @@ the requirements gathering — don't skip it, don't stretch it past one round.
 From the confirmed map, using the templates (fill every placeholder — a template
 line left in the output is a defect):
 
+**Names say what things do.** Name every generated agent, skill, script and hook by
+its job (`billing-expert`, `check-migrations`), never by a person or a joke. A reader
+should know what it does from its name alone; its description says when to use it.
+
 1. **`CLAUDE.md`** from `templates/CLAUDE.md.template` — non-negotiables,
    source-of-truth table, validate-before-done (the commands proven in step 1),
    routing table.
 2. **One expert agent per confirmed domain** (2-3, not more) from
    `templates/agents/domain-expert.md.template` into `.claude/agents/` — each loaded
    with that domain's real paths, real commands, and any decisions the operator
-   named. karen ships with the cstack plugin; reference her, don't regenerate her.
+   named. claims-auditor ships with the cstack plugin; reference it, don't regenerate it.
 3. **Hooks skeleton** from the `recipes/bootstrap.md` starter into
    `.claude/settings.json` + `.claude/hooks/` — wired to the proven commands,
    exit-code gated, no bypass flags.
 4. **Optional**: a `/ship-check`-style command that spawns the security-lens expert
-   - karen in parallel on the current diff (see `recipes/review-pipeline.md` §3).
+   and claims-auditor in parallel on the current diff (see `recipes/review-pipeline.md` §3).
 
 ## 4 · Verify (the wizard eats its own contract)
 
@@ -61,6 +65,8 @@ line left in the output is a defect):
   today's reality (document a currently-red gate as such — don't ship a lie).
 - Every file path and agent name referenced anywhere: confirm it exists.
 - Grep the generated files for `<` placeholders: must be zero.
+- Every generated name says its job, and each agent's file name matches the `name:`
+  in its frontmatter.
 
 ## 5 · Hand off
 

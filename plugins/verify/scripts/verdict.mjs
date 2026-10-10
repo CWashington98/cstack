@@ -3,11 +3,11 @@
 // Usage:
 //   node verdict.mjs patch-id --base <ref> [--head <ref>]
 //   node verdict.mjs merge --report <json> --validation <json> --out <json>
-//   node verdict.mjs write --reviewer <karen|codex|claude-fallback> --report <json> --meta <review meta.json>
+//   node verdict.mjs write --reviewer <claims-auditor|codex|claude-fallback> --report <json> --meta <review meta.json>
 //        [--head <ref>] [--base <ref>] [--model <name>] [--note <why a fallback>]
 //        The verdict lands on the commit in meta.json; --head and --base must match it.
 //   node verdict.mjs check --base <ref> [--head <ref>] [--json]
-//   node verdict.mjs review --karen <verdict file> --other <verdict file> --writer <json>
+//   node verdict.mjs review --claims-auditor <verdict file> --other <verdict file> --writer <json>
 //        Prints the one review comment, or each problem with the writer's text and exit 1.
 //   node verdict.mjs items <comment file>
 //        Prints the comment's work packets as JSON, one per item, for a fixer agent or the build loop.
@@ -55,14 +55,14 @@ function main(argv) {
       if (a.json) console.log(JSON.stringify(r, null, 2));
       else {
         for (const p of r.problems) console.log(`hold  ${p}`);
-        const carried = [r.karen, r.other].filter((v) => v?.carriedFrom).map((v) => `${v.reviewer} carried over from ${v.carriedFrom.slice(0, 12)}`);
+        const carried = [r.claimsAuditor, r.other].filter((v) => v?.carriedFrom).map((v) => `${v.reviewer} carried over from ${v.carriedFrom.slice(0, 12)}`);
         console.log(r.ok ? `Passes: both reviewers say ready for ${r.head.slice(0, 12)}${carried.length ? ` (${carried.join("; ")}, identical change)` : ""}.` : `Held: ${r.problems.length} problem(s).`);
       }
       return r.ok ? 0 : 1;
     }
     if (cmd === "review") {
-      need("karen", "other", "writer");
-      const verdicts = { karen: readJson(a.karen), other: readJson(a.other) };
+      need("claims-auditor", "other", "writer");
+      const verdicts = { claimsAuditor: readJson(a["claims-auditor"]), other: readJson(a.other) };
       const writer = readJson(a.writer);
       const problems = checkWriter(verdicts, writer);
       if (problems.length) {
