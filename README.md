@@ -17,15 +17,15 @@ curl -fsSL https://raw.githubusercontent.com/CWashington98/cstack/main/install.s
 
 Inside Claude Code, put `!` in front to run it there. Run the same command again later to update.
 
-It installs the everyday set: `cstack`, `plain`, `verify`, `pstack-picks`, `ponytail-picks` and `caveman-picks`. Then it looks at the project's `package.json` files and adds what the project uses:
+It installs the everyday set for you, in every project: `cstack`, `plain`, `verify`, `pstack-picks`, `ponytail-picks` and `caveman-picks`. Then it looks at the project's `package.json` files and adds what the project uses, for this project only, so an Expo app's skills don't load in your web projects:
 
 | Group | Added when | Plugins |
 |---|---|---|
-| `expo` | A `package.json` lists `expo` | `expo-picks`, `rn-callstack-picks`, `rn-vercel-picks` |
+| `expo` | A `package.json` lists `expo` as a dependency | `expo-picks`, `rn-callstack-picks`, `rn-vercel-picks` |
 | `web` | A `package.json` without `expo` lists `react-dom` or `next` | `vercel-react-picks`, `good-css-picks` |
 | `vercel` | The project has `vercel.json` or a `.vercel` folder | `vercel-deploy-picks` |
 
-To choose the groups yourself, name them: `... | bash -s -- expo web`, or `all`. Plugins already installed are updated instead. Restart Claude Code afterwards. To install one plugin by hand: `claude plugin install <name>@cstack`.
+To choose the groups yourself, name them: `... | bash -s -- expo web`, or `all`. A plugin already installed for you, or for this project, is updated instead. One installed only in another project doesn't count. Folders inside `node_modules` and hidden folders, such as old worktree copies, are skipped. Restart Claude Code afterwards. To install one plugin by hand: `claude plugin install <name>@cstack`.
 
 Borrowed skills are pinned pointers, never copies. Install the ones a project needs:
 
