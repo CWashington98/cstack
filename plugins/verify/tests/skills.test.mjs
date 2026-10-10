@@ -92,3 +92,27 @@ test("pr-review records each verdict against the reviewed commit from meta.json"
   assert.ok(writes.length >= 2, "the skill shows the write commands");
   for (const l of writes) assert.match(l, /--meta "\$OUT\/meta\.json"/, l);
 });
+
+test("drive-web has a table row for each way to drive a browser, with its safety notes", () => {
+  const text = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "skills", "drive-web", "SKILL.md"), "utf8");
+  for (const driver of ["Playwright, headless", "Playwright, with a window", "Chrome DevTools", "Claude in Chrome"]) {
+    assert.ok(text.includes(`| **${driver}**`), `drive-web should have a table row for ${driver}`);
+  }
+  const row = (name) => text.split("\n").find((l) => l.startsWith(`| **${name}**`)) ?? "";
+  const watchOut = (name) => row(name).split("|")[4] ?? "";
+  assert.match(watchOut("Claude in Chrome"), /owner's real Chrome, with real accounts/, "the Claude in Chrome row warns it is the owner's real browser");
+  assert.match(watchOut("Claude in Chrome"), /Only use the test identity and the backends the app skill allows/, "the Claude in Chrome row limits it to the test identity and allowed backends");
+  assert.match(watchOut("Claude in Chrome"), /Never trigger alert, confirm or prompt dialogs/, "the Claude in Chrome row names the dialogs that freeze it");
+  assert.match(row("Chrome DevTools"), /stays signed in between sessions/, "the Chrome DevTools row warns that its profile keeps sign-ins");
+  assert.match(row("Chrome DevTools"), /--isolated/, "the Chrome DevTools row says how to get a clean profile");
+});
+
+test("drive-web's starting script records video and a trace and closes the context so the video is saved; its screenshot examples cover on-screen, full-page and one element", () => {
+  const text = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "skills", "drive-web", "SKILL.md"), "utf8");
+  assert.ok(text.includes('await import("playwright").catch(() => import("@playwright/test"))'), "the starting script loads whichever Playwright package the project installs");
+  assert.ok(text.includes("one .webm per page"), "the video note says one file per page");
+  for (const capture of ["recordVideo", "tracing.start", "tracing.stop", "await context.close()", "fullPage: true", 'page.getByRole("dialog").screenshot({ path: join(RUN, "save-dialog.png") })', 'page.screenshot({ path: join(RUN, "save-before.png") })']) {
+    assert.ok(text.includes(capture), `drive-web should show ${capture}`);
+  }
+  assert.ok(text.indexOf("await context.close()") < text.indexOf("await browser.close()"), "the context closes before the browser");
+});

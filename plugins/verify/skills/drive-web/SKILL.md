@@ -52,19 +52,33 @@ Run it before the first drive, and again after anything surprising. Save the out
 
 ## Choose the driver
 
-For proof, write a short Playwright script at `"$RUN/drive.mjs"` and run it with the project's own Playwright install. The steps are then saved, and can later become a replay. For exploring a page you don't know yet, use the browser tools (Chrome DevTools or Claude in Chrome), then write the script. Launch Chromium with `--autoplay-policy=no-user-gesture-required` when the feature plays audio or video.
+There are four ways to drive a browser. Pick by what the step needs:
+
+| Driver | Use it for | What it can capture | Watch out for |
+|---|---|---|---|
+| **Playwright, headless** (Chromium with no window) | Proof. The steps are a script, so they're saved and can be run again, and later become a replay. | Screenshots of the page, the full page or one element; video of the whole run; a trace of every step | Sign-in providers that block automated browsers; autoplay needs the flag below |
+| **Playwright, with a window** (`headless: false`) | Watching a script run while you fix it | The same | Slower; not for unattended runs |
+| **Chrome DevTools** (the `chrome-devtools` tools) | Exploring a page you don't know yet: the console, network requests, performance traces and an accessibility audit | Screenshots, console and network logs, performance traces | A separate browser profile, not your everyday Chrome, but it stays signed in between sessions. Check who is signed in before acting, and sign in as the test identity. Start its server with `--isolated` for a clean profile each time. |
+| **Claude in Chrome** (the `claude-in-chrome` tools) | Pages that need a real browser: a sign-in provider that blocks automation, or what the test identity sees in a real signed-in session | Screenshots and an animated recording of the steps | It is the owner's real Chrome, with real accounts. Only use the test identity and the backends the app skill allows. Never trigger alert, confirm or prompt dialogs, which freeze the tools. |
+
+Explore with Chrome DevTools or Claude in Chrome, then write the proof as a Playwright script at `"$RUN/drive.mjs"` and run it with the project's own Playwright install. A finding from exploring is only a lead: the proof is the script's run. Launch Chromium with `--autoplay-policy=no-user-gesture-required` when the feature plays audio or video.
 
 A starting point for `drive.mjs`:
 
 ```js
 // Written fresh for each run. Run with the project's Playwright: RUN=... BASE_URL=... node drive.mjs
-import { chromium } from "playwright";
+// Projects install either playwright or @playwright/test; this loads whichever is there.
+const { chromium } = await import("playwright").catch(() => import("@playwright/test"));
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 const { RUN, BASE_URL, STORAGE_STATE, CAPTURE } = process.env;
 const browser = await chromium.launch({ args: ["--autoplay-policy=no-user-gesture-required"] });
-const context = await browser.newContext(STORAGE_STATE ? { storageState: STORAGE_STATE } : {});
+const context = await browser.newContext({
+  ...(STORAGE_STATE ? { storageState: STORAGE_STATE } : {}),
+  recordVideo: { dir: RUN }, // one .webm per page (a second tab gets its own), saved when the context closes
+});
+await context.tracing.start({ screenshots: true, snapshots: true });
 const page = await context.newPage();
 let n = 0;
 page.on("response", async (r) => {
@@ -76,6 +90,8 @@ try {
   await page.goto(BASE_URL);
   // Steps from the feature file go here: screenshot, act, wait for the end state, screenshot.
 } finally {
+  await context.tracing.stop({ path: join(RUN, "trace.zip") }); // open with: npx playwright show-trace trace.zip
+  await context.close();
   await browser.close();
 }
 ```
@@ -90,7 +106,15 @@ Never use `waitForTimeout`. Wait for an element to appear or disappear, for a re
 
 ## Capture the trigger and the end state
 
-Take one screenshot just before the action and another once the end state holds: `"$RUN/<feature>-before.png"` and `"$RUN/<feature>-after.png"`. For pages that are mostly text, also save `page.locator("body").ariaSnapshot()` to a `.txt` file.
+Take one screenshot just before the action and another once the end state holds: `"$RUN/<feature>-before.png"` and `"$RUN/<feature>-after.png"`. Headless Chromium takes screenshots the same way a visible one does:
+
+```js
+await page.screenshot({ path: join(RUN, "save-before.png") });                 // what's on screen
+await page.screenshot({ path: join(RUN, "save-after.png"), fullPage: true });  // the whole page, scrolled
+await page.getByRole("dialog").screenshot({ path: join(RUN, "save-dialog.png") }); // one element
+```
+
+The video and trace from the starting point above cover the steps between screenshots. The trace shows every action with a picture of the page before and after it. For pages that are mostly text, also save `page.locator("body").ariaSnapshot()` to a `.txt` file.
 
 ## Read back side effects
 
