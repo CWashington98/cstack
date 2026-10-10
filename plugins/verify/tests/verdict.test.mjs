@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { makeRepo, git } from "../../../tests/helpers.mjs";
-import { writeVerdict, checkVerdicts, renderComment, effectiveVerdict, mergeValidation } from "../scripts/lib/verdict.mjs";
+import { writeVerdict, checkVerdicts, effectiveVerdict, mergeValidation, validateReport } from "../scripts/lib/verdict.mjs";
 import { prepare } from "../scripts/review-prep.mjs";
 
 const script = join(dirname(fileURLToPath(import.meta.url)), "..", "scripts", "verdict.mjs");
@@ -118,15 +118,14 @@ test("a fallback reviewer must say why Codex could not review", () => {
   assert.equal(checkVerdicts(root, { base: "main" }).ok, true);
 });
 
-test("the comment carries the commit, the change fingerprint and the dropped findings", () => {
+test("a decision for the owner never blocks, and the report's plain fields reach the verdict", () => {
+  assert.equal(effectiveVerdict({ verdict: "ready", findings: [finding({ severity: "decide" })] }).verdict, "ready");
+  assert.deepEqual(validateReport({ ...READY, findings: [finding({ severity: "urgent" })] }), ['finding codex-1: severity must be "blocking", "decide" or "note".']);
+  assert.match(validateReport({ ...READY, merge_risk: { level: "tiny" } }).join(), /merge_risk\.level/);
   const root = branchRepo();
-  const { record } = writeVerdict(root, { reviewer: "codex", report: { verdict: "not ready", summary: "One claim.", findings: [finding({ reproduced: false, reproduction: "could not see it" })] }, head: sha(root), base: "main" });
-  const c = renderComment(record);
-  assert.match(c, new RegExp(`head=${record.head}`));
-  assert.match(c, /patch-id=[0-9a-f]{40}/);
-  assert.match(c, /A new commit clears this verdict/);
-  assert.match(c, /Dropped/);
-  assert.match(c, /Codex \(OpenAI\): ready/);
+  const extra = { what_it_does: "Adds a line.", merge_risk: { level: "low", why: "one file" }, checked: ["read a.txt"], not_checked: [] };
+  const { record } = writeVerdict(root, { reviewer: "karen", report: { ...READY, ...extra }, head: sha(root), base: "main" });
+  for (const [k, v] of Object.entries(extra)) assert.deepEqual(record[k], v);
 });
 
 const NOT_READY = { verdict: "not ready", summary: "One reproduced problem.", findings: [finding()] };
@@ -244,4 +243,10 @@ test("the write command names a --head or --base that is not the reviewed one", 
   const base = run("--base", "other");
   assert.equal(base.status, 2);
   assert.match(base.stderr, /--base other is not the reviewed base main/);
+});
+
+test("a report with a decision finding can be recorded", () => {
+  const root = branchRepo();
+  const { record } = writeVerdict(root, { reviewer: "karen", report: { ...READY, findings: [finding({ id: "karen-1", severity: "decide" })] }, head: sha(root), base: "main" });
+  assert.equal(record.verdict, "ready");
 });

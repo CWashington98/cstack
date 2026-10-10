@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: Review a pull request with two independent verdicts, from Karen (Claude) and Codex (OpenAI), tied to the exact commit. Every finding must be reproduced by a separate check, or it is dropped. Use it before opening any pull request, again on its final commit before merge, and when asked to review a teammate's pull request.
+description: Review a pull request with two independent verdicts, from Karen (Claude) and Codex (OpenAI), tied to the exact commit. It posts them as one plain-English comment a person can read in two minutes. Every finding must be reproduced by a separate check, or it is dropped. Use it before opening any pull request, again on its final commit before merge, and when asked to review a teammate's pull request.
 ---
 
 # Reviewing a pull request
@@ -15,6 +15,7 @@ Below, `<plugin>` means this skill's folder followed by `/../..`, which is the p
 - Each reviewer works in its own private copy of the code, so a review can never touch the author's working folder.
 - Cheap checks run first. Scripts are fast and certain; model reviews are slow.
 - Correctness only: no style comments, nothing that existed before the change, nothing a linter catches.
+- One comment per review, written for a reader who hasn't seen the pull request. It says what to do first, then what the change does and its merge risk. Then come the findings, in three groups: "your decision", "must fix" and "worth fixing later". Only "must fix" blocks a merge.
 - Every finding is reproduced by a separate check, or it is dropped.
 - Verdicts carry the commit ID, and a new commit clears them. After a rebase, a verdict carries over only when the change itself is identical.
 - Review before the pull request opens, and again on the final commit before merge.
@@ -65,7 +66,7 @@ node <plugin>/scripts/verdict.mjs merge --report "$OUT/karen.json" --validation 
 node <plugin>/scripts/verdict.mjs merge --report "$OUT/codex.json" --validation "$OUT/validation.json" --out "$OUT/codex.final.json"
 ```
 
-Only reproduced blocking findings can make a verdict "not ready". The rest are dropped, and the comment says so.
+Only reproduced blocking findings can make a verdict "not ready". Findings marked "decide" become questions for the owner, and notes become "worth fixing later". Findings the validator couldn't reproduce are dropped, and the comment's technical detail lists them.
 
 ## 7. Record the verdicts
 
@@ -75,27 +76,44 @@ node <plugin>/scripts/verdict.mjs write --reviewer codex --report "$OUT/codex.fi
 node <plugin>/scripts/verdict.mjs check --base <base> --head "$(node -p "require('$OUT/meta.json').head")"
 ```
 
-Each verdict lands on the commit in `meta.json`, the one the reviewers actually saw, even if someone commits while the review runs. `write` refuses a `--head` or `--base` that doesn't match it.
+Each verdict lands on the commit in `meta.json`, the one the reviewers actually saw, even if someone commits while the review runs. `write` refuses a `--head` or `--base` that doesn't match it. It prints the path of the verdict file it wrote; the next step needs both paths.
 
 For a fallback reviewer, write `--reviewer claude-fallback --note "<Codex's error>" --model <model>`. Verdicts are stored in the repository's git folder, keyed by commit. They are never committed.
 
-## 8. Report
+## 8. Write the comment
 
-- Both say ready: say so, with the commit ID.
-- Either says not ready: list the reproduced blocking findings for the author to fix. Review again on the new commit.
-- They disagree: show both verdicts to the owner. The owner decides.
-
-## 9. Post
-
-For the owner's own pull requests, turn each verdict into a comment and check it:
+Both verdicts become one comment. Use the Agent tool with `subagent_type` set to `general-purpose` and `model` set to `sonnet`, and give it `writer-brief.md` from this folder with its values filled in: the two verdict file paths from step 7. It writes `OUT/writer.json`, the plain sentences, and runs the `review` command until the text passes its check. Then render the comment yourself:
 
 ```sh
-node <plugin>/scripts/verdict.mjs comment <verdict file> > "$OUT/<reviewer>-comment.md"
-node <the plain plugin>/scripts/plain-check.mjs "$OUT/<reviewer>-comment.md"
-gh api repos/{owner}/{repo}/issues/<number>/comments -F body=@"$OUT/<reviewer>-comment.md"
+node <plugin>/scripts/verdict.mjs review --karen <Karen's verdict file> --other <the other verdict file> --writer "$OUT/writer.json" > "$OUT/comment.md"
 ```
 
-Before the pull request exists, keep the verdict files, and post them when it opens.
+The script builds the layout, the numbering, the headline, "what you need to do" and the technical detail from the verdicts. It refuses a writer's text that leaves out a confirmed finding, adds one, rates the merge risk lower than a reviewer did, or puts code in the plain part. The writer can't change a verdict.
+
+Then run both plain-English checks on the comment, and send any problem back to the writer to fix in `writer.json`:
+
+```sh
+node <the plain plugin>/scripts/plain-check.mjs "$OUT/comment.md"
+node <the plain plugin>/skills/cold-reader/scripts/cold-read.mjs "$OUT/comment.md" --json
+```
+
+The plain-English checker must pass before the comment is posted or shown. The technical detail turns each item into a work packet: the files, the command that shows the problem, the check that proves it's fixed, the suggested fix, and which items must come first. A hidden copy at the end of the comment lets an agent split the review into separate fixes: `node <plugin>/scripts/verdict.mjs items "$OUT/comment.md"` prints one packet per item.
+
+The cold reader is advice: send its real gaps back to the writer, at most twice. It skips code names in the technical detail. It sometimes flags a term the comment already explains, such as a reviewer's name. Don't chase those; note them for the cold reader's own upkeep.
+
+## 9. Report and post
+
+- Both say ready: say so, with the commit ID and any decisions the comment asks for.
+- Either says not ready: list the items to fix. Review again on the new commit.
+- They disagree: the comment says so in "what you need to do". The owner decides.
+
+For the owner's own pull requests, post the comment:
+
+```sh
+gh api repos/{owner}/{repo}/issues/<number>/comments -F body=@"$OUT/comment.md"
+```
+
+Before the pull request exists, keep the comment, and post it when it opens.
 
 ## 10. Before merge
 
@@ -107,7 +125,7 @@ Fetch the head with `git fetch origin pull/<number>/head:review/<number>`, and u
 
 - Prove each fix by watching its test fail without the fix and pass with it, in Karen's copy.
 - Check that mirror pull requests are byte-identical, by comparing `verdict.mjs patch-id` for each.
-- Draft the review in plain English and show it to the owner. Post it only after they approve.
+- Draft the comment the same way, in the same layout, and show it to the owner. Post it only after they approve.
 - Never add reviewers the owner didn't ask for.
 
 ## 12. Clean up
