@@ -111,7 +111,7 @@ test("drive-web's starting script records video and a trace and closes the conte
   const text = readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "skills", "drive-web", "SKILL.md"), "utf8");
   assert.ok(text.includes('await import("playwright").catch(() => import("@playwright/test"))'), "the starting script loads whichever Playwright package the project installs");
   assert.ok(text.includes("one .webm per page"), "the video note says one file per page");
-  for (const capture of ["recordVideo", "tracing.start", "tracing.stop", "await context.close()", "fullPage: true", '.screenshot({ path: join(RUN, "save-dialog.png") })', 'page.screenshot({ path: join(RUN, "save-before.png") })']) {
+  for (const capture of ["recordVideo", "tracing.start", "tracing.stop", "await context.close()", "fullPage: true", 'page.getByRole("dialog").screenshot({ path: join(RUN, "save-dialog.png") })', 'page.screenshot({ path: join(RUN, "save-before.png") })']) {
     assert.ok(text.includes(capture), `drive-web should show ${capture}`);
   }
   assert.ok(text.indexOf("await context.close()") < text.indexOf("await browser.close()"), "the context closes before the browser");
