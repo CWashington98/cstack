@@ -1,0 +1,18 @@
+# Run log
+
+One entry per build step: the date, the tasks, the commit, the result, and any rulings made along the way. A ruling says what was decided, why, and the cost if it turns out wrong.
+
+## 2026-10-11 · tasks 1.1 and 1.2 · commit 5015d36
+
+Red result: 30 tests, 30 failing, 0 passing. The file loads, and every failure is an assertion. 26 tests find no compliance.json, because the command doesn't exist yet. 3 find no spec-match brief. 1 finds no command file.
+
+Full suite: 519 tests, 31 failing. That is these 30 plus one guard timing test, "round 4 … in time". It also fails on the untouched branch head, taking 7.4 seconds under the current machine load.
+
+- Ruling: the samples' run-by-name commands escape the opening bracket, as `\{name}`. Why: Node's runner reads the name as a pattern. Unescaped, `[seat-added-under-limit]` reads as a set of characters, and Node stops with an error. Other pattern-based runners do the same. Cost if wrong: if the check escapes names itself, the samples escape twice and need a `Spec-Change:` edit. The settings guide in task 3.1 should explain this.
+- Ruling: `Covers: all` on the acceptance-test task doesn't count as a scenario's task. Why: the spec says no task's `Covers:` line "names" the scenario. The acceptance task always exists, so counting it would mean the check never holds. Cost if wrong: `[scenario-without-a-task]` needs an edit.
+- Ruling: the tests look for compliance.json anywhere in the sample repository outside `.git`, and take the newest. Why: the design says only "next to the change's evidence runs". Cost if wrong: none, since any place inside the repository works.
+- Ruling: the tests rely on four report details the design's example doesn't show. Each hold's `check` is the requirement ID, as in the example. A break's entry has `file` and a `line` counted from 1. An allowed edit or a covered line can sit anywhere in the report outside `holds`. The reviewer's mismatches have a key containing "mismatch". Why: these are the smallest additions the scenarios need. Cost if wrong: renaming a field means editing locked tests with a `Spec-Change:` line.
+- Ruling: an approval fingerprint is the sha256 hash of the spec file's bytes. Why: that is how this change's own approval.json was recorded. I checked: `c8307d…` matches. Cost if wrong: the samples' approval.json files need new values. Fingerprinting more than one spec file is left to task 4.3; every sample has one.
+- Ruling: the executable-spec samples bind a step by quoting its exact text in a step file, as in `Then("the seat is refused", …)`. Why: the design names only the tool and the command. It doesn't say how the check finds bindings or assertions. The two tests assert only the holds the spec describes. Cost if wrong: if task 8.1 finds bindings another way, `[unbound-then-line]` and `[binding-without-an-assertion]` need a `Spec-Change:` edit. The design should settle this before task 8.1.
+- Ruling: the Python sample runs its tests with a 30-line runner over Python's built-in `unittest`. Why: pytest isn't installed. A Python method name can't contain brackets, so the runner matches each test's description instead. It exits like pytest: 0 passed, 1 failed, 2 a file couldn't load, 5 nothing matched. Cost if wrong: none for the check, which only reads the settings.
+- Ruling: `[a-test-is-weakened-or-skipped]` uses an existing test that isn't an acceptance test, and expects the hold under `locked-acceptance-tests-stay-locked`. Why: that is the requirement the scenario sits in. Cost if wrong: one expected `check` value changes.
