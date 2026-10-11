@@ -644,6 +644,9 @@ test("round 3: workspace scripts that run every workspace are checked once each,
   const selfFilter = { "package.json": JSON.stringify({ workspaces: ["packages/*"], scripts: { build: "turbo run build" } }) };
   for (let i = 0; i < n; i++) selfFilter[`packages/s${i}/package.json`] = JSON.stringify({ name: `s${i}`, scripts: { build: `turbo run build --filter=s${i}` } });
   allowed(project(selfFilter), "turbo run build");
+  const spaced = { "package.json": JSON.stringify({ workspaces: ["packages/*"], scripts: { build: "turbo run build" } }) };
+  for (let i = 0; i < n; i++) spaced[`packages/s${i}/package.json`] = JSON.stringify({ name: `s${i}`, scripts: { build: i % 2 ? `turbo run build --filter s${i}` : `turbo run build -F s${i}` } });
+  allowed(project(spaced), "turbo run build");
   const again = Date.now();
   refused(flatDir, "turbo run build", /Vercel/);
   assert.ok(Date.now() - again < 3000, `took ${Date.now() - again} ms`);
