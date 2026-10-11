@@ -707,6 +707,28 @@ test("round 3: bun exec runs a shell string, and it is checked", () => {
   allowed(dir, "bun exec 'echo hi'");
 });
 
+test("round 3: each tag and variable rule catches its own case", () => {
+  const dir = project({ "package.json": JSON.stringify({ name: "x", version: "1.0.0", scripts: { bare: "git push origin $npm_package_version", named: "git push origin $TAGNAME", raw: 'git push origin "refs/tags/$UNSET_GUARD_TAG"' } }) });
+  refused(dir, "npm run bare", /tag "1.0.0"/);
+  refused(dir, "TAGNAME=v2.0.0 npm run named", /tag "v2.0.0"/);
+  refused(dir, "npm run raw", /refs\/tags/);
+  allowed(dir, "TAGNAME=feat/x npm run named");
+});
+
+test("round 3: a deploy script run twice is judged each time by its own command", () => {
+  refused(project(), "CONVEX_DEPLOY_KEY=staging-backend-1 bun run backend:deploy && bun run backend:deploy", /convex deploy/);
+  allowed(project(), "CONVEX_DEPLOY_KEY=staging-backend-1 bun run backend:deploy && CONVEX_DEPLOY_KEY=staging-backend-1 bun run backend:deploy");
+});
+
+test("round 3: a command past the step budget is refused", () => {
+  refused(project(), Array(20500).fill("$(true)").join(" "), /more scripts than the guard can check/);
+});
+
+test("round 3: deploy as a flag's value is not a command", () => {
+  allowed(project(), "mytool --stage deploy build");
+  refused(project(), "mytool --stage prod deploy", /changes a live system/);
+});
+
 test("round 3: rules the breakage tests showed were unpinned", () => {
   const dir = project({ "package.json": JSON.stringify({ workspaces: ["packages/*"], scripts: { rootship: "convex deploy", build: "vercel --prod" } }) });
   refused(dir, "npx nx run api:deploy", /`nx deploy`/);
