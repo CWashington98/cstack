@@ -26,15 +26,22 @@ main() {
   local GROUP_EXPO="expo-picks rn-callstack-picks rn-vercel-picks"
 
   # Work from the project's top folder, so a subfolder doesn't get its own copy of the group
-  # plugins. Outside a git project, the current folder is the project.
-  local start top
+  # plugins. Outside a git project, the current folder is the project. So it is when the git
+  # project is the home folder, as some people keep their settings files: that isn't one project.
+  # -ef compares the folders themselves, so a difference in letter case or a link doesn't count.
+  local start top here
   start=$(pwd -P)
   top=$(git rev-parse --show-toplevel 2>/dev/null || echo "$start")
-  cd "$top"
+  if [ "$top" -ef "${HOME:-}" ]; then top=$start; fi
+  if [ ! "$top" -ef "$start" ]; then
+    cd "$top"
+    echo "Working from the project's top folder: $(pwd -P)"
+  fi
+  here=$(pwd -P)
 
   local groups=() g
   if [ "$#" -eq 0 ]; then
-    detect_groups
+    detect_groups "$start" "$here"
   else
     for g in "$@"; do
       case "$g" in
@@ -45,10 +52,6 @@ main() {
       esac
     done
   fi
-
-  local here
-  here=$(pwd -P)
-  if [ "$here" != "$start" ]; then echo "Working from the project's top folder: $here"; fi
 
   if ! command -v node >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
     echo "Neither node nor python3 was found, so the list of installed plugins can't be read." >&2
@@ -100,20 +103,26 @@ usage() {
   echo "  With no group, it detects what the current project uses." >&2
 }
 
-# Sets `groups` from the project's package.json files and Vercel settings.
-# Installed packages and hidden folders, such as old worktree copies, are skipped.
+# Sets `groups` from the package.json files and Vercel settings under each folder given: the one
+# the script started in, so a deep app is never missed, and the project's top folder, so the rest
+# of the repository counts too. Installed packages and hidden folders, such as old worktree
+# copies, are skipped. Each search runs from inside its folder, so a hidden folder further up
+# doesn't hide everything.
 detect_groups() {
-  local expo=0 web=0 f
-  while IFS= read -r -d '' f; do
-    # Only a dependency entry counts, not the word in a description or keyword list.
-    # An Expo app often lists react-dom for Expo's own web support, so it counts only as Expo.
-    if grep -qE '"expo"[[:space:]]*:' "$f"; then expo=1
-    elif grep -qE '"(react-dom|next)"[[:space:]]*:' "$f"; then web=1
-    fi
-  done < <(find . -maxdepth 4 -name package.json -not -path "*/node_modules/*" -not -path "*/.*/*" -print0 2>/dev/null)
+  local expo=0 web=0 vercel=0 dir f
+  for dir in "$@"; do
+    while IFS= read -r -d '' f; do
+      # Only a dependency entry counts, not the word in a description or keyword list.
+      # An Expo app often lists react-dom for Expo's own web support, so it counts only as Expo.
+      if grep -qE '"expo"[[:space:]]*:' "$dir/$f"; then expo=1
+      elif grep -qE '"(react-dom|next)"[[:space:]]*:' "$dir/$f"; then web=1
+      fi
+    done < <(cd "$dir" && find . -maxdepth 4 -name package.json -not -path "*/node_modules/*" -not -path "*/.*/*" -print0 2>/dev/null)
+    if [ -n "$(cd "$dir" && find . -maxdepth 3 \( -name vercel.json -o -name .vercel \) -not -path "*/node_modules/*" -not -path "*/.*/*" 2>/dev/null)" ]; then vercel=1; fi
+  done
   if [ "$expo" = 1 ]; then groups+=(expo); fi
   if [ "$web" = 1 ]; then groups+=(web); fi
-  if [ -n "$(find . -maxdepth 3 \( -name vercel.json -o -name .vercel \) -not -path "*/node_modules/*" -not -path "*/.*/*" 2>/dev/null)" ]; then groups+=(vercel); fi
+  if [ "$vercel" = 1 ]; then groups+=(vercel); fi
   echo "Detected for this project: ${groups[*]:-nothing extra}"
 }
 
