@@ -85,6 +85,7 @@ files it loads. These can still get past it:
   recipe (only the target's name is read), a GitHub workflow's own steps;
 - commands fed to a shell through a pipe, such as `echo ... | sh`;
 - a workflow whose name and file don't show that it deploys;
+- `docker push` and `kubectl`, which often point at a local setup;
 - a script written with `echo` or `printf` and run in the same command (scripts
   written with a heredoc are read);
 - a production target the project hasn't listed in `agentsNeverTouch`.

@@ -204,12 +204,12 @@ test("infrastructure tools are caught wherever their flags put the subcommand", 
     "firebase -P prod deploy", "firebase --project prod deploy --only hosting",
     "fly -a myapp deploy", "flyctl deploy",
     "npx wrangler --env production deploy", "wrangler publish",
-    "railway up", "sam deploy", "sam sync", "sam delete", "sls deploy", "serverless remove", "amplify publish", "amplify push", "amplify delete",
+    "railway up", "helm upgrade --install api ./chart", "helm rollback api 3", "heroku container:release web", "sam deploy", "sam sync", "sam delete", "sls deploy", "serverless remove", "amplify publish", "amplify push", "amplify delete",
     "aws cloudformation deploy --stack-name x", "aws cloudformation delete-stack --stack-name x",
     "make deploy", "just release", "turbo run deploy",
     "netlify deploy --prod", "netlify deploy --prod-if-unlocked",
   ]) refused(dir, c, /changes a live system/);
-  for (const c of ["terraform plan", "pulumi preview", "cdk diff", "aws s3 ls", "make build", "netlify deploy", "aws cloudformation describe-stacks"]) allowed(dir, c);
+  for (const c of ["helm template ./chart", "heroku logs --tail", "terraform plan", "pulumi preview", "cdk diff", "aws s3 ls", "make build", "netlify deploy", "aws cloudformation describe-stacks"]) allowed(dir, c);
 });
 
 test("--prod on a Convex command is refused, except the dashboard address", () => {

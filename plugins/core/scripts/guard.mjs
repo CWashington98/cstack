@@ -90,6 +90,8 @@ const DEPLOY_TOOLS = {
   fly: ["deploy"],
   wrangler: ["deploy", "publish"],
   railway: ["up"],
+  helm: ["upgrade", "install", "uninstall", "rollback"],
+  heroku: ["container:release", "releases:rollback", "container:push"],
 };
 const RELEASE_TOOLS = { "semantic-release": null, "release-it": null, changeset: ["publish"], lerna: ["publish"], fastlane: null };
 const FASTLANE_RELEASE = /deliver|pilot|supply|release|upload|beta|appstore|app_store|playstore|play_store|submit|production|testflight/i;
