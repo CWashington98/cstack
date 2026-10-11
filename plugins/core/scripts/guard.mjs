@@ -430,7 +430,10 @@ class Checker {
     for (const segment of segments(text)) {
       const words = tokenize(segment);
       // `for NAME in a b c` gives NAME each of those values in the commands after it.
-      if (words[0] === "for" && words[2] === "in") loops.set(words[1], words.slice(3));
+      if (words[0] === "for" && words[2] === "in") {
+        loops.set(words[1], words.slice(3));
+        this.used.push(words.slice(3).filter((x) => !x.startsWith("$(")).join(" "));
+      }
       if (!words.length || BLOCK_ONLY.has(words[0])) continue;
       const heredoc = words.includes("<<HEREDOC") ? heredocs.get(words[words.indexOf("<<HEREDOC") + 1]) ?? "" : null;
       const plain = words.filter((w, i) => w !== "<<HEREDOC" && words[i - 1] !== "<<HEREDOC");
@@ -694,7 +697,7 @@ class Checker {
       return dst === "HEAD" || dst === "@" ? current() : dst;
     }) : del ? [] : [current()];
     for (const t of targets.filter(Boolean)) {
-      const isTag = t.startsWith("refs/tags/") || (!t.startsWith("refs/heads/") && gitOut(dir, "rev-parse", "-q", "--verify", `refs/tags/${t}`) !== "" && gitOut(dir, "rev-parse", "-q", "--verify", `refs/heads/${t}`) === "");
+      const isTag = t.startsWith("refs/tags/") || (!t.startsWith("refs/heads/") && this.refs(dir, "tags").has(t) && !this.refs(dir, "heads").has(t));
       if (isTag && !del) {
         this.refuse("release", `It pushes the tag "${t.replace(/^refs\/tags\//, "")}", and tags often start a release. The owner pushes tags.`);
         continue;
@@ -704,6 +707,13 @@ class Checker {
       if (del || refspecs.some((r) => r.startsWith(":"))) this.refuse("push", `It deletes the protected branch "${branch}".`);
       else this.refuse("push", `It pushes straight to the protected branch "${branch}". Push a feature branch and open a pull request instead.`);
     }
+  }
+
+  // The tag or branch names in a folder's repository, read once per command.
+  refs(dir, kind) {
+    const key = `${kind}:${dir}`;
+    if (!this.cache.has(key)) this.cache.set(key, new Set(gitOut(dir, "for-each-ref", "--format=%(refname:short)", `refs/${kind}`).split("\n").filter(Boolean)));
+    return this.cache.get(key);
   }
 
   // True when a workflow deploys or releases: by its name, or because its file

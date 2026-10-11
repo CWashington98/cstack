@@ -227,6 +227,8 @@ test("commands that use a never entry are refused; commands that only mention it
   refused(dir, "aws s3 ls --profile x && npx convex data users --deployment-name Prod-Backend-9");
   refused(dir, "if true; then npx convex data --deployment-name prod-backend-9; fi");
   refused(dir, "CONVEX_DEPLOYMENT=prod:prod-backend-9; npx convex run x");
+  refused(dir, "for d in staging-backend-1 prod-backend-9; do npx convex data --deployment-name $d; done", /prod-backend-9/);
+  allowed(dir, "for f in a.md b.md; do grep prod-backend-9 $f; done");
   refused(dir, "find . -name x -exec curl https://app.example.com \\;", /app\.example\.com/);
   allowed(dir, 'git commit -m "Document that prod-backend-9 is production"');
   allowed(dir, "git commit -F - <<'EOF'\nprod-backend-9 is production\nEOF");
@@ -253,6 +255,7 @@ test("store submissions and production app builds are refused; preview builds ar
   refused(dir, "npx eas-cli build --platform ios", /no profile/);
   refused(dir, "eas build --profile production", /production/);
   refused(dir, "eas build -e production-ios");
+  refused(dir, "eas build -eproduction", /production/);
   refused(dir, "eas build --profile preview --auto-submit", /auto-submit/);
   refused(dir, "eas build --profile preview --auto-submit-with-profile=production", /auto-submit/);
   allowed(dir, "eas build --profile preview --platform android");
@@ -540,6 +543,10 @@ test("a long command is checked quickly", () => {
   const start = Date.now();
   run(dir, lines);
   assert.ok(Date.now() - start < 5000, `took ${Date.now() - start} ms`);
+  const pushes = Array.from({ length: 600 }, (_, i) => `git push origin feat/${i}`).join("\n");
+  const again = Date.now();
+  run(dir, pushes);
+  assert.ok(Date.now() - again < 2500, `600 pushes took ${Date.now() - again} ms`);
 });
 
 test("the core plugin runs the guard before every shell command", () => {
