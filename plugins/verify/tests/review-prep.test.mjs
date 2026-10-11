@@ -56,3 +56,17 @@ test("by default prepare makes copies for the claims auditor, Codex and the vali
   const meta = prepare({ repo: root, base: "main", out });
   assert.deepEqual(Object.keys(meta.copies), ["claims-auditor", "codex", "validator"]);
 });
+
+test("the spec-match reviewer gets its own input folder with the spec, tasks, change and report, and no description", () => {
+  const root = branchRepo();
+  const out = join(mkdtempSync(join(tmpdir(), "review-")), "r");
+  writeFileSync(join(root, "pr.md"), "## What changed and why\nAdds two.\n");
+  writeFileSync(join(root, "tasks.md"), "- [x] 1.1 One\n");
+  writeFileSync(join(root, "compliance.json"), "{}\n");
+  prepare({ repo: root, base: "main", specs: [join(root, "spec.md")], prBody: join(root, "pr.md"), tasks: join(root, "tasks.md"), compliance: join(root, "compliance.json"), copies: ["claims-auditor", "spec-match"], out });
+  const mine = join(out, "spec-match");
+  for (const f of ["spec/spec.md", "tasks.md", "change.patch", "compliance.json", "repo/new.txt"]) assert.ok(existsSync(join(mine, f)), f);
+  assert.ok(!existsSync(join(mine, "pr.md")), "no description in its folder");
+  assert.ok(!existsSync(join(out, "claims-auditor", "pr.md")));
+  assert.match(readFileSync(join(mine, "change.patch"), "utf8"), /\+two/);
+});

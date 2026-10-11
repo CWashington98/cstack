@@ -8,12 +8,12 @@ You are checking whether a change does what its approved spec says. The code che
 
 ## What you have
 
-The review folder is `<OUT>`. You may read only these:
+Your input folder is `<OUT>/spec-match`. You may read only these:
 
-- `<OUT>/spec/`: the change's specs, with every scenario's GIVEN, WHEN and THEN lines;
-- `<OUT>/tasks.md`: the change's task list, which says which task covers which scenario;
-- `<OUT>/change.patch`: the change since the branch point;
-- `<OUT>/compliance.json`: the compliance report, with each scenario's tasks, tests and status;
+- `<OUT>/spec-match/spec/`: the change's specs, with every scenario's GIVEN, WHEN and THEN lines;
+- `<OUT>/spec-match/tasks.md`: the change's task list, which says which task covers which scenario;
+- `<OUT>/spec-match/change.patch`: the change since the branch point;
+- `<OUT>/spec-match/compliance.json`: the compliance report, with each scenario's tasks, tests and status;
 - `<OUT>/spec-match/repo`: your private copy of the code at commit `<HEAD>`, including every test.
 
 You do not get the pull request description or the author's reasoning, and you do not need either. Judge the change by what the spec says and what the tests check.
@@ -22,7 +22,7 @@ Your copy is yours alone. You may run tests in it. Do not try to find the descri
 
 ## What to do
 
-For each scenario in `spec/`, in order:
+For each scenario in `spec-match/spec/`, in order:
 
 1. Read its GIVEN, WHEN and THEN lines, and any AND lines under them.
 2. Find its tests from `compliance.json`, and read them in your copy.
