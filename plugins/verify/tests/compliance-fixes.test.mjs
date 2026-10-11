@@ -69,3 +69,46 @@ test("a real assertion failure on the old code is still proven", () => {
   const r = exportRepo({ test: { "test/acceptance/export.test.mjs": [...head, 'test("[export-csv-downloads] the file has the expected header", () => {', '  assert.equal(String(exportCsv()), "name,total");', "});", ""].join("\n") }, extra: { "src/export.mjs": 'export const exportCsv = () => "name,total";\n' } });
   assert.equal(check(r).scenarios[0].status, "proven");
 });
+
+// ---- 3. The reviewer's count is filled in by the review step, never invented ----
+
+import { spawnSync } from "node:child_process";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
+
+const RECORD = fileURLToPath(new URL("../scripts/record-review.mjs", import.meta.url));
+
+test("a new record leaves the reviewer's mismatches empty, with a note on who fills it in", () => {
+  const report = check(exportRepo({ test: { "test/acceptance/export.test.mjs": [...head, 'test("[export-csv-downloads] checks it", () => {', '  assert.equal(String(exportCsv()), "name,total");', "});", ""].join("\n") }, extra: { "src/export.mjs": 'export const exportCsv = () => "name,total";\n' } }));
+  assert.equal(report.reviewer.mismatches, null);
+  assert.equal(report.reviewer.timeMs, null);
+  assert.match(report.reviewer.note, /filled in by pr-review/);
+});
+
+test("record-review writes the count of partly and missing verdicts and the reviewer's time into the record", () => {
+  const dir = mkdtempSync(join(tmpdir(), "record-review-"));
+  const reportFile = join(dir, "compliance.json");
+  writeFileSync(reportFile, JSON.stringify({ change: "x", reviewer: { mismatches: null, timeMs: null, note: "later" }, timeMs: { trace: 1 } }));
+  const reviewFile = join(dir, "spec-match.json");
+  writeFileSync(reviewFile, JSON.stringify({ scenarios: [{ id: "a-b", verdict: "matches" }, { id: "c-d", verdict: "partly" }, { id: "e-f", verdict: "matches" }] }));
+  const run = (...extra) => spawnSync("node", [RECORD, "--spec-match", reviewFile, "--report", reportFile, ...extra], { encoding: "utf8" });
+  assert.equal(run("--time-ms", "4200").status, 0);
+  let saved = JSON.parse(readFileSync(reportFile, "utf8"));
+  assert.equal(saved.reviewer.mismatches, 1);
+  assert.equal(saved.reviewer.timeMs, 4200);
+  assert.deepEqual(saved.timeMs, { trace: 1 }, "the rest of the record is untouched");
+  writeFileSync(reviewFile, JSON.stringify({ scenarios: [{ id: "a-b", verdict: "missing" }, { id: "c-d", verdict: "partly" }] }));
+  run("--time-ms", "10");
+  saved = JSON.parse(readFileSync(reportFile, "utf8"));
+  assert.equal(saved.reviewer.mismatches, 2);
+});
+
+test("record-review refuses an answer with no scenario verdicts", () => {
+  const dir = mkdtempSync(join(tmpdir(), "record-review-"));
+  writeFileSync(join(dir, "compliance.json"), "{}");
+  writeFileSync(join(dir, "spec-match.json"), JSON.stringify({ verdict: "ready" }));
+  const r = spawnSync("node", [RECORD, "--spec-match", join(dir, "spec-match.json"), "--report", join(dir, "compliance.json")], { encoding: "utf8" });
+  assert.equal(r.status, 2);
+  assert.equal(readFileSync(join(dir, "compliance.json"), "utf8"), "{}");
+});

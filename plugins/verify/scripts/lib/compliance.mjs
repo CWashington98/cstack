@@ -565,7 +565,7 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
     scenarios: traced.scenarios, holds, warnings, allowedEdits: locks.allowedEdits,
     counts: { expected: traced.scenarios.length, ran: traced.scenarios.filter((e) => e.ran).length },
     breaks,
-    reviewer: { mismatches: 0 },
+    reviewer: { mismatches: null, timeMs: null, note: "filled in by pr-review after the spec-match reviewer runs" },
     timeMs,
   };
   report.held = holds.length > 0;
