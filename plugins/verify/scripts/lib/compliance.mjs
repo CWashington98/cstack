@@ -91,8 +91,9 @@ export function parseTasks(root, change) {
     if (!m) return;
     const text = gather(lines, i);
     const body = text.replace(ITEM, "$2");
-    const covers = body.match(/\bCovers:\s*([^.]*?)(?:\.(?:\s|$)|$)/);
-    const touches = body.match(/\bTouches:\s*(.+?)\s*$/);
+    // The labels close the task. The last one wins, so the words "Covers:" and "Touches:" in the description do not count.
+    const covers = body.match(/^[\s\S]*\bCovers:\s*([^.]*?)(?:\.(?:\s|$)|$)/);
+    const touches = body.match(/^[\s\S]*\bTouches:\s*(.+?)\s*$/);
     tasks.push({
       number: m[2].match(/^(\d+(?:\.\d+)*)\.?(?:\s|$)/)?.[1] ?? null,
       line: l.line,

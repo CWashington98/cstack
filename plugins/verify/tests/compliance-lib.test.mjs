@@ -346,3 +346,13 @@ test("readRun does not read the word skipped in a test's own name as a skip", ()
   ].join("\n");
   assert.deepEqual(readRun(out).map((t) => [t.id, t.status]), [["one-a", "passed"], ["two-b", "passed"], ["three-c", "passed"], ["four-d", "skipped"]]);
 });
+
+test("parseTasks reads the Covers: and Touches: labels at the end of a task, not the words in its description", () => {
+  const dir = makeRepo({
+    "openspec/changes/c/tasks.md": [
+      "- [x] 1.1 Read `Covers:` and `Touches:` from the task list. Verify it. Covers: one-thing, other-thing. Touches: src/a.ts",
+    ].join("\n"),
+  });
+  const [a] = parseTasks(dir, "c");
+  assert.deepEqual([a.covers, a.touches], [["one-thing", "other-thing"], ["src/a.ts"]]);
+});

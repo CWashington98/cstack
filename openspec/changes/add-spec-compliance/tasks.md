@@ -37,7 +37,7 @@
 
 ## 8. Executable specs (opt-in)
 
-- [x] 8.1 When `executableSpecs` is set, check every step line is bound, every THEN binding contains an assertion, and run the specs by name in place of named tests. Verify with a sample repository that turns it on, and that the other samples are unchanged. Covers: unbound-then-line, binding-without-an-assertion, setting-off-changes-nothing. Touches: plugins/verify/scripts/lib/compliance.mjs, plugins/verify/tests/fixtures/compliance/**
+- [x] 8.1 When `executableSpecs` is set, check every step line is bound, every THEN binding contains an assertion, and run the specs by name in place of named tests. Verify with a sample repository that turns it on, and that the other samples are unchanged. Covers: unbound-then-line, binding-without-an-assertion, setting-off-changes-nothing. Touches: plugins/verify/scripts/lib/compliance.mjs, plugins/verify/scripts/lib/executable.mjs, plugins/verify/tests/fixtures/compliance/**
 
 ## 9. Integration
 
