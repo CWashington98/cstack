@@ -168,8 +168,10 @@ export function findTests(root, acceptance, { exclude = [], namePattern } = {}) 
 const hold = (check, fields) => ({ check, ...fields });
 
 // The scenario entries of the report with their tasks and tests, and the holds for
-// every missing or unknown link.
-export function trace(root, change, settings) {
+// every missing or unknown link. When `changed` (the files the change touched) is given,
+// a test that cites an unknown scenario holds only if it sits in one of those files:
+// elsewhere it is a warning, since the bracket may be something else entirely.
+export function trace(root, change, settings, changed = null) {
   const acceptance = settings.tests?.acceptance ?? [];
   const scenarios = readScenarios(root, change);
   const tasks = parseTasks(root, change);
@@ -177,6 +179,7 @@ export function trace(root, change, settings) {
   const ids = new Set(scenarios.map((s) => s.id));
   const known = new Set([...ids, ...projectScenarioIds(root)]);
   const holds = [];
+  const warnings = [];
 
   const entries = scenarios.map((s) => {
     const mine = tests.filter((t) => t.id === s.id);
@@ -208,9 +211,11 @@ export function trace(root, change, settings) {
     const key = `${t.file}\0${t.name}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    holds.push(hold(CHECKS.trace, { id: t.id, test: t.name, file: t.file, why: `The test "${t.name}" in ${t.file} cites ${t.token}, but no scenario in this change or the project's specs has that ID.` }));
+    const why = `The test "${t.name}" in ${t.file} cites ${t.token}, but no scenario in this change or the project's specs has that ID.`;
+    if (changed && !changed.has(t.file)) warnings.push(hold(CHECKS.trace, { id: t.id, test: t.name, file: t.file, why: `${why} The change did not touch ${t.file}, so this does not hold it. If the bracket is not a scenario ID, add the file to tests.exclude.` }));
+    else holds.push(hold(CHECKS.trace, { id: t.id, test: t.name, file: t.file, why }));
   }
-  return { scenarios: entries, tasks, tests, holds };
+  return { scenarios: entries, tasks, tests, holds, warnings };
 }
 
 // ---- Running tests by name ----
@@ -495,10 +500,11 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
   const commit = git(root, "rev-parse", "HEAD").trim();
   const timeMs = { trace: 0, run: 0, breaks: 0 };
   let t = now();
-  const traced = trace(root, change, settings);
+  const changedFiles = new Set(git(root, "diff", "--name-only", "--no-renames", "-z", base, "HEAD").split("\0").filter(Boolean));
+  const traced = trace(root, change, settings, changedFiles);
   timeMs.trace = now() - t;
   const holds = [...traced.holds];
-  const warnings = [];
+  const warnings = [...traced.warnings];
   t = now();
   const locks = checkLocks(root, base, settings);
   holds.push(...locks.holds);

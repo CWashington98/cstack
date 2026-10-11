@@ -156,3 +156,21 @@ test("a THEN-line binding that asserts nothing is held even when a helper named 
   const report = checkSeats(seatsRepo("w.after.reason;"));
   assert.ok(report.holds.some((h) => /the team is told why/.test(h.why) && /no assertion/.test(h.why)), report.holds.map((h) => h.why).join(" | "));
 });
+
+// ---- 7. Only tests in files the change touched can cite an unknown scenario ----
+
+test("a test in a file the change did not touch, with an ID-looking bracket, is a warning that names tests.exclude", () => {
+  const unrelated = 'import { test } from "node:test";\ntest("[gh-1234] closes the old ticket", () => {});\n';
+  const r = exportRepo({ earlier: { "test/legacy/old.test.mjs": unrelated, "examples/demo/sample.test.mjs": unrelated.replace("gh-1234", "first-name") }, test: { "test/acceptance/export.test.mjs": [...head, 'test("[export-csv-downloads] checks it", () => {', '  assert.equal(String(exportCsv()), "name,total");', "});", ""].join("\n") }, extra: { "src/export.mjs": 'export const exportCsv = () => "name,total";\n' } });
+  const report = check(r);
+  assert.deepEqual(report.holds.map((h) => h.why), []);
+  const warned = report.warnings.filter((w) => /unknown|no scenario/.test(w.why));
+  assert.equal(warned.length, 2);
+  for (const w of warned) assert.match(w.why, /tests\.exclude/);
+});
+
+test("a test in a file the change touched that cites an unknown scenario still holds", () => {
+  const r = exportRepo({ test: { "test/acceptance/export.test.mjs": [...head, 'test("[export-csv-downloads] checks it", () => {', '  assert.equal(String(exportCsv()), "name,total");', "});", 'test("[no-such-scenario] cites a stranger", () => {});', ""].join("\n") }, extra: { "src/export.mjs": 'export const exportCsv = () => "name,total";\n' } });
+  const report = check(r);
+  assert.ok(report.holds.some((h) => /no-such-scenario/.test(h.why)));
+});
