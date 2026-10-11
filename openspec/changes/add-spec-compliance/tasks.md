@@ -28,7 +28,7 @@
 
 ## 6. The command and its report
 
-- [ ] 6.1 Add `spec-compliance.mjs`, which writes `compliance.json` and a plain-English summary. It exits 0 when proven, 1 when held, and 2 for a settings problem. Verify end to end on both samples, and that the summary passes the plain-English check. Covers: record-has-the-numbers, typescript-sample, python-sample. Touches: plugins/verify/scripts/spec-compliance.mjs
+- [x] 6.1 Add `spec-compliance.mjs`, which writes `compliance.json` and a plain-English summary. It exits 0 when proven, 1 when held, and 2 for a settings problem. Verify end to end on both samples, and that the summary passes the plain-English check. Covers: record-has-the-numbers, typescript-sample, python-sample. Touches: plugins/verify/scripts/spec-compliance.mjs
 - [ ] 6.2 Add a test that searches the check's source for project, framework and language names. Covers: no-framework-names-in-the-code. Touches: plugins/verify/tests/portability.test.mjs
 
 ## 7. The spec-match reviewer
