@@ -24,15 +24,16 @@ function toolbox(dir, reader) {
   return box;
 }
 
-// A fake `claude` that records every call, the folder it ran in, and whether its input was a pipe
-// it could wait on. `list` entries may use "HERE" as projectPath for the project folder. `fail`
+// A fake `claude` that records every call, the folder it ran in, and any call whose input was open
+// rather than /dev/null. Node hands a child its input through a socket, not a pipe, so the check is
+// "not a character device" (/dev/null is one; a terminal is too, but tests never have one). `list` entries may use "HERE" as projectPath for the project folder. `fail`
 // names plugins whose install or update exits 1. It reads all of its input, so a script that
 // doesn't protect its own input would lose the rest of itself when piped. `repo` makes the project
 // a git repository, `cwd` runs the script from a subfolder of it, and `reader` limits the PATH.
 function run(args = [], { pkgs = {}, files = [], list = [], fail = [], piped = false, repo = false, cwd = "", reader = "node" } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "cstack-install-"));
   const bin = join(dir, "bin"), project = join(dir, "project"), log = join(dir, "calls.log");
-  const whereLog = join(dir, "where.log"), pipedLog = join(dir, "piped.log");
+  const whereLog = join(dir, "where.log"), openLog = join(dir, "open-input.log");
   mkdirSync(bin); mkdirSync(project);
   const here = realpathSync(project);
   const json = JSON.stringify(list.map((e) => ({ ...e, projectPath: e.projectPath === "HERE" ? here : e.projectPath })));
@@ -41,7 +42,7 @@ function run(args = [], { pkgs = {}, files = [], list = [], fail = [], piped = f
     "#!/bin/sh",
     `echo "$*" >> "${log}"`,
     `echo "$(pwd -P)	$*" >> "${whereLog}"`,
-    `if [ -p /dev/stdin ]; then echo "$*" >> "${pipedLog}"; fi`,
+    `if [ ! -c /dev/stdin ]; then echo "$*" >> "${openLog}"; fi`,
     "cat > /dev/null",
     `if [ "$1 $2" = "plugin list" ]; then cat "${join(dir, "list.json")}"; exit 0; fi`,
     ...fail.map((p) => `case "$*" in *"plugin install ${p} "*|*"plugin update ${p}@cstack"*) exit 1;; esac`),
@@ -69,7 +70,7 @@ function run(args = [], { pkgs = {}, files = [], list = [], fail = [], piped = f
     : spawnSync("bash", [script, ...args], { cwd: join(project, cwd), encoding: "utf8", env, input: "" });
   const lines = (f) => { try { return readFileSync(f, "utf8").trim().split("\n").filter(Boolean); } catch { return []; } };
   const where = lines(whereLog).map((l) => { const [at, call] = l.split("\t"); return { at, call }; });
-  return { code: r.status, out: r.stdout, err: r.stderr, calls: lines(log), where, piped: lines(pipedLog), here };
+  return { code: r.status, out: r.stdout, err: r.stderr, calls: lines(log), where, openInput: lines(openLog), here };
 }
 const acted = (calls) => calls.filter((c) => /^plugin (install|update) /.test(c));
 const names = (calls) => acted(calls).map((c) => c.split(" ")[2].replace(/@cstack$/, ""));
@@ -215,11 +216,11 @@ test("without node, python3 reads the installed list the same way", { skip: !PYT
 });
 
 test("every claude call gets empty input, so it can never wait on the keyboard or read the script", () => {
-  const { calls, piped } = run(["expo"], { list: [{ id: "cstack@cstack", scope: "user" }] });
+  const { calls, openInput } = run(["expo"], { list: [{ id: "cstack@cstack", scope: "user" }] });
   for (const kind of ["plugin marketplace update", "plugin list", "plugin update", "plugin install"]) {
     assert.ok(calls.some((c) => c.startsWith(kind)), `${kind} ran, so its input was checked`);
   }
-  assert.deepEqual(piped, [], "these claude calls were handed a pipe as input");
+  assert.deepEqual(openInput, [], "these claude calls were handed open input instead of /dev/null");
 });
 
 // Issue #11, item 2: deliberate choices, pinned for both readers.
