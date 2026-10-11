@@ -70,7 +70,7 @@ Runs each scenario's tests on the starting commit, in a temporary worktree (remo
 - Ruling: a `Touches:` entry also covers everything below it when it names a folder (`src/deep` covers `src/deep/c.txt`). Why: task lists name folders as often as files. Cost if wrong: a file under a named folder is not warned about.
 - Ruling: renames count as a delete plus an add, so both paths are checked. Why: simplest and safe. Cost if wrong: a moved file shows up twice in the warnings.
 
-## 2026-10-11 · task 4.3 · commit @@4.3@@
+## 2026-10-11 · task 4.3 · commit bca6623
 
 `checkApproval` reads `approval.json` in the change's folder, fingerprints the spec files it covers (default `specs/**/*.md`) and holds under `spec-matches-what-was-approved` when they differ, or when there is no approval record. It looks back through the folder's history for the commit whose spec text matches the recorded fingerprint, and shows the lines that differ from it (`-` old, `+` new). Green now: `[spec-edited-after-approval]`.
 
