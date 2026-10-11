@@ -1,6 +1,6 @@
 ---
 name: how-to-use-cstack
-description: Answer questions about how to use cstack and what cstack can do, and suggest the right cstack skill or command for what someone is trying to do. Use when someone asks "how do I use cstack", "what does cstack have for this", "is there a cstack way to…", or when work they describe matches a cstack skill. It only explains and suggests; it never starts anything.
+description: Answer questions about how to use cstack and what cstack can do, and suggest the right cstack skill or command for what someone is trying to do. Use when someone asks "how do I use cstack", "what does cstack have for this", "is there a cstack way to…", or "which cstack skill fits this?". It only explains and suggests; it never starts anything.
 ---
 
 # How to use cstack
@@ -21,7 +21,7 @@ cstack is a library of skills you use in every project, and a fixed way to use t
 
 | When someone wants to… | Suggest | What it does |
 |---|---|---|
-| Check whether finished work does what was claimed | `cstack:claims-auditor` (an agent) | Re-runs the tests and builds itself, breaks code on purpose to see if tests notice, and says "ready" or "not ready" with a list of what's wrong |
+| Check whether finished work does what was claimed | `cstack:claims-auditor` (an agent) | Re-runs the tests and builds itself, checks each claim against the code, and says "ready" or "not ready" with a list of what's wrong |
 | Review a pull request | `verify:pr-review` | Two independent reviews, from the claims auditor and Codex, tied to the exact commit and posted as one plain-English comment |
 | Prove a change works, or plan how to prove it before building | `verify:verify` | The proof standard: every spec scenario and plan item names its evidence |
 | Let agents run and use an app the way a person does | `verify:verify-setup` | Creates a verification skill for one app in the repository |
@@ -48,7 +48,10 @@ cstack is a library of skills you use in every project, and a fixed way to use t
 
 ### Running in the background
 
-- **The guard** runs on its own before every shell command and tool call. It refuses production deploys, releases, pushes to protected branches, deletes outside the repository, and anything on the project's "never" list. There's nothing to call. If someone asks why a command was refused, point them to `docs/project-settings.md` in cstack, and to their project's `.claude/verify.json`.
+- **The guard** runs on its own. There's nothing to call. What it checks:
+  - **Shell commands:** it refuses production deploys, releases, pushes to protected branches, recursive deletes outside the repository and temporary folders, and anything that uses an entry on the project's "never" list.
+  - **Tool-server calls** (tools named `mcp__…`, such as a hosting or database tool): checked only against the "never" list. A tool that deploys to production without naming anything on that list isn't stopped.
+  - **Claude's own file reads and edits:** not checked. If someone asks why a command was refused, point them to `docs/project-settings.md` in cstack, and to their project's `.claude/verify.json`.
 - **Installing or updating cstack:** run this from the project's folder (in Claude Code, put `!` in front):
   `curl -fsSL https://raw.githubusercontent.com/CWashington98/cstack/main/install.sh | bash`
 - **Picked outside skills** come with the install as pinned pointers: engineering principles and TypeScript practice, simpler code, terse replies, React and web design rules, Vercel deploys, Expo, and React Native. Suggest them by what they do. cstack doesn't copy them.
