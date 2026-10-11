@@ -9,6 +9,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { proseLines } from "./markdown.mjs";
 import { checkScenarios, gather, ITEM } from "./plan.mjs";
 import { walk } from "./app-skill.mjs";
+import { runBreaks } from "./breaks.mjs";
 
 export const CHECKS = {
   trace: "every-scenario-is-traced",
@@ -370,7 +371,7 @@ export function checkLocks(root, base, settings) {
 
 // ---- Scope ----
 
-const declares = (touch, file) => matchesAny(file, [touch]) || file.startsWith(`${touch.replace(/\/+$/, "")}/`);
+export const declares = (touch, file) => matchesAny(file, [touch]) || file.startsWith(`${touch.replace(/\/+$/, "")}/`);
 
 // Changed files that no task says it touches. Test files, the change's own folder and
 // the project's always-allowed patterns are left out.
@@ -481,11 +482,27 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
     entry.status = entry.failsFirst && entry.passesNow ? "proven" : "held";
   }
   timeMs.run = now() - t;
+  let breaks = { skipped: true, reason: "the normal lane does not break changed lines", entries: [] };
+  if (lane === "high-risk") {
+    t = now();
+    const live = traced.scenarios.filter((e) => e.passesNow);
+    const owners = (file) => live.filter((e) => traced.tasks.some((k) => e.tasks.includes(k.number) && k.touches.some((p) => declares(p, file))));
+    const r = runBreaks({ root, base, deps: {
+      check: CHECKS.breaks,
+      keep: (f) => !isTestFile(f, settings.tests.acceptance ?? []) && !/\.md$/i.test(f) && !f.startsWith("openspec/"),
+      owners,
+      withTree: (fn) => withBaseTree(root, "HEAD", [], fn),
+      runScenario: (tree, entry) => runScenario(tree, settings.tests.byName, entry),
+    } });
+    holds.push(...r.holds);
+    breaks = { skipped: false, tried: r.tried, entries: r.entries };
+    timeMs.breaks = now() - t;
+  }
   const report = {
     change, commit, base, lane, held: false,
     scenarios: traced.scenarios, holds, warnings, allowedEdits: locks.allowedEdits,
     counts: { expected: traced.scenarios.length, ran: traced.scenarios.filter((e) => e.ran).length },
-    breaks: { skipped: true, reason: lane === "high-risk" ? "not built yet" : "the normal lane does not break changed lines" },
+    breaks,
     reviewer: { mismatches: 0 },
     timeMs,
   };
@@ -512,5 +529,6 @@ export function summarize(report) {
     for (const e of report.allowedEdits) out.push(`  - ${e.why}`);
   }
   if (report.breaks.skipped) out.push(`Breaking changed lines: skipped (${report.breaks.reason}).`);
+  else out.push(`Breaking changed lines: ${report.breaks.tried} break(s) tried, ${report.breaks.entries.filter((e) => e.status === "covered").length} noticed by a test.`);
   return out.join("\n");
 }

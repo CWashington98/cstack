@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { complianceSettings } from "./lib/app-skill.mjs";
 import { parseArgs, UsageError } from "./lib/args.mjs";
+import { dirtyFiles } from "./lib/breaks.mjs";
 import { git, gitOk, changeDir, runCompliance, summarize } from "./lib/compliance.mjs";
 
 function main(argv) {
@@ -41,6 +42,10 @@ function main(argv) {
   const resolved = gitOk(root, "rev-parse", "--verify", "--quiet", `${base}^{commit}`)?.trim();
   if (!resolved) { say(`--base ${base} is not a commit in this repository.`); return 2; }
 
+  if (lane === "high-risk") {
+    const dirty = dirtyFiles(root);
+    if (dirty.length) { say(`the high-risk lane breaks lines of the committed code, so commit or stash your changes first. Uncommitted: ${dirty.slice(0, 5).map((l) => l.slice(3)).join(", ")}${dirty.length > 5 ? ", and more" : ""}.`); return 2; }
+  }
   const report = runCompliance({ root, change, base: resolved, lane, settings });
   const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
   const dir = join(root, ".verify", "runs", "spec-compliance", `${stamp}-${report.commit.slice(0, 7)}`);

@@ -24,7 +24,7 @@
 
 ## 5. Breaking changed lines (high-risk lane)
 
-- [ ] 5.1 Break each changed condition and boundary in turn, run that task's scenario tests, and restore the exact file content. Refuse to start on uncommitted changes. Verify the break scenarios pass on both samples, and that the samples' trees are unchanged afterwards. Covers: break-is-caught, break-goes-unnoticed, normal-lane-skips-the-breaks. Touches: plugins/verify/scripts/lib/breaks.mjs
+- [x] 5.1 Break each changed condition and boundary in turn, run that task's scenario tests, and restore the exact file content. Refuse to start on uncommitted changes. Verify the break scenarios pass on both samples, and that the samples' trees are unchanged afterwards. Covers: break-is-caught, break-goes-unnoticed, normal-lane-skips-the-breaks. Touches: plugins/verify/scripts/lib/breaks.mjs
 
 ## 6. The command and its report
 
