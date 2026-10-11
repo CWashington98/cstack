@@ -907,3 +907,42 @@ test("round 4: a command that moves through more folders than the guard can chec
   allowed(dir, visit(150));
   assert.ok(Date.now() - start < 5000, `took ${Date.now() - start} ms`);
 });
+
+test("round 4: a heredoc inside $( ) or backticks that close on its first line has no body, so the next lines run", () => {
+  const dir = project();
+  for (const c of [
+    "x=\"$(cat <<'EOF')\"\nnpx convex deploy\nEOF",
+    "x=$(cat <<EOF)\nnpx convex deploy\nEOF",
+    "x=`cat <<EOF`\nnpx convex deploy\nEOF",
+    "x=\"$(cat <<'EOF' | tr -d '\"')\"\nnpx convex deploy\nEOF",
+  ]) refused(dir, c, /convex deploy/);
+  allowed(dir, "(cat <<'EOF')\nprod-backend-9 is production\nEOF");
+  allowed(dir, "x=\"$(cat <<'EOF')\"\necho hi\nEOF\ncat <<'X'\nprod-backend-9 is production\nX");
+  allowed(dir, "x=$(cat <<'EOF'\nprod-backend-9 is production\nEOF\n)");
+});
+
+test("round 4: a quote inside a heredoc's body doesn't hide the commands after it", () => {
+  const dir = project();
+  refused(dir, "cat <<'EOF'\nit's done\nEOF\nnpx convex deploy", /convex deploy/);
+  refused(dir, 'cat <<EOF > notes.md\nshe said "hi\nEOF\nnpx convex deploy', /convex deploy/);
+  refused(dir, "git commit -F - <<'EOF'\ndon't\nEOF\necho \"x <<Y\"\nnpx convex deploy\nY", /convex deploy/);
+});
+
+test("round 4: a never entry is matched in a tool call's input as written, not only in its JSON", () => {
+  const dir = project({}, { integrationBranch: "main", agentsNeverTouch: ['bun run release --env "prod"', "C:\\prod\\keys"] });
+  const call = (tool_input) => decide({ tool_name: "mcp__runner__run", tool_input, cwd: dir });
+  assert.equal(call({ command: 'bun run release --env "prod"' }).allow, false);
+  assert.equal(call({ args: { path: "C:\\prod\\keys\\a.pem" } }).allow, false);
+  assert.equal(call({ command: "bun run release --env staging" }).allow, true);
+});
+
+test("round 4: when the guard fails on a tool call, it matches never entries in the input as written", () => {
+  const dir = project({}, { integrationBranch: "main", agentsNeverTouch: ['bun run release --env "prod"'] });
+  const logFile = join(mkdtempSync(join(tmpdir(), "guard-log-")), "log.jsonl");
+  // A cwd the guard can't use makes it fail inside; the settings then come from the folder the hook runs in.
+  const hook = (tool_input) => spawnSync("node", [script], { cwd: dir, input: JSON.stringify({ tool_name: "mcp__runner__run", tool_input, cwd: 42 }), encoding: "utf8", env: { ...process.env, CSTACK_GUARD_LOG: logFile } });
+  const no = hook({ command: 'bun run release --env "prod"' });
+  assert.equal(no.status, 2);
+  assert.match(no.stderr, /failed while checking it/);
+  assert.equal(hook({ command: "bun run release --env staging" }).status, 0);
+});

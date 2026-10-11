@@ -1123,6 +1123,19 @@ function mentionsOnly(w) {
   return false;
 }
 
+// The input of a call to a tool server, as text: its JSON, and each name and
+// text value in it as written. JSON escapes quotes and backslashes, so a
+// "never" entry holding one is only found in the values as written.
+function toolText(input) {
+  const strings = [];
+  const walk = (v) => {
+    if (typeof v === "string") strings.push(v);
+    else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) strings.push(k), walk(x);
+  };
+  walk(input);
+  return [JSON.stringify(input) ?? "", ...strings].join("\n");
+}
+
 const isToolServer = (name) => typeof name === "string" && name.startsWith("mcp__");
 
 export function decide({ tool_name, tool_input = {}, cwd = process.cwd() }) {
@@ -1133,7 +1146,7 @@ export function decide({ tool_name, tool_input = {}, cwd = process.cwd() }) {
   if (isToolServer(tool_name)) {
     const project = projectFor(real(cwd), new Map());
     const refusals = project.problem ? [{ rule: "settings", reason: settingsReason(project.problem) }] : [];
-    const text = lower(JSON.stringify(tool_input) ?? "");
+    const text = lower(toolText(tool_input));
     for (const entry of listed(project.settings.agentsNeverTouch)) if (text.includes(lower(entry))) refusals.push({ rule: "never", reason: neverReason(entry, project.settingsFile) });
     return { allow: refusals.length === 0, refusals };
   }
@@ -1189,7 +1202,7 @@ async function main() {
     process.stderr.write(message(result.refusals, tool) + "\n");
     return 2;
   } catch (error) {
-    const refuse = refuseOnError(command, cwd, { tool: Boolean(tool) });
+    const refuse = refuseOnError(tool ? toolText(input.tool_input) : command, cwd, { tool: Boolean(tool) });
     log({ decision: refuse ? "refused-on-error" : "error", tool: input.tool_name, cwd: String(cwd), command: mask(command), error: String(error?.stack ?? error).slice(0, 600) });
     if (!refuse) return 0;
     process.stderr.write(message([{ reason: `The guard failed while checking it (${error?.message ?? error}), and it looks like something the guard refuses, so it refuses to be safe.` }], tool) + "\n");
