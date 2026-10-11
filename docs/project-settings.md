@@ -35,10 +35,11 @@ command an agent sends. It refuses:
   target from `agentsMayDeployTo`. The target must be named in the same command,
   in a variable or env file that feeds it, or in the command that ran the script
   the deploy sits in. A target named elsewhere in the line doesn't count;
-- store submissions (`eas submit`, `--auto-submit`), production app builds,
-  updates and channel changes, `eas deploy --prod`, EAS and GitHub workflows that
-  deploy or release, package publishes, GitHub releases, and tag pushes
-  (including a tag made earlier in the same command, or a name like `v1.2.0`);
+- app store releases: `eas submit`, `--auto-submit`, production app builds,
+  updates and channel changes, `eas deploy --prod`, and Expo Application
+  Services workflows that build for the stores or submit;
+- package publishes, GitHub releases, and GitHub workflows that deploy or release;
+- tag pushes, including a tag made earlier in the same command or a name like `v1.2.0`;
 - pushes to protected branches, `--force` and `+` pushes, and deleting protected
   branches. `--force-with-lease` to your own branch is allowed;
 - changes to GitHub secrets, keys, rulesets, branch protection, access and
