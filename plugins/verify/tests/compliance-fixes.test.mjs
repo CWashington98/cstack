@@ -53,3 +53,19 @@ test("withBaseTree links only the folders named in sharedFolders", () => {
   const seen = withBaseTree(dir, "HEAD", [], (tree) => [existsSync(join(tree, "deps/lib.txt")), existsSync(join(tree, "out"))], { shared: ["deps"] });
   assert.deepEqual(seen, [true, false]);
 });
+
+// ---- 2. A crash is not a failed assertion, whatever the test is called ----
+
+test("a TypeError on the old code in a test named '... the expected header' is held", () => {
+  const r = exportRepo({ test: { "test/acceptance/export.test.mjs": [...head, 'test("[export-csv-downloads] the file has the expected header", () => {', '  assert.equal(exportCsv().header, "name,total");', "});", ""].join("\n") } });
+  const report = check(r);
+  const s = report.scenarios[0];
+  assert.equal(s.status, "held");
+  assert.equal(s.failsFirst, false);
+  assert.match(report.holds.find((h) => h.scenario === s.id).why, /did not fail by an assertion/);
+});
+
+test("a real assertion failure on the old code is still proven", () => {
+  const r = exportRepo({ test: { "test/acceptance/export.test.mjs": [...head, 'test("[export-csv-downloads] the file has the expected header", () => {', '  assert.equal(String(exportCsv()), "name,total");', "});", ""].join("\n") }, extra: { "src/export.mjs": 'export const exportCsv = () => "name,total";\n' } });
+  assert.equal(check(r).scenarios[0].status, "proven");
+});

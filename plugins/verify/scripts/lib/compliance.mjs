@@ -315,10 +315,19 @@ export function withBaseTree(root, base, acceptance, fn, { shared = [] } = {}) {
 // file or a test that never ran leaves no failed test with the scenario's ID.
 const ASSERTION = /assert|expect/i;
 
+// What the run printed about the failure itself: the output with the tests' own names
+// taken out, so a word in a name ("the expected header") is never read as an assertion.
+const withoutNames = (out, entry) => {
+  let text = out;
+  const names = [...(entry.tests ?? []), ...(entry.tokens ?? [])].filter(Boolean).sort((x, y) => y.length - x.length);
+  for (const name of names) text = text.split(name).join("");
+  return text;
+};
+
 export function judgeFirstRun(entry, r) {
   const passedAll = r.failed === 0 && r.passed > 0 && r.exits.every((x) => x === 0);
   if (passedAll) return { failsFirst: false, why: `The test for ${entry.id} passes on the starting commit as well as the latest, so it doesn't depend on the change. Write a test that fails until the change is built.` };
-  if (r.failed > 0 && r.exits.some((x) => x !== 0) && ASSERTION.test(r.out)) return { failsFirst: true };
+  if (r.failed > 0 && r.exits.some((x) => x !== 0) && ASSERTION.test(withoutNames(r.out, entry))) return { failsFirst: true };
   return { failsFirst: false, why: `On the starting commit the test for ${entry.id} did not fail by an assertion: it crashed, a file it needs was missing, or it never ran (exit ${r.exits.join(", ")}; last output: ${tail(r.out)}). Write a test that reaches an assertion on the old code, for example through a stub.` };
 }
 
