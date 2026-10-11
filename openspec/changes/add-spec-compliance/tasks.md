@@ -33,7 +33,7 @@
 
 ## 7. The spec-match reviewer
 
-- [x] 7.1 Add `spec-match-brief.md` to the pr-review skill, with the inputs listed in the spec and the same answer format as the claims auditor. Make pr-review start it on the normal and high-risk lanes, without the pull request description. Verify with pr-review's tests, and with one live run on a sample change whose test checks less than its THEN line. Covers: test-checks-something-else, reviewer-never-sees-the-description, spec-looks-wrong. Touches: plugins/verify/skills/pr-review/**
+- [x] 7.1 Add `spec-match-brief.md` to the pr-review skill, with the inputs listed in the spec and the same answer format as the claims auditor. Make pr-review start it on the normal and high-risk lanes, without the pull request description. Verify with pr-review's tests, and with one live run on a sample change whose test checks less than its THEN line. Covers: test-checks-something-else, reviewer-never-sees-the-description, spec-looks-wrong. Touches: plugins/verify/skills/pr-review/**, plugins/verify/scripts/review-prep.mjs, plugins/verify/scripts/record-review.mjs
 
 ## 8. Executable specs (opt-in)
 
@@ -41,4 +41,4 @@
 
 ## 9. Integration
 
-- [ ] 9.1 Run the whole check on this change itself before review, and attach its report to the pull request. Verify the report shows every scenario proven, with every hold resolved or ruled on. Setup: no scenario.
+- [x] 9.1 Run the whole check on this change itself before review, and attach its report to the pull request. Verify the report shows every scenario proven, with every hold resolved or ruled on. Setup: no scenario. Touches: plugins/verify/.claude-plugin/plugin.json
