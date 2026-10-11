@@ -29,11 +29,11 @@ shorter than 3 characters there. `protectedBranches` holds exact branch names.
 The cstack plugin runs `plugins/core/scripts/guard.mjs` before every shell
 command an agent sends. It refuses:
 
-- deploys that change a live system (`convex deploy`, `vercel --prod`,
-  `cdk deploy`, `terraform apply`, `gcloud run deploy`, `supabase db push`,
-  `drizzle-kit push`, an nx or Angular target named `deploy`, and any other
-  tool whose command is `deploy`), unless that deploy names a
-  target from `agentsMayDeployTo`. The target must be named in the same command,
+- deploys that change a live system, unless that deploy names a target from
+  `agentsMayDeployTo`. Examples are `convex deploy`, `vercel --prod`,
+  `cdk deploy`, `terraform apply`, `gcloud run deploy`, `supabase db push` and
+  `drizzle-kit push`. An nx or Angular target named `deploy` counts, and so
+  does any other tool whose command is `deploy`. The target must be named in the same command,
   in a variable or env file that feeds it, or in the command that ran the script
   the deploy sits in. A target named elsewhere in the line doesn't count;
 - app store releases: `eas submit`, `--auto-submit`, production app builds,
