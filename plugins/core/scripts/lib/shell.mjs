@@ -5,16 +5,18 @@
 
 // Pulls heredoc bodies out of the text so their lines aren't read as commands
 // of the outer shell. Each body is replaced by a marker the caller can look up.
-// A << inside quotes is text, not a heredoc, unless it sits in a $( ) that
-// starts inside double quotes, as in git commit -m "$(cat <<'EOF' ... )".
+// A << inside quotes is text, not a heredoc, unless it sits in a $( ) or
+// backtick pair, as in git commit -m "$(cat <<'EOF' ... )". A heredoc whose
+// $( ) or backtick pair closes on its own first line has no body: the shell
+// runs the lines after it as commands, so they stay in the text.
 let heredocCount = 0;
-const HEREDOC = /(?<![<\w)])<<-?(?!<)\s*(['"]?)(\w+)\1([^\n]*)\n([\s\S]*?)(?:\n[ \t]*\2[ \t]*(?=\n|$)|$)/y;
+const HEREDOC = /(?<![<\w)])<<-?(?!<)\s*(['"]?)(\w+)\1([^\n]*)\n([\s\S]*?)(?:\n[ \t]*\2[ \t]*(?=\n|$)|$)/dy;
 export function extractHeredocs(cmd) {
   cmd = cmd.replace(/\$\(\([\s\S]*?\)\)/g, (m) => m.replace(/<</g, "\u00ab\u00ab"));
   const heredocs = new Map();
-  const stack = [{ quote: null, depth: 0 }];
-  // Moves past the character at i, keeping track of quotes, comments and the
-  // $( ) pairs that start inside double quotes.
+  const stack = [{ quote: null, depth: 0, tick: false }];
+  // Moves past the character at i, keeping track of quotes, comments, $( )
+  // pairs and backtick pairs.
   const step = (i) => {
     const top = stack[stack.length - 1];
     const c = cmd[i];
@@ -23,20 +25,25 @@ export function extractHeredocs(cmd) {
       return i + 1;
     }
     if (c === "\\") return i + 2;
+    if (c === "$" && cmd[i + 1] === "(") {
+      stack.push({ quote: null, depth: 1, tick: false });
+      return i + 2;
+    }
+    if (c === "`") {
+      if (top.tick && !top.quote) stack.pop();
+      else stack.push({ quote: null, depth: 0, tick: true });
+      return i + 1;
+    }
     if (top.quote === '"') {
       if (c === '"') top.quote = null;
-      else if (c === "$" && cmd[i + 1] === "(") {
-        stack.push({ quote: null, depth: 1 });
-        return i + 2;
-      }
       return i + 1;
     }
     if (c === "'" || c === '"') top.quote = c;
     else if (c === "#" && (i === 0 || /\s/.test(cmd[i - 1]))) {
       const end = cmd.indexOf("\n", i);
       return end === -1 ? cmd.length : end;
-    } else if (stack.length > 1 && c === "(") top.depth++;
-    else if (stack.length > 1 && c === ")" && --top.depth === 0) stack.pop();
+    } else if (stack.length > 1 && !top.tick && c === "(") top.depth++;
+    else if (stack.length > 1 && !top.tick && c === ")" && --top.depth === 0) stack.pop();
     return i + 1;
   };
   let text = "";
@@ -47,11 +54,23 @@ export function extractHeredocs(cmd) {
       HEREDOC.lastIndex = i;
       const m = HEREDOC.exec(cmd);
       if (m) {
-        const key = `__HEREDOC_${heredocCount++}__`;
-        heredocs.set(key, m[4]);
-        text += `${cmd.slice(from, i)} <<HEREDOC ${key}${m[3]}`;
-        from = i = m.index + m[0].length;
-        continue;
+        // Read the rest of the first line, so the quotes and pairs it opens or
+        // closes are counted, and see whether it closes the heredoc's own pair.
+        const saved = stack.map((x) => ({ ...x }));
+        const level = stack.length;
+        let closed = false;
+        for (let j = m.indices[3][0]; j < m.indices[3][1]; ) {
+          j = step(j);
+          if (stack.length < level) closed = true;
+        }
+        if (!closed) {
+          const key = `__HEREDOC_${heredocCount++}__`;
+          heredocs.set(key, m[4]);
+          text += `${cmd.slice(from, i)} <<HEREDOC ${key}${m[3]}`;
+          from = i = m.index + m[0].length;
+          continue;
+        }
+        stack.splice(0, stack.length, ...saved);
       }
     }
     i = step(i);
