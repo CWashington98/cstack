@@ -595,12 +595,13 @@ test("round 2: other tools whose command is deploy are refused; files named depl
 test("round 2: bun's own commands aren't read as scripts, and a script can't make the guard loop", () => {
   const entries = Array.from({ length: 8 }, (_, i) => `bun build ./e${i}.ts --outdir dist`).join(" && ");
   const tests = Array.from({ length: 8 }, (_, i) => `bun test src/part${i}`).join(" && ");
-  const dir = project({ "package.json": JSON.stringify({ scripts: { build: entries, test: tests, loop: "bun run loop", ping: "bun run pong", pong: "bun run ping && vercel --prod" } }) });
+  const dir = project({ "package.json": JSON.stringify({ scripts: { build: entries, test: tests, loop: "bun run loop", fan: "bun run fan && bun run fan && bun run fan && bun run fan", ping: "bun run pong", pong: "bun run ping && vercel --prod" } }) });
   const start = Date.now();
   allowed(dir, "bun run build");
   allowed(dir, "bun run test");
   allowed(dir, "bun test");
   allowed(dir, "bun run loop");
+  allowed(dir, "bun run fan");
   refused(dir, "bun run ping", /Vercel/);
   allowed(dir, "pnpm deploy --filter=api /tmp/out");
   assert.ok(Date.now() - start < 3000, `took ${Date.now() - start} ms`);
@@ -608,7 +609,7 @@ test("round 2: bun's own commands aren't read as scripts, and a script can't mak
 
 test("round 2: smaller spellings that used to slip past", () => {
   const dir = project();
-  refused(dir, "coproc npx convex deploy", /convex deploy/);
+  refused(dir, "coproc npx convex deploy", /^`convex deploy` changes/m);
   refused(dir, "bash -c -e 'npx convex deploy'", /convex deploy/);
   refused(dir, "vercel --prod=true", /Vercel/);
   refused(dir, "bash -c \"$(cat <<'EOF'\nnpx convex deploy\nEOF\n)\"", /convex deploy/);
@@ -633,7 +634,7 @@ test("a long command is checked quickly", () => {
   const start = Date.now();
   run(dir, lines);
   assert.ok(Date.now() - start < 5000, `took ${Date.now() - start} ms`);
-  const pushes = Array.from({ length: 600 }, (_, i) => `git push origin feat/${i}`).join("\n");
+  const pushes = Array.from({ length: 600 }, (_, i) => (i % 2 ? `git push origin feat/${i}` : "git push origin HEAD")).join("\n");
   const again = Date.now();
   run(dir, pushes);
   assert.ok(Date.now() - again < 2500, `600 pushes took ${Date.now() - again} ms`);
