@@ -1,0 +1,8 @@
+{
+  "integrationBranch": "main",
+  "tests": {
+    "all": "python3 tests/run.py",
+    "byName": "python3 tests/run.py \"{name}\"",
+    "acceptance": ["tests/acceptance/**"]
+  }
+}

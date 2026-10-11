@@ -11,7 +11,7 @@ Below, `<plugin>` means this skill's folder followed by `/../..`, which is the p
 
 ## 1. The rules
 
-- Reviewers see only the change since the branch point, the spec and the pull request description. Never the author's reasoning: a reviewer who sees the argument tends to accept it.
+- The claims auditor and Codex see only the change since the branch point, the spec and the pull request description. The spec-match reviewer sees the specs, task list, change, tests and compliance report, and never the description. No reviewer sees the author's reasoning: a reviewer who sees the argument tends to accept it.
 - Each reviewer works in its own private copy of the code, so a review can never touch the author's working folder.
 - Cheap checks run first. Scripts are fast and certain; model reviews are slow.
 - Correctness only: no style comments, nothing that existed before the change, nothing a linter catches.
@@ -42,9 +42,12 @@ node <plugin>/scripts/review-prep.mjs --base <base> --spec <spec file> --pr-body
 
 It writes the change, the file list, the spec and the description into `OUT`, and one private copy of the code each for the claims auditor, Codex and the validator. Each copy has only two commits, "base" and "change under review", so no commit message from the author travels with it. It prints `meta.json`, which holds the head commit.
 
-## 5. Run the two reviewers at the same time
+On the normal and high-risk lanes, when the change has a folder under `openspec/changes/`, also add the spec-match reviewer's copy with `--copies claims-auditor,codex,validator,spec-match` and `--tasks <the change's tasks.md>`. That makes `OUT/spec-match/`, the reviewer's own input folder: the specs you passed with `--spec` in `spec/`, `tasks.md`, `change.patch` and its private copy of the code in `repo/`. It never holds the pull request description. Then run `node <plugin>/scripts/spec-compliance.mjs <change-name> --lane <normal|high-risk>` and copy the `compliance.json` it reports into `OUT/spec-match/`.
+
+## 5. Run the reviewers at the same time
 
 - **Claims auditor:** use the Agent tool with `subagent_type` set to `claims-auditor` (or `cstack:claims-auditor` when it comes from the plugin, which needs the core plugin at version 3.0.0 or later; before that it was called `karen`), on the most capable model. Give it `claims-auditor-brief.md` from this folder, with its values filled in. It writes `OUT/claims-auditor.json`.
+- **Spec-match reviewer** (normal and high-risk lanes, for a change with a spec): use the Agent tool with `subagent_type` set to `general-purpose` and the most capable model. Give it `spec-match-brief.md` from this folder with its values filled in, and nothing else: no `pr.md`, and no word from the author about why the change is right. It checks each scenario's tests against its THEN lines and reads only `OUT/spec-match/` and writes `OUT/spec-match.json`. Note the time (`date +%s`) just before you start it and just after it ends. Its findings carry a severity of high, medium or low, set by the owner's rule: highs are always fixed, mediums only if the fix is cheap or the code is on a high-risk path, and lows are listed, not filed.
 - **Codex:** fill in `codex-prompt.md` and save it as `OUT/codex-prompt.md`. Keep the skeptic angle always. Add the architect angle for changes over about 100 lines, the minimalist angle for changes over about 300 lines, and the security angle when the risk is high. Then run, in the background:
 
 ```sh
@@ -56,6 +59,10 @@ Confirm the flags with `codex exec --help` first. If it doesn't read the prompt 
 - **When Codex can't run:** if Codex stops with a usage limit or quota message, run a Claude reviewer in its place. Use the Agent tool with `subagent_type` set to `general-purpose` and `model` set to a model other than the claims auditor's, such as `sonnet`. Give it the same prompt, and have it write `OUT/fallback.json`. Its verdict is recorded as `claude-fallback`, with a note quoting Codex's error. Never skip the second verdict.
 
 ## 6. Reproduce every finding
+
+First fold the spec-match reviewer's answer into the claims auditor's, since a verdict has two reviewers. Add its findings to `OUT/claims-auditor.json` and map the severities: high becomes `blocking`; medium becomes `blocking` when the fix is cheap or the code is on a high-risk path, otherwise `decide`; low becomes `note`. A finding of kind `spec-wrong` always becomes `decide`: the spec looks wrong, so it goes back to the spec approval step for the owner, and not to the build. A builder cannot fix a spec by changing code. Put the scenario verdicts (matches, partly or missing) into `checked`, one line each.
+
+Then record the reviewer's result in the compliance record, which has left the reviewer's mismatch count empty on purpose. Run `node <plugin>/scripts/record-review.mjs --spec-match "$OUT/spec-match.json" --report <the compliance.json path that spec-compliance.mjs printed> --time-ms <milliseconds the reviewer took>`. It writes the number of scenarios marked partly or missing, and the time, into that file.
 
 Combine the findings from both answers into `OUT/findings.json`, keeping only `id`, `claim`, `file`, `line`, `trigger` and `how_to_reproduce`. Give that file to the validator: a fresh agent (the Agent tool, `subagent_type` set to `general-purpose`) with `validator-brief.md` filled in. It writes `OUT/validation.json`.
 

@@ -1,0 +1,74 @@
+{
+  "verdict": "not ready",
+  "summary": "The refusal scenario is fully checked, but the under-limit test only checks that the add reported success: it never checks that the person holds a seat or that seats left drops from 3 to 2, and no test calls seatsLeft at all. The spec also contradicts itself: the requirement and the refusal scenario say no team ever goes past its limit and 'anyone' is refused, while the admin scenario says an admin can go past it.",
+  "what_it_does": "Teams have a seat limit, and before this change there was no way to add a person to a team or see how many seats were left. The change adds addSeat, which refuses with 'This team is full.' once a team is at its limit unless the caller is an admin, and seatsLeft, which reports the limit minus the seats taken. Team managers can now fill seats up to the limit, and admins can go past it.",
+  "merge_risk": { "level": "low", "why": "The change adds two new functions to one in-memory module (src/seats.mjs) and one new test file; reverting the merge removes them exactly. It touches no saved data, no server storage and no sign-in." },
+  "scenarios": [
+    { "id": "seat-added-under-limit", "verdict": "partly", "unchecked": "THEN 'the person holds a seat' (the test checks only r.ok, never team.seats) and AND 'the team's seats left drops from 3 to 2' (seatsLeft is never called by any test)" },
+    { "id": "seat-refused-at-limit", "verdict": "matches", "unchecked": "" },
+    { "id": "admin-adds-past-limit", "verdict": "partly", "unchecked": "THEN 'the person holds a seat': the test checks the seat count went to 2, not that the added person is the one holding the new seat" }
+  ],
+  "checked": [
+    "node --test test/seats.test.mjs in the review copy at aed99cc: 3 pass, 0 fail",
+    "Mutation: seatsLeft changed to return team.limit (ignores seats taken): all 3 tests still pass, so the 'seats left drops from 3 to 2' line is unchecked",
+    "Mutation: addSeat skips storing the person when under the limit: the seat-added-under-limit test still passes (only the other two fail, because their setup breaks), so 'the person holds a seat' is unchecked by its own test",
+    "Mutation: admin path stores a different value instead of the person: all 3 tests still pass",
+    "Code check: refusal returns ok:false with the exact message 'This team is full.' and does not push, which the refusal test checks in full (message and unchanged seat count)",
+    "Code check: after an admin adds past a limit of 1, seats holds 2 and seatsLeft returns -1, which breaks the requirement line 'A team SHALL never hold more seats than its limit'",
+    "All mutations reverted; review copy is clean"
+  ],
+  "not_checked": [
+    "Whether 'anyone' in seat-refused-at-limit was meant to include admins; only the spec owner can say",
+    "Callers of addSeat or seatsLeft outside src/seats.mjs: none exist in the review copy"
+  ],
+  "findings": [
+    {
+      "id": "spec-match-1",
+      "kind": "test-gap",
+      "claim": "The seat-added-under-limit test passes even when the person is not stored and when seats left is wrong, because it only asserts r.ok and never calls seatsLeft.",
+      "impact": "A team manager who adds someone could see the add succeed while the person has no seat, or see a wrong 'seats left' figure; no test would catch either regression before release.",
+      "likelihood": "medium: seatsLeft is new, untested code that any later refactor can break silently, and the add's storage side is unchecked by its own scenario test.",
+      "cost_to_fix": "small: add three assertions to one test.",
+      "fix": "In the seat-added-under-limit test, assert seatsLeft(team) is 3 before the add, then assert team.seats includes 'ana' and seatsLeft(team) is 2 after it.",
+      "file": "test/seats.test.mjs",
+      "line": 5,
+      "severity": "high",
+      "trigger": "Any change to addSeat's storage or to seatsLeft that keeps addSeat returning ok:true.",
+      "how_to_reproduce": "In the repo copy: sed -i '' 's|return team.limit - team.seats.length;|return team.limit;|' src/seats.mjs && node --test test/seats.test.mjs  -> '# pass 3', '# fail 0' even though seatsLeft now reports 3 after one add. Restore with git checkout src/seats.mjs.",
+      "done_when": "With the same sed mutation applied, node --test test/seats.test.mjs reports 'not ok 1 - [seat-added-under-limit]'; without it, all 3 pass.",
+      "touches": ["test/seats.test.mjs"]
+    },
+    {
+      "id": "spec-match-2",
+      "kind": "spec-wrong",
+      "claim": "Scenario admin-adds-past-limit (an admin adds a person to a full team) contradicts both the requirement 'A team SHALL never hold more seats than its limit' and scenario seat-refused-at-limit ('WHEN anyone tries to add another person, THEN the add is refused').",
+      "impact": "Whoever relies on the limit as a hard cap (billing, capacity, the 'seats left' display) is wrong once an admin adds past it: the team then holds more seats than its limit and seatsLeft reports a negative number such as -1.",
+      "likelihood": "high: the code implements the admin exception exactly as written, so every admin add to a full team breaks the stated requirement.",
+      "cost_to_fix": "small in the spec, but the owner must choose: either reword the requirement and change 'anyone' to 'anyone who is not an admin' (and say what seats left shows past the limit), or drop the admin exception.",
+      "fix": "Send back to spec approval to decide whether admins may exceed the limit, then make the requirement, seat-refused-at-limit and admin-adds-past-limit agree.",
+      "file": "spec/spec.md",
+      "line": 24,
+      "severity": "medium",
+      "trigger": "An admin adds a person to a team that is already at its limit.",
+      "how_to_reproduce": "In the repo copy: node -e 'import(\"./src/seats.mjs\").then(m=>{const t=m.makeTeam(1);m.addSeat(t,\"ana\");m.addSeat(t,\"ben\",{admin:true});console.log(t.seats.length,t.limit,m.seatsLeft(t))})'  -> prints '2 1 -1': the team holds more seats than its limit.",
+      "done_when": "The approved spec's requirement line and all three scenarios can be true at the same time, as confirmed at the spec approval step.",
+      "touches": ["spec/spec.md", "src/seats.mjs", "test/seats.test.mjs"]
+    },
+    {
+      "id": "spec-match-3",
+      "kind": "test-gap",
+      "claim": "The admin-adds-past-limit test checks only that the seat count reached 2, not that the person the admin added is the one holding the new seat.",
+      "impact": "If the admin path ever stored the wrong value, the admin would see a seat taken but the intended person would not hold it; no test would notice.",
+      "likelihood": "low: the admin and non-admin paths share one push today, so a split that stores the wrong value is unlikely.",
+      "cost_to_fix": "small: one extra assertion.",
+      "fix": "Add assert.ok(team.seats.includes('ben')) to the admin-adds-past-limit test.",
+      "file": "test/seats.test.mjs",
+      "line": 20,
+      "severity": "low",
+      "trigger": "A change to the admin path of addSeat that stores something other than the person.",
+      "how_to_reproduce": "In the repo copy: sed -i '' 's|  team.seats.push(person);|  team.seats.push(admin ? \"someone-else\" : person);|' src/seats.mjs && node --test test/seats.test.mjs  -> '# pass 3', '# fail 0'. Restore with git checkout src/seats.mjs.",
+      "done_when": "With the same sed mutation applied, node --test test/seats.test.mjs reports 'not ok 3 - [admin-adds-past-limit]'; without it, all 3 pass.",
+      "touches": ["test/seats.test.mjs"]
+    }
+  ]
+}

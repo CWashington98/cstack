@@ -84,6 +84,56 @@ function checkPositions(file) {
     POSITIONS.some((re) => re.test(t)) ? [appHold(file, i + 1, "names a screen position. Use a label, role, route or test ID; positions break when the layout changes.")] : []);
 }
 
+const isList = (v) => Array.isArray(v) && v.every((x) => typeof x === "string" && x.trim());
+const isCommand = (v) => typeof v === "string" && v.trim() !== "";
+
+// Problems with the fields the spec compliance check reads. Every field is optional
+// here; complianceSettings is what insists on tests.byName.
+function testSettingsProblems(s) {
+  const out = [];
+  if (s.tests !== undefined) {
+    const t = s.tests;
+    if (t === null || typeof t !== "object" || Array.isArray(t)) out.push(`"tests" must be an object with the commands that run your tests.`);
+    else {
+      if (t.all !== undefined && !isCommand(t.all)) out.push(`"tests.all" must be a command that runs every test.`);
+      if (t.byName !== undefined && !(isCommand(t.byName) && t.byName.includes("{name}"))) out.push(`"tests.byName" must contain {name}, where the scenario's name goes, such as "<your test command> --filter \"{name}\"".`);
+      for (const f of ["acceptance", "alwaysAllowed", "exclude", "sharedFolders"]) if (t[f] !== undefined && !isList(t[f])) out.push(`"tests.${f}" must be a list of ${f === "sharedFolders" ? "folder names" : "path patterns"}.`);
+      if (t.namePattern !== undefined) {
+        const bad = `"tests.namePattern" must be a regular expression with exactly one capture group, whose match is a test's name.`;
+        try {
+          const re = new RegExp(t.namePattern);
+          if (typeof t.namePattern !== "string" || new RegExp(`${re.source}|`).exec("").length !== 2) out.push(bad);
+        } catch { out.push(bad); }
+      }
+    }
+  }
+  if (s.executableSpecs !== undefined) {
+    const e = s.executableSpecs;
+    if (e === null || typeof e !== "object" || Array.isArray(e)) out.push(`"executableSpecs" must be an object with "tool" and "command".`);
+    else {
+      if (!isCommand(e.tool)) out.push(`"executableSpecs.tool" must name the tool that runs the specs.`);
+      if (!(isCommand(e.command) && e.command.includes("{name}"))) out.push(`"executableSpecs.command" must contain {name}, where the scenario's name goes.`);
+      if (e.assertion !== undefined) {
+        try { new RegExp(e.assertion); } catch { out.push(`"executableSpecs.assertion" must be a valid regular expression that matches your tool's assertions.`); }
+      }
+    }
+  }
+  return out;
+}
+
+const MISSING_BY_NAME = `Add "tests.byName" to .claude/verify.json: the command that runs one scenario's tests by name, with {name} where the name goes. {name} becomes the bracket text a scenario's tests carry, such as [scenario-id] or a longer [area/feature:requirement/scenario-id], brackets included. If your test tool reads the name as a pattern, escape the opening bracket, as in "<your test command> --filter \"\\{name}\"".`;
+
+// The settings the spec compliance check needs, or what is wrong with them.
+export function complianceSettings(repoRoot) {
+  const file = join(repoRoot, ".claude", "verify.json");
+  if (!existsSync(file)) return { settings: null, problems: [`${file} does not exist. ${MISSING_BY_NAME}`] };
+  let s;
+  try { s = JSON.parse(readFileSync(file, "utf8")); } catch (e) { return { settings: null, problems: [`${file} is not valid JSON: ${e.message}`] }; }
+  const problems = testSettingsProblems(s);
+  if (!problems.length && s.tests?.byName === undefined) problems.push(MISSING_BY_NAME);
+  return { settings: s, problems };
+}
+
 export function checkRepoSettings(repoRoot) {
   const file = join(repoRoot, ".claude", "verify.json");
   if (!existsSync(file)) return [];
@@ -98,6 +148,7 @@ export function checkRepoSettings(repoRoot) {
     if (v !== undefined && !(Array.isArray(v) && v.every((x) => typeof x === "string" && x.trim().length >= 3))) out.push(appHold(file, 0, `"${field}" must be a list of text entries, each at least 3 characters long. The guard matches them inside commands, so a short entry would refuse too much.`));
   }
   if (s.protectedBranches !== undefined && !(Array.isArray(s.protectedBranches) && s.protectedBranches.every((x) => typeof x === "string" && x.trim()))) out.push(appHold(file, 0, `"protectedBranches" must be a list of branch names.`));
+  for (const message of testSettingsProblems(s)) out.push(appHold(file, 0, message));
   return out;
 }
 

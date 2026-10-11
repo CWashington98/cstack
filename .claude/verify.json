@@ -1,0 +1,10 @@
+{
+  "integrationBranch": "main",
+  "tests": {
+    "all": "npm test",
+    "byName": "node --test --test-name-pattern \"\\{name}\" \"tests/*.test.mjs\" \"plugins/*/tests/*.test.mjs\"",
+    "acceptance": ["plugins/verify/tests/spec-compliance.test.mjs", "plugins/verify/tests/fixtures/compliance/**"],
+    "exclude": ["plugins/verify/tests/fixtures/compliance/**"],
+    "alwaysAllowed": ["openspec/**", "docs/**", "*.md", ".claude/**"]
+  }
+}

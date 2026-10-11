@@ -10,6 +10,8 @@ import { UsageError } from "./args.mjs";
 const SCENARIO = /^#{2,6}\s+Scenario:\s*(.*)$/;
 const ITEM = /^\s*[-*]\s+\[( |x|X)\]\s+(.*)$/;
 const PROVED = /^\s*(?:[-*]\s+)?Proved by:/i;
+const REQUIREMENT = /^#{2,6}\s+Requirement:\s*(.*)$/;
+const STEP = /^\s*[-*]\s+\*\*(GIVEN|WHEN|THEN|AND)\*\*\s*(.*)$/;
 
 export const hold = (line, message) => ({ line, level: "hold", message });
 
@@ -24,16 +26,27 @@ export function gather(lines, i) {
   return parts.join(" ");
 }
 
+// Each scenario also comes back in `scenarios`: its ID (the first word of its
+// heading), the requirement it sits under, and its GIVEN, WHEN, THEN and AND lines.
 export function checkScenarios(lines) {
   const findings = [];
+  const scenarios = [];
   let count = 0;
+  let requirement = null;
   for (let i = 0; i < lines.length; i++) {
+    const req = lines[i].text.match(REQUIREMENT);
+    if (req) { requirement = req[1].trim().split(/\s+/)[0] || null; continue; }
     const m = lines[i].text.match(SCENARIO);
     if (!m) continue;
     count++;
     const name = m[1].trim() || "(unnamed)";
     let end = lines.findIndex((l, j) => j > i && HEADING.test(l.text));
     if (end === -1) end = lines.length;
+    const steps = lines.slice(i + 1, end).flatMap((l) => {
+      const s = l.text.match(STEP);
+      return s ? [{ kind: s[1], text: s[2].trim(), line: l.line }] : [];
+    });
+    scenarios.push({ id: name.split(/\s+/)[0], name, requirement, line: lines[i].line, steps });
     const at = lines.slice(i + 1, end).findIndex((l) => PROVED.test(l.text));
     if (at === -1) {
       findings.push(hold(lines[i].line, `Scenario "${name}" has no "Proved by" line. Add one that names where it is checked, the evidence, and what passing looks like.`));
@@ -47,7 +60,7 @@ export function checkScenarios(lines) {
     if (!/evidence:\s*\S/i.test(text)) say(`names no evidence. Add "evidence:" and what comes out: a recording, a screenshot, a read-back, a test result.`);
     if (!/pass when\s*\S/i.test(text)) say(`says no pass condition. Add "pass when" and the result you can observe.`);
   }
-  return { findings, count };
+  return { findings, count, scenarios };
 }
 
 const KINDS = ["test", "file", "screenshot", "log", "commit", "run", "link"];

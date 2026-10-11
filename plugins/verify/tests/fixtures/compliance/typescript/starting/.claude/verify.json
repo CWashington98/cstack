@@ -1,0 +1,8 @@
+{
+  "integrationBranch": "main",
+  "tests": {
+    "all": "node --test \"test/**/*.test.ts\"",
+    "byName": "node --test --test-name-pattern \"\\{name}\" \"test/**/*.test.ts\"",
+    "acceptance": ["test/acceptance/**"]
+  }
+}
