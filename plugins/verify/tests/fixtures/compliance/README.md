@@ -2,10 +2,12 @@
 
 Two small projects the compliance check's tests run it on. They use different test runners, so the check is proved to work from a project's settings file alone.
 
-| Sample | Test runner | Run one scenario's tests |
-|---|---|---|
-| `typescript/` | Node's built-in test runner, on TypeScript files | `--test-name-pattern`, which reads the name as a pattern, so the bracket is escaped |
-| `python/` | `tests/run.py`, a short runner over Python's standard `unittest` | the name as the first argument, matched as plain text |
+| Sample | Test runner | Run one scenario's tests | Test names |
+|---|---|---|---|
+| `typescript/` | Node's built-in test runner, on TypeScript files | `--test-name-pattern`, which reads the name as a pattern, so the bracket is escaped | the long form, `[accounts/seats:seat-limit/seat-added-under-limit]` |
+| `python/` | `tests/run.py`, a short runner over Python's standard `unittest` | the name as the first argument, matched as plain text | the short form, `[export-has-header-row]` |
+
+The long form puts the area, the spec folder and the requirement before the scenario ID, which always comes last. Projects already using OpenSpec name tests this way. The check must find a test by either form, and pass the bracket to the run-by-name command exactly as the test's name writes it.
 
 Neither needs anything installed beyond Node and Python 3.
 

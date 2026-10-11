@@ -714,14 +714,25 @@ function assertComplete(r, repo, count) {
   assert.match(r.out, /\S/, "it prints a summary");
 }
 
+// The TypeScript sample names its tests with the long form, which ends in the
+// scenario ID: [<domain>/<capability>:<requirement>/<scenario-id>]. The Python
+// sample uses the short form, [<scenario-id>]. Both must be recognised.
 test("[typescript-sample] the check gives a complete report on the TypeScript sample", () => {
   const repo = fromFixture("typescript");
-  assertComplete(check(repo, "--lane", "normal"), repo, 3);
+  const r = check(repo, "--lane", "normal");
+  assertComplete(r, repo, 3);
+  for (const s of r.report.scenarios) {
+    assert.ok(s.tests.some((t) => t.includes(`[accounts/seats:seat-limit/${s.id}]`)), `${s.id}: its test is found by the long form`);
+  }
 });
 
 test("[python-sample] the check gives a complete report on the Python sample", () => {
   const repo = fromFixture("python");
-  assertComplete(check(repo, "--lane", "normal"), repo, 2);
+  const r = check(repo, "--lane", "normal");
+  assertComplete(r, repo, 2);
+  for (const s of r.report.scenarios) {
+    assert.ok(s.tests.some((t) => t.includes(`[${s.id}]`)), `${s.id}: its test is found by the short form`);
+  }
 });
 
 test("[no-framework-names-in-the-code] the check's source names no project, test framework or language", () => {
