@@ -13,8 +13,27 @@ export function extractHeredocs(cmd) {
     heredocs.set(key, body);
     return key;
   };
-  const text = cmd.replace(/<<-?\s*(['"]?)(\w+)\1([^\n]*)\n([\s\S]*?)\n[ \t]*\2[ \t]*(?=\n|$)/g, (_m, _q, _tag, rest, body) => ` <<HEREDOC ${keep(body)}${rest}`);
+  const text = cmd.replace(/<<-?\s*(['"]?)(\w+)\1([^\n]*)\n([\s\S]*?)(?:\n[ \t]*\2[ \t]*(?=\n|$)|$)/g, (_m, _q, _tag, rest, body) => ` <<HEREDOC ${keep(body)}${rest}`);
   return { text, heredocs };
+}
+
+// The index just past the ) that closes the $( starting at i.
+function closeSubst(s, i) {
+  let depth = 0;
+  let quote = null;
+  for (let j = i; j < s.length; j++) {
+    const c = s[j];
+    if (quote) {
+      if (c === "\\" && quote === '"') j++;
+      else if (c === quote) quote = null;
+      continue;
+    }
+    if (c === "\\") j++;
+    else if (c === "'" || c === '"') quote = c;
+    else if (c === "(") depth++;
+    else if (c === ")" && --depth === 0) return j + 1;
+  }
+  return s.length;
 }
 
 // The text inside every $( ) and backtick pair outside single quotes. These run
@@ -32,26 +51,13 @@ export function substitutions(cmd) {
       i++;
       continue;
     }
-    if (c === "'" && !quote) {
-      quote = "'";
-      continue;
-    }
-    if (c === '"') {
-      quote = quote === '"' ? null : '"';
-      continue;
-    }
-    if (c === "$" && cmd[i + 1] === "(" && cmd[i + 2] !== "(") {
-      let depth = 1;
-      let j = i + 2;
-      for (; j < cmd.length && depth; j++) {
-        if (cmd[j] === "(") depth++;
-        else if (cmd[j] === ")") depth--;
-      }
-      out.push(cmd.slice(i + 2, j - 1));
-      i = j - 1;
-      continue;
-    }
-    if (c === "`") {
+    if (c === "'" && !quote) quote = "'";
+    else if (c === '"') quote = quote === '"' ? null : '"';
+    else if (c === "$" && cmd[i + 1] === "(" && cmd[i + 2] !== "(") {
+      const end = closeSubst(cmd, i + 1);
+      out.push(cmd.slice(i + 2, end - 1));
+      i = end - 1;
+    } else if (c === "`") {
       const end = cmd.indexOf("`", i + 1);
       if (end === -1) break;
       out.push(cmd.slice(i + 1, end));
@@ -62,7 +68,8 @@ export function substitutions(cmd) {
 }
 
 // Splits a line into the separate commands it runs: on ; & && || | newlines
-// and parentheses, outside quotes.
+// and parentheses, outside quotes. A $( ) or backtick pair stays inside the
+// command it belongs to.
 export function segments(cmd) {
   const out = [];
   let cur = "";
@@ -73,6 +80,19 @@ export function segments(cmd) {
   };
   for (let i = 0; i < cmd.length; i++) {
     const c = cmd[i];
+    if (c === "$" && cmd[i + 1] === "(" && quote !== "'") {
+      const end = closeSubst(cmd, i + 1);
+      cur += cmd.slice(i, end);
+      i = end - 1;
+      continue;
+    }
+    if (c === "`" && quote !== "'") {
+      const end = cmd.indexOf("`", i + 1);
+      const stop = end === -1 ? cmd.length : end + 1;
+      cur += cmd.slice(i, stop);
+      i = stop - 1;
+      continue;
+    }
     if (quote) {
       cur += c;
       if (c === "\\" && quote === '"' && i + 1 < cmd.length) cur += cmd[++i];
@@ -96,7 +116,7 @@ export function segments(cmd) {
     }
     if (c === ";" || c === "\n" || c === "|" || c === "(" || c === ")" || (c === "&" && cmd[i - 1] !== ">" && cmd[i + 1] !== ">")) {
       flush();
-      if ((c === "&" || c === "|") && cmd[i + 1] === c) i++;
+      if ((c === "&" || c === "|" || c === ";") && cmd[i + 1] === c) i++;
       continue;
     }
     cur += c;
@@ -106,7 +126,8 @@ export function segments(cmd) {
 }
 
 // Splits one command into words, removing quotes. Redirections such as
-// 2>/dev/null or > out.txt are dropped, since they never change what runs.
+// 2>/dev/null are dropped from the words, since they never change what runs;
+// the files written with > or >> are kept in words.writes.
 export function tokenize(segment) {
   const out = [];
   let cur = "";
@@ -114,6 +135,13 @@ export function tokenize(segment) {
   let started = false;
   for (let i = 0; i < segment.length; i++) {
     const c = segment[i];
+    if (c === "$" && segment[i + 1] === "(" && quote !== "'") {
+      const end = closeSubst(segment, i + 1);
+      cur += segment.slice(i, end);
+      started = true;
+      i = end - 1;
+      continue;
+    }
     if (quote) {
       if (c === quote) quote = null;
       else if (c === "\\" && quote === '"' && i + 1 < segment.length) cur += segment[++i];
@@ -141,17 +169,25 @@ export function tokenize(segment) {
   }
   if (started) out.push(cur);
   const words = [];
+  words.writes = [];
   for (let i = 0; i < out.length; i++) {
     const w = out[i];
     if (w === "<<HEREDOC") {
       words.push(w, out[++i]);
       continue;
     }
-    if (/^\d*(>>?|<)&?$|^&>>?$/.test(w)) {
+    const alone = w.match(/^\d*(>>?|<)&?$|^&>>?$/);
+    if (alone) {
+      if (w.includes(">") && !w.endsWith("&") && out[i + 1]) words.writes.push(out[i + 1]);
       i++;
       continue;
     }
-    if (/^\d*(>>?|<)&?\S|^&>>?\S/.test(w)) continue;
+    const glued = w.match(/^\d*(>>?)(?!&)(\S+)$|^&>>?(\S+)$/);
+    if (glued) {
+      words.writes.push(glued[2] ?? glued[3]);
+      continue;
+    }
+    if (/^\d*(>>?|<)&?\S/.test(w)) continue;
     words.push(w);
   }
   return words;

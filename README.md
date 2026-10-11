@@ -50,10 +50,10 @@ a "ready" or "not ready" verdict.
 It was called `karen` until core 3.0.0. If you called `cstack:karen`, call `cstack:claims-auditor` instead.
 
 The core plugin also runs the **guard** before every shell command an agent sends, in every
-project. It refuses production deploys, store submissions, package publishes, pushes to
-protected branches, force pushes, GitHub settings changes, deletes outside the repository,
-and anything on the project's "never" list. It allows merges and deploys to targets the
-project lists as safe for agents. Each project lists those in `.claude/verify.json`; the
+project. It refuses production deploys, store submissions, package publishes, releases,
+pushes to protected branches, force pushes, GitHub settings changes, deletes outside the
+repository, and anything on the project's "never" list. It allows merges and deploys to
+targets the project lists as safe for agents. Each project lists those in `.claude/verify.json`; the
 format is in [docs/project-settings.md](docs/project-settings.md).
 
 ## Matt Pocock's skills

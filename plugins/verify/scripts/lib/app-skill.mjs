@@ -93,10 +93,11 @@ export function checkRepoSettings(repoRoot) {
   if (typeof s.integrationBranch !== "string" || !s.integrationBranch.trim()) out.push(appHold(file, 0, `"integrationBranch" must name the branch pull requests target, such as "main" or "staging".`));
   if (s.highRisk !== undefined && !(Array.isArray(s.highRisk) && s.highRisk.every((p) => typeof p === "string"))) out.push(appHold(file, 0, `"highRisk" must be a list of path patterns.`));
   // Read by the cstack guard before every shell command. See docs/project-settings.md in cstack.
-  for (const field of ["agentsNeverTouch", "agentsMayDeployTo", "protectedBranches"]) {
+  for (const field of ["agentsNeverTouch", "agentsMayDeployTo"]) {
     const v = s[field];
     if (v !== undefined && !(Array.isArray(v) && v.every((x) => typeof x === "string" && x.trim().length >= 3))) out.push(appHold(file, 0, `"${field}" must be a list of text entries, each at least 3 characters long. The guard matches them inside commands, so a short entry would refuse too much.`));
   }
+  if (s.protectedBranches !== undefined && !(Array.isArray(s.protectedBranches) && s.protectedBranches.every((x) => typeof x === "string" && x.trim()))) out.push(appHold(file, 0, `"protectedBranches" must be a list of branch names.`));
   return out;
 }
 

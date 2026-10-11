@@ -80,6 +80,7 @@ test("the guard's lists in the verify settings must be lists of entries the guar
   assert.match(msg({ agentsNeverTouch: "prod-1" }), /"agentsNeverTouch" must be a list/);
   assert.match(msg({ agentsMayDeployTo: ["ok-target", "x"] }), /"agentsMayDeployTo" must be a list.*at least 3/);
   assert.match(msg({ protectedBranches: [1] }), /"protectedBranches" must be a list/);
+  assert.equal(msg({ protectedBranches: ["qa"] }), "");
   assert.equal(msg({ agentsNeverTouch: ["prod-1"], agentsMayDeployTo: ["staging-2"], protectedBranches: ["main"] }), "");
 });
 
