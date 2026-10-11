@@ -11,6 +11,7 @@ import { checkScenarios, gather, ITEM } from "./plan.mjs";
 import { walk } from "./app-skill.mjs";
 import { runBreaks } from "./breaks.mjs";
 import { checkExecutable } from "./executable.mjs";
+import { codeLines, testNames } from "./source-text.mjs";
 
 export const CHECKS = {
   trace: "every-scenario-is-traced",
@@ -118,33 +119,47 @@ export function isTestFile(path, acceptance = []) {
 }
 
 // "[scenario-id]", or "[domain/capability:requirement/scenario-id]" with the scenario ID last.
-const TOKEN = /(?<![\w\])}])\[((?:[\w.-]+(?:\/[\w.-]+)*:[\w.-]+\/)?[a-z][a-z0-9]*(?:-[a-z0-9]+)*)\]/g;
-const QUOTES = ["\"", "'", "`"];
+// The ID is kebab-case with at least one hyphen, so "[x]", "[null]" and "[part]" never count.
+const TOKEN = /(?<![\w\])}])\[((?:[\w.-]+(?:\/[\w.-]+)*:[\w.-]+\/)?[a-z][a-z0-9]*(?:-[a-z0-9]+)+)\]/g;
 
-export function testsInText(text) {
+const lineAt = (text, index) => text.slice(0, index).split("\n").length;
+
+// The test names in a file that carry a scenario token. A name is the first string of a
+// test declaration (see source-text.mjs), or, when the project sets tests.namePattern,
+// the one capture group of that regular expression.
+export function testsInText(text, namePattern) {
+  let names;
+  if (namePattern) {
+    const re = new RegExp(namePattern, "gm");
+    names = [...text.matchAll(re)].filter((m) => m[1] !== undefined).map((m) => ({ name: m[1].trim(), line: lineAt(text, m.index) }));
+  } else {
+    names = testNames(text);
+  }
   const found = [];
-  text.split(/\r?\n/).forEach((line, i) => {
-    for (const m of line.matchAll(TOKEN)) {
-      let start = -1;
-      for (let k = m.index - 1; k >= 0; k--) if (QUOTES.includes(line[k])) { start = k; break; }
-      if (start === -1) continue;
-      const close = line.indexOf(line[start], m.index + m[0].length);
-      const name = line.slice(start + 1, close === -1 ? undefined : close).trim();
-      found.push({ id: m[1].split("/").pop(), token: `[${m[1]}]`, name, line: i + 1 });
-    }
-  });
+  for (const { name, line } of names) {
+    for (const m of name.matchAll(TOKEN)) found.push({ id: m[1].split("/").pop(), token: `[${m[1]}]`, name, line });
+  }
   return found;
 }
 
+// Tracked files, minus folders that are their own project: they hold their own
+// .claude/verify.json or openspec/ folder, so they belong to that project's check.
 export function trackedFiles(root) {
-  return git(root, "ls-files", "-z").split("\0").filter(Boolean);
+  const all = git(root, "ls-files", "-z").split("\0").filter(Boolean);
+  const nested = new Set();
+  for (const f of all) {
+    const m = f.match(/^(.+?)\/(?:\.claude\/verify\.json|openspec\/)/);
+    if (m) nested.add(`${m[1]}/`);
+  }
+  return all.filter((f) => ![...nested].some((dir) => f.startsWith(dir)));
 }
 
-export function findTests(root, acceptance) {
-  return trackedFiles(root).filter((f) => isTestFile(f, acceptance) && existsSync(join(root, f))).flatMap((file) => {
+// The tracked files the check reads for tests, after the project's own tests.exclude.
+export function findTests(root, acceptance, { exclude = [], namePattern } = {}) {
+  return trackedFiles(root).filter((f) => isTestFile(f, acceptance) && !matchesAny(f, exclude) && existsSync(join(root, f))).flatMap((file) => {
     let text;
     try { text = readText(join(root, file)); } catch { return []; }
-    return testsInText(text).map((t) => ({ ...t, file }));
+    return testsInText(text, namePattern).map((t) => ({ ...t, file }));
   });
 }
 
@@ -158,7 +173,7 @@ export function trace(root, change, settings) {
   const acceptance = settings.tests?.acceptance ?? [];
   const scenarios = readScenarios(root, change);
   const tasks = parseTasks(root, change);
-  const tests = findTests(root, acceptance);
+  const tests = findTests(root, acceptance, { exclude: settings.tests?.exclude, namePattern: settings.tests?.namePattern });
   const ids = new Set(scenarios.map((s) => s.id));
   const known = new Set([...ids, ...projectScenarioIds(root)]);
   const holds = [];
@@ -172,7 +187,7 @@ export function trace(root, change, settings) {
       ran: false, failsFirst: false, passesNow: false, status: "held",
     };
     if (!entry.tasks.length) holds.push(hold(CHECKS.trace, { scenario: s.id, missing: "task", why: `Scenario ${s.id} has no task. Add a task whose Covers: line names ${s.id}.` }));
-    if (!entry.tests.length) holds.push(hold(CHECKS.trace, { scenario: s.id, missing: "test", why: `Scenario ${s.id} has no test. Add a test whose name contains [${s.id}].` }));
+    if (!entry.tests.length) holds.push(hold(CHECKS.trace, { scenario: s.id, missing: "test", why: `Scenario ${s.id} has no test. Add a test whose name contains [${s.id}].${s.id.includes("-") ? "" : " A test can cite only an ID written in kebab-case with at least one hyphen, so rename the scenario."}` }));
     return entry;
   });
 
@@ -327,7 +342,24 @@ export function commitsSince(root, base) {
   });
 }
 
-const lines = (patch, sign) => patch.split("\n").filter((l) => l.startsWith(sign) && !l.startsWith(sign.repeat(3))).map((l) => l.slice(1));
+// The added and removed lines of a zero-context patch: each as raw text, and as the
+// code on that line in the file it belongs to (strings and comments blanked), so a skip
+// or an assertion written inside a string is not mistaken for the real thing.
+function changedLines(patch, oldText, newText) {
+  const oldCode = codeLines(oldText);
+  const newCode = codeLines(newText);
+  const added = [];
+  const removed = [];
+  let oldNo = 0;
+  let newNo = 0;
+  for (const l of patch.split("\n")) {
+    const hunk = l.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+    if (hunk) { oldNo = Number(hunk[1]); newNo = Number(hunk[2]); continue; }
+    if (l.startsWith("+") && !l.startsWith("+++")) { added.push({ raw: l.slice(1), code: newCode[newNo - 1] ?? "" }); newNo++; }
+    else if (l.startsWith("-") && !l.startsWith("---")) { removed.push({ raw: l.slice(1), code: oldCode[oldNo - 1] ?? "" }); oldNo++; }
+  }
+  return { added, removed };
+}
 
 // Holds for any edit to a locked acceptance test, and for any existing test that was
 // skipped, deleted or given fewer assertions, unless the commit has a Spec-Change: line.
@@ -350,7 +382,7 @@ export function checkLocks(root, base, settings) {
         continue;
       }
       if (c.specChange || !isTestFile(ch.path, acceptance)) continue;
-      const name = (text) => [...new Set(testsInText(text).map((t) => t.token))].join(", ");
+      const name = (text) => [...new Set(testsInText(text, settings.tests?.namePattern).map((t) => t.token))].join(", ");
       const parent = gitOk(root, "show", `${c.sha}~1:${ch.path}`) ?? "";
       const at = `Commit ${short(c.sha)}`;
       if (ch.status === "D") {
@@ -358,14 +390,14 @@ export function checkLocks(root, base, settings) {
         continue;
       }
       const patch = gitOk(root, "diff-tree", "-p", "-U0", "--no-commit-id", c.sha, "--", ch.to ?? ch.path) ?? "";
-      const added = lines(patch, "+");
-      const removed = lines(patch, "-");
-      const count = (list, re) => list.filter((l) => re.test(l)).length;
-      const problem = added.some((l) => SKIP.test(l)) ? "marked a test as skipped"
+      const current = gitOk(root, "show", `${c.sha}:${ch.to ?? ch.path}`) ?? "";
+      const { added, removed } = changedLines(patch, parent, current);
+      const count = (list, re) => list.filter((l) => re.test(l.code)).length;
+      const problem = added.some((l) => SKIP.test(l.code)) ? "marked a test as skipped"
         : count(removed, TEST_LINE) > count(added, TEST_LINE) ? "deleted a test"
         : count(removed, ASSERTION_LINE) > count(added, ASSERTION_LINE) ? "removed an assertion from a test" : null;
       if (problem) {
-        const tests = name([...added, ...removed].join("\n")) || name(parent);
+        const tests = name([...added, ...removed].map((l) => l.raw).join("\n")) || name(parent);
         holds.push(hold(CHECKS.locked, { commit: short(c.sha), file: ch.path, ...(tests ? { tests } : {}), why: `${at} ${problem} in ${ch.path}${tests ? ` (${tests})` : ""} with no Spec-Change: line. A test is made weaker only when a spec change says so.` }));
       }
     }
@@ -465,7 +497,7 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
   const template = executable ? executable.command : settings.tests.byName;
   if (executable) {
     const acceptance = settings.tests.acceptance ?? [];
-    const files = trackedFiles(root).filter((f) => !/\.md$/i.test(f) && isTestFile(f, acceptance));
+    const files = trackedFiles(root).filter((f) => !/\.md$/i.test(f) && isTestFile(f, acceptance) && !matchesAny(f, settings.tests.exclude ?? []));
     const checked = checkExecutable({ root, files, scenarios: readScenarios(root, change), settings, check: CHECKS.executable });
     // The specs stand in for the named tests: drop the "no test" holds and use the bindings.
     for (let i = holds.length - 1; i >= 0; i--) if (holds[i].missing === "test") holds.splice(i, 1);

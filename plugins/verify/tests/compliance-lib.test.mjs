@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { checkScenarios } from "../scripts/lib/plan.mjs";
 import { proseLines } from "../scripts/lib/markdown.mjs";
-import { testsInText, globToRegExp, matchesAny, isTestFile, parseTasks, readRun, withBaseTree, judgeFirstRun, checkLocks, checkScope, checkApproval, fingerprintOf } from "../scripts/lib/compliance.mjs";
+import { testsInText, findTests, globToRegExp, matchesAny, isTestFile, parseTasks, readRun, withBaseTree, judgeFirstRun, checkLocks, checkScope, checkApproval, fingerprintOf } from "../scripts/lib/compliance.mjs";
 import { createHash } from "node:crypto";
 import { complianceSettings, checkRepoSettings } from "../scripts/lib/app-skill.mjs";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
@@ -49,7 +49,8 @@ test("testsInText finds plain and qualified scenario IDs inside quoted test name
   const text = [
     'test("[seat-added] a team gets the seat", () => {});',
     "test('[accounts/seats:seat-limit/seat-refused] refused', () => {});",
-    '  """[export-empty-refused] an export with no orders is refused"""',
+    "  def test_empty(self):",
+    '    """[export-empty-refused] an export with no orders is refused"""',
     "const x = items[index];",
     '// [not-a-test] a comment with no quote',
     'const y = "keep [0] alone";',
@@ -355,4 +356,79 @@ test("parseTasks reads the Covers: and Touches: labels at the end of a task, not
   });
   const [a] = parseTasks(dir, "c");
   assert.deepEqual([a.covers, a.touches], [["one-thing", "other-thing"], ["src/a.ts"]]);
+});
+
+// ---- Test names are test declarations ----
+
+test("testsInText counts a name only when it is the first string of a test declaration", () => {
+  const text = [
+    'test("[seat-added] a team gets the seat", () => {});',
+    "  it.skip('[seat-skipped] later', () => {});",
+    'describe.only(`[group-one] a group`, () => {});',
+    "await t.test('[sub-test-one] nested', () => {});",
+    "def test_one(self):",
+    '    """[docstring-one] a docstring names it"""',
+    'const box = "- [x] 1.1 Write the tests. Covers: all";',
+    'const sample = ["test(\'[fake-one] x\', () => {})", "def test_y():"];',
+    "const t = '[fake-two] a quoted string';",
+    "assertSomething(values[null], \"apps/[a]/package.json\");",
+  ].join("\n");
+  assert.deepEqual(testsInText(text).map((t) => t.id), ["seat-added", "seat-skipped", "group-one", "sub-test-one", "docstring-one"]);
+});
+
+test("testsInText skips sample test code that sits inside a multi-line string", () => {
+  const text = [
+    "const sample = `",
+    'test("[inside-one] only sample text", () => {});',
+    "`;",
+    'test("[outside-one] a real one", () => {});',
+    "// test('[commented-one] not a test', () => {});",
+  ].join("\n");
+  assert.deepEqual(testsInText(text).map((t) => t.id), ["outside-one"]);
+});
+
+test("a bracket is a scenario reference only when it is a kebab-case ID with a hyphen", () => {
+  const text = [
+    'test("[x] a checkbox", () => {});', 'test("[null] a value", () => {});', 'test("[part] a word", () => {});',
+    'test("[seat-added] short form", () => {});', 'test("[accounts/seats:limit/seat-refused] long form", () => {});',
+    'test("[accounts/seats:limit/refused] long form without a hyphen in the ID", () => {});',
+  ].join("\n");
+  assert.deepEqual(testsInText(text).map((t) => t.id), ["seat-added", "seat-refused"]);
+});
+
+test("tests.namePattern replaces the built-in rule: its one capture group is the test name", () => {
+  const text = ["scenario [custom-one] first", "test('[ignored-one] by the custom rule', () => {})", "scenario [custom-two] second"].join("\n");
+  const found = testsInText(text, "^scenario (.+)$");
+  assert.deepEqual(found.map((t) => [t.id, t.line]), [["custom-one", 1], ["custom-two", 3]]);
+});
+
+test("findTests leaves out folders that are their own project and files in tests.exclude", () => {
+  const named = 'test("[real-one] counts", () => {});\n';
+  const dir = makeRepo({
+    "test/a.test.mjs": named,
+    "samples/one/.claude/verify.json": "{}", "samples/one/test/b.test.mjs": named,
+    "samples/two/openspec/specs/x.md": "x", "samples/two/test/c.test.mjs": named,
+    "overlay/test/d.test.mjs": named,
+  });
+  git(dir, "add", "-A");
+  assert.deepEqual(findTests(dir, [], { exclude: ["overlay/**"] }).map((t) => t.file), ["test/a.test.mjs"]);
+  assert.deepEqual(findTests(dir, []).map((t) => t.file).sort(), ["overlay/test/d.test.mjs", "test/a.test.mjs"]);
+});
+
+test("checkLocks does not read a skip or a deleted test from text inside a string", () => {
+  const before = 'test("[old-b] works", () => {\n  assert.ok(1);\n  assert.ok(2);\n});\ntest("[old-c] too", () => {\n  assert.ok(3);\n});\n';
+  const after = before + 'const sample = ["test.skip(\'[old-b]\', () => {})", "assert.ok(2)"];\nconst note = "it(\'x\'";\n';
+  const { dir, base } = lockRepo([["Add samples", { "test/old.test.mjs": after }]]);
+  assert.deepEqual(checkLocks(dir, base, SETTINGS).holds, []);
+  const real = lockRepo([["Skip", { "test/old.test.mjs": after + "test.skip('[old-d] later', () => {});\n" }]]);
+  assert.match(checkLocks(real.dir, real.base, SETTINGS).holds[0].why, /skipped/);
+});
+
+test("the settings check accepts tests.exclude and tests.namePattern, and refuses bad ones", () => {
+  const problems = (tests) => complianceSettings(withSettings({ tests: { byName: "run {name}", ...tests } })).problems.join(" ");
+  assert.equal(problems({ exclude: ["samples/**"], namePattern: "^scenario (.+)$" }), "");
+  assert.match(problems({ exclude: "samples" }), /tests\.exclude/);
+  assert.match(problems({ namePattern: "(" }), /tests\.namePattern/);
+  assert.match(problems({ namePattern: "no group here" }), /tests\.namePattern.*one capture group/);
+  assert.match(problems({ namePattern: "(a)(b)" }), /tests\.namePattern.*one capture group/);
 });

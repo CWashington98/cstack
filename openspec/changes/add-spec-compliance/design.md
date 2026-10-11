@@ -29,8 +29,18 @@ New: `spec-compliance.mjs`, a library behind it, its tests and two sample reposi
 | `tests.all` | `"bun run test"` | Running every test |
 | `tests.byName` | `"bun run test -t \"{name}\""` | Running one scenario's tests. `{name}` is replaced with the bracket text exactly as the test's name writes it: `[scenario-id]` for the short form, `[domain/capability:requirement/scenario-id]` for the long form. The check counts the bracketed names in the runner's output and never trusts its test total, because some runners list a file with no matching test as passing. |
 | `tests.acceptance` | `["**/acceptance/**"]` | Which files are the locked acceptance tests |
+| `tests.namePattern` | `"^scenario (.+)$"` | Optional. A regular expression with one capture group that finds a test's name, in place of the built-in rule below. |
+| `tests.exclude` | `["samples/**"]` | Optional. Files the check never reads for test names, such as sample repositories kept as test data. |
 | `tests.alwaysAllowed` | `["docs/**", "*.md"]` | Files the scope check never lists |
 | `executableSpecs` | `{ "tool": "cucumber-js", "command": "npx cucumber-js --name \"{name}\"", "assertion": "myCheck\\(" }` | Off when missing. `assertion` is optional. |
+
+### Test names: what counts
+
+- A test name is the first string of a test declaration, found by reading the file as code (strings and comments are skipped over, so sample code quoted inside a string is never a declaration). A declaration is a call to `test(`, `it(`, `describe(`, `suite(`, `context(` or `specify(`, with `.skip`, `.only`, `.todo` and similar after it allowed, or the string just under a definition line `def test...(...):`, which is how the Python sample writes its descriptions.
+- A bracket in that name is a scenario reference only when it holds a kebab-case ID with at least one hyphen (`[seat-added-under-limit]`), or the long form `[area/feature:requirement/scenario-id]` whose last segment is such an ID. `[x]`, `[a]`, `[null]` and `[part]` never count.
+- `tests.namePattern` replaces the first rule only. The bracket rule still applies to what it captures.
+- A folder that holds its own `.claude/verify.json` or `openspec/` folder is its own project and is not read as part of the outer one. `tests.exclude` covers other cases, such as a sample whose files are laid over another's.
+- A run's output is read the same way from the other side: a test is skipped only when the runner marks it (`# SKIP`, a leading skip mark, `... skipped`), not when its own name has the word in it. A skip or a removed assertion in the locked-test check counts only on a line of code, not inside a string or comment.
 
 ### Executable specs: how bindings are found
 

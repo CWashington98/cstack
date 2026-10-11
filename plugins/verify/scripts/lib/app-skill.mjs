@@ -97,7 +97,14 @@ function testSettingsProblems(s) {
     else {
       if (t.all !== undefined && !isCommand(t.all)) out.push(`"tests.all" must be a command that runs every test.`);
       if (t.byName !== undefined && !(isCommand(t.byName) && t.byName.includes("{name}"))) out.push(`"tests.byName" must contain {name}, where the scenario's name goes, such as "<your test command> --filter \"{name}\"".`);
-      for (const f of ["acceptance", "alwaysAllowed"]) if (t[f] !== undefined && !isList(t[f])) out.push(`"tests.${f}" must be a list of path patterns.`);
+      for (const f of ["acceptance", "alwaysAllowed", "exclude"]) if (t[f] !== undefined && !isList(t[f])) out.push(`"tests.${f}" must be a list of path patterns.`);
+      if (t.namePattern !== undefined) {
+        const bad = `"tests.namePattern" must be a regular expression with exactly one capture group, whose match is a test's name.`;
+        try {
+          const re = new RegExp(t.namePattern);
+          if (typeof t.namePattern !== "string" || new RegExp(`${re.source}|`).exec("").length !== 2) out.push(bad);
+        } catch { out.push(bad); }
+      }
     }
   }
   if (s.executableSpecs !== undefined) {
