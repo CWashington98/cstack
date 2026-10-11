@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { checkScenarios } from "../scripts/lib/plan.mjs";
 import { proseLines } from "../scripts/lib/markdown.mjs";
 import { testsInText, globToRegExp, matchesAny, isTestFile, parseTasks } from "../scripts/lib/compliance.mjs";
+import { complianceSettings, checkRepoSettings } from "../scripts/lib/app-skill.mjs";
 import { makeRepo } from "../../../tests/helpers.mjs";
 
 const SPEC = [
@@ -83,4 +84,42 @@ test("isTestFile knows test folders, test names and acceptance patterns", () => 
   for (const f of ["test/a.mjs", "src/a.test.ts", "tests/test_a.py", "pkg/test_a.py", "spec/a.rb", "x/y/a_spec.rb"]) assert.ok(isTestFile(f), f);
   for (const f of ["src/a.ts", "openspec/specs/a/spec.md", "README.md"]) assert.ok(!isTestFile(f), f);
   assert.ok(isTestFile("checks/one.ts", ["checks/**"]));
+});
+
+// ---- The settings the check reads ----
+
+const withSettings = (s) => makeRepo({ ".claude/verify.json": typeof s === "string" ? s : JSON.stringify({ integrationBranch: "main", ...s }) });
+
+test("complianceSettings refuses to run without tests.byName and says which field to add", () => {
+  const { problems } = complianceSettings(withSettings({ tests: { all: "run-all" } }));
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /"tests\.byName"/);
+  assert.match(problems[0], /\{name\}/);
+  assert.match(complianceSettings(withSettings({})).problems[0], /"tests\.byName"/);
+  assert.match(complianceSettings(makeRepo()).problems[0], /verify\.json/);
+  assert.match(complianceSettings(withSettings("{ nope")).problems[0], /not valid JSON/);
+});
+
+test("complianceSettings accepts the full set of fields and hands them back", () => {
+  const settings = {
+    tests: { all: "run-all", byName: 'run-one "{name}"', acceptance: ["test/acceptance/**"], alwaysAllowed: ["docs/**"] },
+    executableSpecs: { tool: "steps", command: 'steps "{name}"' },
+  };
+  const r = complianceSettings(withSettings(settings));
+  assert.deepEqual(r.problems, []);
+  assert.deepEqual(r.settings.tests, settings.tests);
+  assert.equal(r.settings.integrationBranch, "main");
+});
+
+test("the settings check names each wrong tests field, and ignores a project that sets none", () => {
+  const msg = (s) => checkRepoSettings(withSettings(s)).map((f) => f.message).join("\n");
+  assert.equal(msg({}), "");
+  assert.match(msg({ tests: "run" }), /"tests" must be an object/);
+  assert.match(msg({ tests: { all: 3 } }), /"tests\.all" must be a command/);
+  assert.match(msg({ tests: { byName: "run-one" } }), /"tests\.byName" must contain \{name\}/);
+  assert.match(msg({ tests: { acceptance: "test/**" } }), /"tests\.acceptance" must be a list of path patterns/);
+  assert.match(msg({ tests: { alwaysAllowed: [1] } }), /"tests\.alwaysAllowed" must be a list of path patterns/);
+  assert.match(msg({ executableSpecs: { tool: "steps" } }), /"executableSpecs\.command" must contain \{name\}/);
+  assert.match(msg({ executableSpecs: { command: "x {name}" } }), /"executableSpecs\.tool"/);
+  assert.equal(msg({ tests: { byName: 'run-one "{name}"' } }), "");
 });

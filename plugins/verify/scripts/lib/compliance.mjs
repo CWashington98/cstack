@@ -28,11 +28,6 @@ export function gitOk(root, ...args) {
   try { return git(root, ...args); } catch { return null; }
 }
 
-export function readSettings(root) {
-  const file = join(root, ".claude", "verify.json");
-  return existsSync(file) ? JSON.parse(readText(file)) : {};
-}
-
 // ---- Paths and patterns ----
 
 // "**" crosses folders, "*" and "?" stay inside one. A pattern with no "/" matches a

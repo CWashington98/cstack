@@ -12,7 +12,7 @@
 
 ## 3. Running the scenario tests
 
-- [ ] 3.1 Add the `tests` settings fields to the settings check, with a clear message when `tests.byName` is missing. Verify with settings tests. Covers: all-scenario-tests-ran. Touches: plugins/verify/scripts/lib/app-skill.mjs
+- [x] 3.1 Add the `tests` settings fields to the settings check, with a clear message when `tests.byName` is missing. Verify with settings tests. Covers: all-scenario-tests-ran. Touches: plugins/verify/scripts/lib/app-skill.mjs
 - [ ] 3.2 Run each scenario's tests by name and count them. Verify the run-count scenarios pass on both sample repositories. Covers: all-scenario-tests-ran, a-scenario-test-did-not-run. Touches: plugins/verify/scripts/lib/compliance.mjs
 - [ ] 3.3 Run the tests on the starting commit in a temporary worktree and on the latest commit. Tell an assertion failure apart from a crash using the test command's exit code and output. Verify the fail-first scenarios pass on both samples. Covers: fails-on-old-passes-on-new, passes-on-old-code-too, crash-is-not-a-real-failure, fails-on-new-code. Touches: plugins/verify/scripts/lib/compliance.mjs
 

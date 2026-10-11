@@ -6,8 +6,9 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { complianceSettings } from "./lib/app-skill.mjs";
 import { parseArgs, UsageError } from "./lib/args.mjs";
-import { git, gitOk, changeDir, readSettings, runCompliance, summarize } from "./lib/compliance.mjs";
+import { git, gitOk, changeDir, runCompliance, summarize } from "./lib/compliance.mjs";
 
 function main(argv) {
   const say = (m) => console.error(`spec-compliance: ${m}`);
@@ -24,7 +25,11 @@ function main(argv) {
   if (!root) { say("run this inside the project's git repository."); return 2; }
   if (!existsSync(changeDir(root, change))) { say(`there is no change named "${change}" under openspec/changes/.`); return 2; }
 
-  const settings = readSettings(root);
+  const { settings, problems } = complianceSettings(root);
+  if (problems.length) {
+    for (const p of problems) say(p);
+    return 2;
+  }
   let base = args.base;
   if (!base) {
     base = gitOk(root, "merge-base", "HEAD", settings.integrationBranch)?.trim();

@@ -24,10 +24,16 @@ Full suite: 519 tests, 31 failing. That is these 30 plus one guard timing test, 
 
 - Ruling: the working folder started this session with uncommitted edits to two locked sample tests (qualified test names such as `[accounts/seats:seat-limit/seat-added-under-limit]`). Why: not mine, so I left them untouched and uncommitted and asked the lead. Cost if wrong: the TypeScript sample's runs use whichever names are on disk.
 
-## 2026-10-11 · task 2.2 · commit @@2.2@@
+## 2026-10-11 · task 2.2 · commit 626d9b7
 
 Added `lib/compliance.mjs` (tracing: tasks, test names, scenario links) and a minimal `scripts/spec-compliance.mjs` entry point (report written under `.verify/runs/spec-compliance/<time>-<commit>/compliance.json`, plain summary, exit 0/1/2). Green now: `[scenario-without-a-task]`, `[task-cites-an-unknown-scenario]`, `[scenario-without-a-test]`, `[test-cites-an-unknown-scenario]`. Also green, but only because nothing else can hold yet: `[setup-task-needs-no-scenario]`, `[declared-file-is-not-listed]`, `[normal-lane-skips-the-breaks]`, `[setting-off-changes-nothing]`, `[record-has-the-numbers]`, `[no-framework-names-in-the-code]`. Unit tests added for the readers.
 
 - Ruling: a test name is a quoted string holding `[id]` (not preceded by a word character or a closing bracket, so `items[index]` and comments don't count), in a tracked file that sits in a test folder, is named like a test, or matches `tests.acceptance`. Why: the design says nothing about how to find test names without running them; reading the files keeps the check free of any test tool. Cost if wrong: a test name built at run time is not seen, and its scenario is held as having no test.
 - Ruling: a scenario's run-by-name token is whatever bracket form its own tests use (plain `[id]` or qualified), one run per distinct token. Why: a plain `[id]` pattern cannot match a qualified name, because the qualified bracket opens earlier. Cost if wrong: one extra run per qualified scenario.
 - Ruling: `Covers: all` is accepted only on a task whose Touches are all acceptance files (when `tests.acceptance` is set). Why: the design says it is allowed only for the acceptance-test task. Cost if wrong: a hold on a task list that uses it elsewhere.
+
+## 2026-10-11 · task 3.1 · commit @@3.1@@
+
+`app-skill.mjs` now checks `tests.all`, `tests.byName` (must contain `{name}`), `tests.acceptance`, `tests.alwaysAllowed` and `executableSpecs` (`tool`, and `command` with `{name}`), and exports `complianceSettings`, which also refuses to run without `tests.byName` and says which field to add and how to escape the bracket. The command now exits 2 with that message. Unit tests added; `app-skill.test.mjs` unchanged and green. No new acceptance test goes green (settings are exercised by every run).
+
+- Ruling: `tests.byName` is required by the compliance command only, not by `checkRepoSettings`. Why: projects that never use the check should not be told to add it; the existing settings tests expect an empty problem list for a file with only `integrationBranch`. Cost if wrong: one more message in the generic settings check.
