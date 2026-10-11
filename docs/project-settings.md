@@ -70,8 +70,10 @@ shell commands it refuses:
 - `--prod` on a Convex command, except `convex dashboard --prod`, which only
   prints an address;
 - recursive deletes outside the repository and temporary folders, of a whole
-  repository, or of its history: the `.git` folder or anything inside it. When
-  the working folder isn't a repository, only temporary folders count as safe;
+  repository, or of its history: the `.git` folder or anything inside it. Git's
+  own leftovers may be deleted: `rebase-merge`, `rebase-apply`, `sequencer`,
+  lock files, and hooks. When the working folder isn't a repository, only
+  temporary folders count as safe;
 - any command that uses an entry from `agentsNeverTouch`, including inside an env
   file it loads or a heredoc it feeds to a program. Commands that only mention a
   name, such as a search, a commit message or a pull request comment, are allowed.
@@ -81,6 +83,10 @@ It reads commands the way the shell runs them. It looks through:
 - wrappers such as `npx` and `dotenvx run --`;
 - shell blocks (`if`, `for`, `while`, `{ }`), `bash -c`, `eval`, `$( )` and
   heredocs. A `<<` inside quotes is text, not the start of a heredoc;
+- the `$( )` and backtick commands inside a heredoc whose tag has no quotes,
+  such as `<<EOF`, because the shell runs them. A heredoc with a quoted tag,
+  such as `<<'EOF'`, is plain text, so a commit message or pull request body
+  written that way may mention any command;
 - package scripts, with their pre and post scripts, in the right workspace, or
   in every workspace for `pnpm -r`, `--workspaces`, `yarn workspaces foreach`,
   `turbo run`, `nx` and `lerna run`;
@@ -102,9 +108,9 @@ check in time, and these are refused rather than let through:
 
 - scripts nested more than 8 levels deep;
 - more scripts than the guard can check in time;
-- moving into more than 200 different folders with `cd` or `git -C`. Each new
-  folder costs the guard about 8 ms, because it asks git which repository the
-  folder belongs to.
+- moving into more than 200 different folders with `cd` or `git -C`, not
+  counting the folder the command starts in. Each new folder costs the guard
+  about 8 ms, because it asks git which repository the folder belongs to.
 
 It does not refuse ordinary merges. Agents merge when the owner says so.
 
@@ -117,6 +123,14 @@ tool server whose input uses an entry from `agentsNeverTouch`, ignoring capital
 letters. A call that only searches for the name is refused too, because the
 guard can't tell what a tool does with its input. The deploy, push and delete
 rules above don't apply to these calls.
+
+The Convex tool server names a deployment with a "deployment selector": a
+kind, a colon, then the details in base64, so the deployment's name never
+appears as plain text. The guard decodes every such selector in a tool call's
+input. It refuses one that points at production: the kinds `prod` and
+`implicitProd`, or a selector such as `prod` or `team:project:prod`. Selectors
+for your own development deployment, a preview or a named deployment are
+allowed, and the decoded details are also checked against `agentsNeverTouch`.
 
 The tools that read and edit files are not checked, so an agent can still write
 a file that mentions a production name.
@@ -140,7 +154,7 @@ If the settings file can't be read, the guard refuses every shell command and
 every tool-server call until it is fixed, because it can't see the "never"
 list. If the guard itself fails while checking a shell command that holds any
 word its rules refuse, or names a "never" entry, it refuses. For a tool-server
-call, only a "never" entry counts.
+call, a "never" entry or a production Convex selector counts.
 
 ### Its limits
 
@@ -167,9 +181,13 @@ These can still get past it, each for the reason given:
 - An allowed deploy target named in any variable set earlier in the same
   command. It counts for every deploy after it, even one the variable doesn't
   feed, because the guard doesn't track which variables each deploy reads.
-- A tool-server call that reaches production without naming it, such as a tool
-  whose default target is production. List the exact text each tool uses for
-  production in `agentsNeverTouch`.
+- A tool-server call that reaches production without naming it. One example
+  is a Convex tool server whose own settings point at production, such as a
+  production deploy key in its environment. Its selectors still say "your own
+  deployment". Another is a Convex selector that names production by a custom
+  reference. The guard can't see what these resolve to. For other tool
+  servers, only the "never" list applies: list the exact text each tool uses
+  for production in `agentsNeverTouch`.
 - Built-in tools other than the shell, such as fetching a web page. Only shell
   commands and tool-server calls are checked.
 - A production target the project hasn't listed in `agentsNeverTouch`.

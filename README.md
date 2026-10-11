@@ -66,7 +66,7 @@ pushes to protected branches, force pushes, GitHub settings changes, deletes out
 repository, and anything on the project's "never" list. It allows merges and deploys to
 targets the project lists as safe for agents. It also checks every call to a tool server,
 such as a hosting or database tool, and refuses one whose input uses anything on the
-"never" list. Each project lists those in `.claude/verify.json`; the
+"never" list or points a Convex tool at a production deployment. Each project lists those in `.claude/verify.json`; the
 format is in [docs/project-settings.md](docs/project-settings.md).
 
 ## Matt Pocock's skills

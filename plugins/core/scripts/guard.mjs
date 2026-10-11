@@ -15,8 +15,9 @@
 //
 // It also runs before every call to a tool server (a tool whose name starts
 // with mcp__, such as a hosting or database tool), and refuses a call whose
-// input uses an entry on the "never" list. Built-in tools that read or edit
-// files are not checked.
+// input uses an entry on the "never" list or holds a Convex deployment
+// selector for production. Built-in tools that read or edit files are not
+// checked.
 //
 // Project facts come from the project's settings file, .claude/verify.json.
 // See docs/project-settings.md in cstack for every field. The guard reads:
@@ -43,7 +44,7 @@
 // shell through a pipe. docs/project-settings.md lists every known limit. It
 // guards against mistakes, not against an agent working to get around it.
 import { readFileSync, existsSync, statSync, readdirSync, appendFileSync, mkdirSync, realpathSync } from "node:fs";
-import { resolve, join, dirname, basename, sep } from "node:path";
+import { resolve, join, dirname, basename, relative, sep } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
@@ -56,10 +57,13 @@ const MAX_DEPTH = 8;
 // the command through.
 const MAX_STEPS = 20000;
 const MAX_FILE_BYTES = 256 * 1024;
-// The most folders one command may move into. Each new folder costs a call to
-// git, about 8 ms, so a command past this is refused rather than let run the
-// guard past its time limit.
+// The most folders one command may move into, not counting the one it starts
+// in. Each new folder costs a call to git, about 8 ms, so a command past this
+// is refused rather than let run the guard past its time limit.
 const MAX_FOLDERS = 200;
+// What git leaves inside .git and tells people to delete: rebase and
+// cherry-pick state and lock files. Hooks are the owner's own scripts.
+const GIT_LEFTOVERS = /^(rebase-merge|rebase-apply|sequencer|hooks)(\/|$)|\.lock$/;
 const DEPLOY_WORDS = /deploy|release|publish|submit|promote/i;
 const PROD_WORDS = /deploy|release|publish|prod|promote|submit/i;
 // Names that only read about a deploy or release, such as release-notes or deploy:check.
@@ -427,7 +431,7 @@ class Checker {
   }
 
   enter(dir) {
-    if (!this.dirs.has(dir) && this.dirs.size >= MAX_FOLDERS) this.refuse("complex", `It moves through more folders than the guard can check in time (more than ${MAX_FOLDERS}). Run the parts separately.`);
+    if (!this.dirs.has(dir) && this.dirs.size > MAX_FOLDERS) this.refuse("complex", `It moves into more than ${MAX_FOLDERS} folders, more than the guard can check in time. Run the parts separately.`);
     else this.dirs.add(dir);
     return dir;
   }
@@ -504,8 +508,10 @@ class Checker {
   check(command, dir, depth, ctx) {
     if (depth > MAX_DEPTH) return this.refuse("complex", `It runs scripts nested more than ${MAX_DEPTH} levels deep, which the guard doesn't check. Run the inner command directly.`);
     if (++this.steps > MAX_STEPS) return this.refuse("complex", "It runs more scripts than the guard can check in time. Run the parts separately.");
-    const { text, heredocs } = extractHeredocs(command);
+    const { text, heredocs, live } = extractHeredocs(command);
     for (const [k, v] of heredocs) this.heredocs.set(k, v);
+    // The shell runs the $( ) and backtick commands in a heredoc whose tag has no quotes.
+    for (const k of live) for (const inner of substitutions(heredocs.get(k), { quotes: false })) this.check(inner, dir, depth + 1, { ...ctx, here: undefined });
     for (const inner of substitutions(text)) this.check(inner, dir, depth + 1, { ...ctx, here: undefined });
     const vars = new Map(ctx.vars);
     const loops = new Map(ctx.loops ?? []);
@@ -1061,8 +1067,10 @@ class Checker {
         this.refuse("delete", `It deletes "${p}"${how}, which is a whole repository or a folder that holds one.`);
         continue;
       }
-      if (roots.some((r) => target === join(r, ".git") || inside(target, join(r, ".git")))) {
-        this.refuse("delete", `It deletes "${p}"${how}, the repository's history.`);
+      const git = roots.map((r) => join(r, ".git")).find((g) => target === g || inside(target, g));
+      if (git) {
+        if (target !== git && GIT_LEFTOVERS.test(relative(git, target))) continue;
+        this.refuse("delete", target === git ? `It deletes "${p}"${how}, the repository's history.` : `It deletes "${p}"${how}, which is inside the repository's .git folder, where its history is kept.`);
         continue;
       }
       if (roots.some((r) => inside(target, r)) || temps.some((t) => inside(target, t))) continue;
@@ -1123,31 +1131,60 @@ function mentionsOnly(w) {
   return false;
 }
 
+// Convex's tool server names a deployment with a selector: its kind, a colon,
+// then base64 of {"projectDir", "deployment": {"kind", ...}}. The deployment
+// name never appears as plain text. These are the decoded selectors anywhere
+// in a tool call's input.
+function convexSelectors(input) {
+  const found = [];
+  const walk = (v) => {
+    if (v && typeof v === "object") for (const x of Object.values(v)) walk(x);
+    const m = typeof v === "string" && v.match(/^[A-Za-z]+:([A-Za-z0-9+/]+={0,2})$/);
+    if (!m) return;
+    try {
+      const payload = JSON.parse(Buffer.from(m[1], "base64").toString("utf8"));
+      if (typeof payload?.deployment?.kind === "string") found.push(payload);
+    } catch {}
+  };
+  walk(input);
+  return found;
+}
+
+// True when a decoded selector points at production: the kinds prod and
+// implicitProd, or a --deployment selector whose last part is prod, such as
+// "prod" or "team:project:prod".
+const convexProduction = ({ deployment: d }) => d.kind === "prod" || d.kind === "implicitProd" || (d.kind === "deploymentSelector" && String(d.selector).split(":").pop() === "prod");
+
 // The input of a call to a tool server, as text: its JSON, and each name and
-// text value in it as written. JSON escapes quotes and backslashes, so a
-// "never" entry holding one is only found in the values as written.
+// text value in it as written, for the input and for each Convex selector in
+// it, decoded. JSON escapes quotes and backslashes, so a "never" entry holding
+// one is only found in the values as written.
 function toolText(input) {
+  const parts = [input, ...convexSelectors(input)];
   const strings = [];
   const walk = (v) => {
     if (typeof v === "string") strings.push(v);
     else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) strings.push(k), walk(x);
   };
-  walk(input);
-  return [JSON.stringify(input) ?? "", ...strings].join("\n");
+  for (const part of parts) walk(part);
+  return [...parts.map((part) => JSON.stringify(part) ?? ""), ...strings].join("\n");
 }
+
+const PRODUCTION_SELECTOR = "Its deployment selector points a Convex tool at the production Convex deployment. Agents use development and preview deployments only, as with `--prod` on a Convex command.";
 
 const isToolServer = (name) => typeof name === "string" && name.startsWith("mcp__");
 
 export function decide({ tool_name, tool_input = {}, cwd = process.cwd() }) {
   // A tool server, such as a hosting or database tool, can reach production
   // without a shell command. Its calls are checked against the "never" list
-  // only. Built-in tools that edit or read files are never checked, so a file
+  // and for Convex selectors that point at production. Built-in tools that edit or read files are never checked, so a file
   // that mentions a production name can still be written.
   if (isToolServer(tool_name)) {
     const project = projectFor(real(cwd), new Map());
     const refusals = project.problem ? [{ rule: "settings", reason: settingsReason(project.problem) }] : [];
     const text = lower(toolText(tool_input));
     for (const entry of listed(project.settings.agentsNeverTouch)) if (text.includes(lower(entry))) refusals.push({ rule: "never", reason: neverReason(entry, project.settingsFile) });
+    if (convexSelectors(tool_input).some(convexProduction)) refusals.push({ rule: "production", reason: PRODUCTION_SELECTOR });
     return { allow: refusals.length === 0, refusals };
   }
   if (tool_name !== "Bash" || typeof tool_input.command !== "string") return { allow: true, refusals: [] };
@@ -1202,7 +1239,7 @@ async function main() {
     process.stderr.write(message(result.refusals, tool) + "\n");
     return 2;
   } catch (error) {
-    const refuse = refuseOnError(tool ? toolText(input.tool_input) : command, cwd, { tool: Boolean(tool) });
+    const refuse = refuseOnError(tool ? toolText(input.tool_input) : command, cwd, { tool: Boolean(tool) }) || Boolean(tool && convexSelectors(input.tool_input).some(convexProduction));
     log({ decision: refuse ? "refused-on-error" : "error", tool: input.tool_name, cwd: String(cwd), command: mask(command), error: String(error?.stack ?? error).slice(0, 600) });
     if (!refuse) return 0;
     process.stderr.write(message([{ reason: `The guard failed while checking it (${error?.message ?? error}), and it looks like something the guard refuses, so it refuses to be safe.` }], tool) + "\n");

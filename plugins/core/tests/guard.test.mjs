@@ -36,6 +36,9 @@ const project = (extra = {}, settings = SETTINGS) => makeRepo({
   ...extra,
 });
 const run = (dir, command) => decide({ tool_name: "Bash", tool_input: { command }, cwd: dir });
+// A deployment selector exactly as the Convex tool server makes one: the kind,
+// a colon, then base64 of {projectDir, deployment}.
+const selector = (deployment, projectDir = "/work/app") => `${deployment.kind}:${Buffer.from(JSON.stringify({ projectDir, deployment })).toString("base64")}`;
 const reasons = (r) => r.refusals.map((x) => x.reason).join("\n");
 const refused = (dir, command, pattern) => {
   const r = run(dir, command);
@@ -775,11 +778,11 @@ test("the core plugin runs the guard before every shell command", () => {
 test("round 4: tool-server calls that use a never entry are refused; file tools that mention it are not", () => {
   const dir = project();
   const call = (tool_name, tool_input, cwd = dir) => decide({ tool_name, tool_input, cwd });
-  const no = call("mcp__plugin_convex_convex__run", { deploymentSelector: "prod-backend-9", functionName: "seed:all" });
+  const no = call("mcp__plugin_convex_convex__run", { deploymentSelector: selector({ kind: "deploymentName", deploymentName: "prod-backend-9" }), functionName: "seed:all" });
   assert.equal(no.allow, false);
   assert.match(reasons(no), /"prod-backend-9", which .* lists under "agentsNeverTouch"/);
   assert.equal(call("mcp__vercel__get_logs", { request: { urls: ["https://APP.example.com/api"] } }).allow, false);
-  assert.equal(call("mcp__plugin_convex_convex__run", { deploymentSelector: "staging-backend-1", functionName: "seed:all" }).allow, true);
+  assert.equal(call("mcp__plugin_convex_convex__run", { deploymentSelector: selector({ kind: "deploymentName", deploymentName: "staging-backend-1" }), functionName: "seed:all" }).allow, true);
   assert.equal(call("mcp__vercel__deploy", {}).allow, true);
   for (const tool of ["Write", "Edit", "Read", "MultiEdit", "Grep"]) {
     assert.equal(call(tool, { file_path: join(dir, "notes.md"), content: "prod-backend-9 is production", old_string: "app.example.com", pattern: "prod-backend-9" }).allow, true, tool);
@@ -792,18 +795,18 @@ test("round 4: the hook checks tool-server calls end to end", () => {
   const dir = project();
   const logFile = join(mkdtempSync(join(tmpdir(), "guard-log-")), "log.jsonl");
   const hook = (input) => spawnSync("node", [script], { input: JSON.stringify(input), encoding: "utf8", env: { ...process.env, CSTACK_GUARD_LOG: logFile } });
-  const no = hook({ tool_name: "mcp__plugin_convex_convex__envSet", tool_input: { deploymentSelector: "prod:prod-backend-9", name: "API_KEY", value: "sk_live_abcdef123456" }, cwd: dir });
+  const no = hook({ tool_name: "mcp__plugin_convex_convex__envSet", tool_input: { deploymentSelector: selector({ kind: "deploymentName", deploymentName: "prod-backend-9" }), name: "API_KEY", value: "sk_live_abcdef123456" }, cwd: dir });
   assert.equal(no.status, 2);
   assert.match(no.stderr, /cstack guard refused this tool call/);
   assert.match(no.stderr, /prod-backend-9/);
   assert.match(no.stderr, /mcp__plugin_convex_convex__envSet/);
   assert.match(no.stderr, /do it themselves/);
-  assert.equal(hook({ tool_name: "mcp__plugin_convex_convex__envSet", tool_input: { deploymentSelector: "staging-backend-1", name: "A", value: "b" }, cwd: dir }).status, 0);
+  assert.equal(hook({ tool_name: "mcp__plugin_convex_convex__envSet", tool_input: { deploymentSelector: selector({ kind: "ownDev" }), name: "A", value: "b" }, cwd: dir }).status, 0);
   assert.equal(hook({ tool_name: "Write", tool_input: { file_path: join(dir, "a.md"), content: "prod-backend-9 and app.example.com" }, cwd: dir }).status, 0);
   const lines = readFileSync(logFile, "utf8").trim().split("\n").map((l) => JSON.parse(l));
   assert.equal(lines.length, 1);
   assert.equal(lines[0].tool, "mcp__plugin_convex_convex__envSet");
-  assert.match(lines[0].command, /"deploymentSelector":"prod:prod-backend-9"/);
+  assert.match(lines[0].command, /"deploymentSelector":"deploymentName:/);
   assert.doesNotMatch(lines[0].command, /sk_live_abcdef123456/);
 });
 
@@ -900,13 +903,14 @@ test("round 4: aws s3 sync --delete to a bucket is a deploy", () => {
 test("round 4: a command that moves through more folders than the guard can check in time is refused", () => {
   const dir = project();
   const base = mkdtempSync(join(tmpdir(), "guard-cd-"));
-  for (let i = 0; i < 210; i++) mkdirSync(join(base, `d${i}`));
+  for (let i = 0; i < 201; i++) mkdirSync(join(base, `d${i}`));
   const visit = (n) => Array.from({ length: n }, (_, i) => `cd ${base}/d${i}`).join(" && ");
-  // The cap keeps the check well inside the hook's 30 second limit, even on a busy machine.
+  // 200 folders is the limit; the folder the command starts in doesn't count.
+  allowed(dir, visit(200));
+  // The limit keeps the check well inside the hook's 30 second time limit, even on a busy machine.
   const start = Date.now();
-  refused(dir, visit(210), /more folders than the guard can check/);
+  refused(dir, visit(201), /more than 200 folders/);
   assert.ok(Date.now() - start < 15000, `took ${Date.now() - start} ms`);
-  allowed(dir, visit(150));
 });
 
 test("round 4: a heredoc inside $( ) or backticks that close on its first line has no body, so the next lines run", () => {
@@ -946,4 +950,88 @@ test("round 4: when the guard fails on a tool call, it matches never entries in 
   assert.equal(no.status, 2);
   assert.match(no.stderr, /failed while checking it/);
   assert.equal(hook({ command: "bun run release --env staging" }).status, 0);
+});
+
+test("round 5: a Convex tool-server call aimed at production is refused; development and preview are not", () => {
+  const dir = project();
+  const call = (tool_input) => decide({ tool_name: "mcp__plugin_convex_convex__run", tool_input, cwd: dir });
+  for (const deployment of [{ kind: "prod" }, { kind: "implicitProd" }, { kind: "deploymentSelector", selector: "prod" }, { kind: "deploymentSelector", selector: "acme:app:prod" }]) {
+    const r = call({ deploymentSelector: selector(deployment), functionName: "seed:all" });
+    assert.equal(r.allow, false, deployment.kind);
+    assert.match(reasons(r), /production Convex deployment/);
+  }
+  for (const deployment of [{ kind: "ownDev" }, { kind: "unspecified" }, { kind: "previewName", previewName: "pr-12" }, { kind: "deploymentSelector", selector: "dev" }, { kind: "deploymentName", deploymentName: "staging-backend-1" }]) {
+    assert.equal(call({ deploymentSelector: selector(deployment), functionName: "seed:all" }).allow, true, deployment.kind);
+  }
+  assert.match(reasons(call({ deploymentSelector: selector({ kind: "deploymentSelector", selector: "prod-backend-9" }) })), /"prod-backend-9", which .* lists under "agentsNeverTouch"/);
+  assert.match(reasons(call({ deploymentSelector: selector({ kind: "ownDev" }, "/work/APP.example.com") })), /app\.example\.com/);
+  assert.equal(decide({ tool_name: "mcp__other__thing", tool_input: { nested: [{ target: selector({ kind: "prod" }) }] }, cwd: dir }).allow, false);
+  assert.equal(call({ deploymentSelector: "prod:not-base64!" }).allow, true);
+});
+
+test("round 5: the hook refuses a production Convex selector end to end, and fails closed on it", () => {
+  const dir = project();
+  const hook = (input, cwd = dir) => spawnSync("node", [script], { cwd: dir, input: JSON.stringify({ tool_name: "mcp__plugin_convex_convex__data", tool_input: input, cwd }), encoding: "utf8", env: { ...process.env, CSTACK_GUARD_LOG: join(mkdtempSync(join(tmpdir(), "guard-log-")), "log.jsonl") } });
+  const no = hook({ deploymentSelector: selector({ kind: "prod" }), tableName: "users" });
+  assert.equal(no.status, 2);
+  assert.match(no.stderr, /production Convex deployment/);
+  assert.equal(hook({ deploymentSelector: selector({ kind: "ownDev" }), tableName: "users" }).status, 0);
+  const broken = hook({ deploymentSelector: selector({ kind: "prod" }), tableName: "users" }, 42);
+  assert.equal(broken.status, 2);
+  assert.match(broken.stderr, /failed while checking it/);
+  assert.equal(hook({ deploymentSelector: selector({ kind: "ownDev" }), tableName: "users" }, 42).status, 0);
+});
+
+test("round 5: commands inside an unquoted heredoc's body run, and are checked; a quoted heredoc's body is text", () => {
+  const dir = project();
+  for (const c of [
+    "git commit -F - <<EOF\nfix: $(npx convex deploy)\nEOF",
+    "git commit -F - <<EOF\nfix: `npx convex deploy`\nEOF",
+    "cat <<EOF\ndon't $(npx convex deploy)\nEOF",
+    "cat <<-EOF\n\t$(git push origin main)\n\tEOF",
+  ]) refused(dir, c);
+  for (const c of [
+    "git commit -F - <<'EOF'\nfix: $(npx convex deploy)\nEOF",
+    'git commit -F - <<"EOF"\nfix: `npx convex deploy`\nEOF',
+    "git commit -F - <<\\EOF\nfix: $(npx convex deploy)\nEOF",
+    "gh pr create --title x --body-file - <<'EOF'\nRun `npx convex deploy` and $(rm -rf ~) later; it's fine\nEOF",
+    "cat <<EOF\nthe price is $5 and it's (fine)\nEOF",
+  ]) allowed(dir, c);
+});
+
+test("round 5: heredoc spellings that used to hide the commands after them", () => {
+  const dir = project();
+  for (const c of [
+    "cat <<\\EOF\nit's\nEOF\nnpx convex deploy",
+    "cat <<'END-TEXT'\nit's\nEND-TEXT\nnpx convex deploy",
+    "cat <<'END TEXT'\nit's\nEND TEXT\nnpx convex deploy",
+    "cat <<A; cat <<B\nfirst\nA\nit's\nB\nnpx convex deploy",
+    "cat <<EOF\nEOF\nnpx convex deploy",
+    "true;# it's\necho 'a <<X'\nnpx convex deploy\nX",
+    "echo $'it\\'s'\nnpx convex deploy",
+    "echo $'it\\'s' && git push origin main",
+    "(( y = 1 << 2 ))\nnpx convex deploy\n2",
+    "echo ${x#<<EOF}\nnpx convex deploy\nEOF",
+    "echo it\\'s '<<E'\nnpx convex deploy\nE",
+  ]) refused(dir, c);
+  for (const c of [
+    "cat <<'END-TEXT'\nprod-backend-9 is production\nEND-TEXT",
+    "cat <<A; cat <<B\nprod-backend-9\nA\nit's prod-backend-9\nB",
+    "echo $'a\\tb' && cat <<'EOF'\nprod-backend-9\nEOF",
+  ]) allowed(dir, c);
+});
+
+test("round 5: rules the mutation check showed were unpinned", () => {
+  const dir = project();
+  refused(dir, "make release-notes-then-publish", /changes a live system/);
+  const keyed = project({}, { integrationBranch: "main", agentsNeverTouch: ["C:\\prod\\keys"] });
+  assert.equal(decide({ tool_name: "mcp__fs__list", tool_input: { "C:\\prod\\keys": true }, cwd: keyed }).allow, false);
+});
+
+test("round 5: git's own leftovers and hooks may be deleted; the rest of .git may not", () => {
+  const dir = project();
+  for (const c of ["rm -rf .git/rebase-merge", "rm -rf .git/rebase-apply", "rm -rf .git/sequencer", "rm -rf .git/hooks/pre-push", "rm -rf .git/index.lock"]) allowed(dir, c);
+  refused(dir, "rm -rf .git/objects", /inside the repository's \.git folder/);
+  refused(dir, "rm -rf .git/config", /inside the repository's \.git folder/);
+  refused(dir, "rm -rf .git", /the repository's history/);
 });
