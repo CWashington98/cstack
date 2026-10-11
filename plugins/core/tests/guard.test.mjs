@@ -564,7 +564,7 @@ test("round 2: a branch named through a variable is followed to the checked-out 
 
 test("round 2: pnpm and yarn exec or dlx with -- are read as the tool", () => {
   const dir = project();
-  for (const c of ["pnpm exec -- convex deploy", "yarn exec -- convex deploy", "yarn dlx -- convex deploy", "pnpm dlx -- convex deploy"]) refused(dir, c, /convex deploy/);
+  for (const c of ["pnpm exec -- convex deploy", "yarn exec -- convex deploy", "yarn dlx -- convex deploy", "pnpm dlx -- convex deploy"]) refused(dir, c, /^`convex deploy` changes/m);
 });
 
 test("round 2: gh workflow run finds the workflow name after its flags", () => {
