@@ -647,11 +647,23 @@ class Checker {
       case "make":
       case "just":
       case "turbo":
-        for (const target of w.slice(1).filter((x) => !x.startsWith("-") && x !== "run")) {
+      {
+        const filters = [];
+        const targets = [];
+        for (let i = 1; i < w.length; i++) {
+          if (w[i] === "--") break;
+          if (prog === "turbo" && (w[i] === "--filter" || w[i] === "-F") && w[i + 1]) filters.push(w[++i]);
+          else if (prog === "turbo" && w[i].startsWith("--filter=")) filters.push(w[i].slice(9));
+          else if (!w[i].startsWith("-") && w[i] !== "run") targets.push(w[i]);
+        }
+        for (const target of targets) {
           if (DEPLOY_WORDS.test(target)) this.deploy(`\`${prog} ${target}\``, ctx);
-          if (prog === "turbo") this.runEverywhere(target, dir, depth, ctx);
+          if (prog !== "turbo") continue;
+          if (!filters.length) this.runEverywhere(target, dir, depth, ctx);
+          else for (const pkg of pickWorkspaces(dir, projectFor(dir, this.cache).root ?? dir, filters)) this.runScript(pkg, target, depth, ctx);
         }
         return;
+      }
     }
     const words = DEPLOY_TOOLS[prog];
     const dash = w.indexOf("--");
