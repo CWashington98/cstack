@@ -175,6 +175,8 @@ test("changes to GitHub secrets, rulesets and repository settings are refused; r
   refused(dir, "gh repo edit --visibility public");
   refused(dir, "gh repo delete o/r --yes");
   refused(dir, "gh api repos/o/r/rulesets -X POST --input rules.json", /rulesets/);
+  refused(dir, "gh api repos/o/r/rulesets --input rules.json", /sends POST/);
+  refused(dir, "gh api repos/o/r/actions/secrets/X -f encrypted_value=abc", /sends POST/);
   refused(dir, "gh api -X PUT repos/o/r/branches/main/protection -f x=y");
   refused(dir, "gh api -X PATCH repos/o/r -f private=false");
   refused(dir, "gh api -X DELETE repos/o/r/git/refs/heads/staging", /protected branch "staging"/);
