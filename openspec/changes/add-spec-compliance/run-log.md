@@ -85,3 +85,21 @@ Committed phase 1's uncommitted edits (long-form names in the TypeScript sample,
 - Ruling: the lock check in task 9.1 will hold this commit; the lead rules it allowed, as a late fix by the acceptance-test author, not a builder edit. Phase 1 should have committed it before the lock. Why: the edit was requested before the lock and changes no spec. Cost if wrong: add a `Spec-Change:` line by amending the commit message before review.
 
 - Ruling: the run-by-name placeholder `{name}` is filled with the bracket text exactly as the test writes it (plain or long form), and the check counts bracketed names in the runner's output instead of its test total. Why: Node lists a file with no matching test as passing, and a plain `[id]` pattern cannot match a long-form name. Cost if wrong: a runner that prints no per-test lines would show every scenario as not run.
+
+## 2026-10-11 · task 5.1 · commit 1e58323
+
+New `lib/breaks.mjs`. On the high-risk lane the check lists the lines the change added (in files no test owns), tries each break in a throwaway checkout of the latest commit, runs the tests of the scenarios whose tasks touch that file, and writes the original bytes back after every break. Each try is a report entry (`file`, `line`, `break`, `status` covered or uncaught); an uncaught one is a hold under `tests-exercise-their-code`. The normal lane skips and says so. Green now: `[break-is-caught]`, `[break-goes-unnoticed]`; `[normal-lane-skips-the-breaks]` stays green. The command exits 2 on the high-risk lane when the repository has uncommitted changes. Unit tests in `breaks.test.mjs`.
+
+- Ruling: the breaks are: flip a comparison (`>=` to `<`, `==` to `!=`, and so on), swap `&&` with `||` (or `and` with `or`), and move a whole number up and down by one. Text in quotes, comment lines, and arrows and generics (a `<` or `>` needs spaces on both sides) are left alone. Why: the spec says "condition and limit"; this reads any language with no parser. Cost if wrong: a break that changes nothing (for example a number that is only a display width) is held, and a break the list lacks is not tried.
+- Ruling: a line carrying `break-ok: <reason>` is not broken and is listed as excused with its reason. Why: the spec says an unnoticed break holds "unless it carries a written reason", and names no form for the reason. Cost if wrong: the marker word changes.
+- Ruling: the scenarios tried for a file are those whose tasks list the file (or a folder above it) in Touches. A changed file no scenario's task touches is listed as skipped in the report, not held. Why: the scope check already warns about it. Cost if wrong: such a file is never broken.
+- Ruling: "uncommitted changes" means tracked edits, staged edits and untracked files outside `.verify/`. Why: the command writes its own report under `.verify/`. Cost if wrong: none.
+- Ruling: a break is noticed when any of its scenarios' tests fails or the test command exits non-zero. Why: a break that stops the code loading is also noticed by a test run. Cost if wrong: none.
+
+## 2026-10-11 · task 6.1 · commit d192518
+
+The command from 2.2 already wrote `compliance.json`, printed the summary last, and exited 0, 1 or 2; 5.1 filled in the breaks time. This task proved it end to end: on both samples, on both lanes, exit 0, and the saved summary passes `plain-check`. A held summary with a break line also passes (`compliance-summary.test.mjs`). `[record-has-the-numbers]`, `[typescript-sample]` and `[python-sample]` stay green. The Python sample has no condition or number among its added lines, so its high-risk run tries 0 breaks, correctly.
+
+## 2026-10-11 · task 6.2 · commit 254b49c
+
+Ruling: no new test. The locked `[no-framework-names-in-the-code]` already searches `spec-compliance.mjs`, `compliance.mjs` and `breaks.mjs` for project, framework and language names, and passes. Why: a duplicate would only restate it. Cost if wrong: a source file outside those three (for example `app-skill.mjs`) is not scanned; none names a tool today.
