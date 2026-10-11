@@ -1,0 +1,7 @@
+{
+  "approvedBy": "owner",
+  "approvedOn": "2026-10-11",
+  "covers": "specs/**/*.md",
+  "fingerprint": "sha256:c8307ddf399920c849780efc4b41ecb51ad73db883f0ea7d88475df931fc6307",
+  "note": "Approved at gate 1 with the three recommended decisions, recorded in design.md."
+}

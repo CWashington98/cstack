@@ -70,8 +70,7 @@ Saved as `compliance.json` next to the change's evidence runs, and summed up in 
 - **2026-10-11, owner:** a spec-compliance check that code runs (option A's code half), plus the spec-match reviewer (option A), plus executable specs as an opt-in (option B). Phased in, with the run records deciding whether B widens.
 - **2026-10-11, owner:** not everything is worth doing. Findings name what breaks, for whom, how likely, and the cost to fix. Only high findings always get fixed.
 
-## Open questions (for the owner at approval)
-
-1. **Scope creep: warn or hold?** Recommended: warn in version 0. Task `Touches:` lines will be imperfect at first, and a hold would stop good work. Switch to hold once the records show they're reliable.
-2. **Breaking changed lines: high-risk only, or every lane?** Recommended: high-risk only at first. It's the slowest check.
-3. **Executable specs: which project tries them first?** Recommended: whichever project next has a high-risk change. The binding tool comes from that project's settings, and cstack stays neutral.
+- **2026-10-11, owner, at spec approval:**
+  - Files no task explains are a **warning** in version 0. They switch to a hold once run records show task lists are reliable.
+  - Breaking changed lines runs on the **high-risk lane only** at first.
+  - Executable specs are first tried by **whichever project next has a high-risk change**. Its settings name the tool.
