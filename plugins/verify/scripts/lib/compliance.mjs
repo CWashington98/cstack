@@ -529,7 +529,9 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
     if (!entry.ran) holds.push(hold(CHECKS.ran, { scenario: entry.id, why: whyNotRun(entry, r) }));
   }
   const ran = traced.scenarios.filter((e) => e.ran);
-  const first = ran.length ? withBaseTree(root, base, settings.tests.acceptance ?? [], (tree) =>
+  // Executable specs are read by the step runner itself, and the starting commit has none of this change's.
+  const lay = [...(settings.tests.acceptance ?? []), ...(executable ? [`openspec/changes/${change}/specs/**`] : [])];
+  const first = ran.length ? withBaseTree(root, base, lay, (tree) =>
     new Map(ran.map((e) => [e.id, runScenario(tree, template, e)])), { shared: settings.tests.sharedFolders }) : new Map();
   for (const entry of ran) {
     const now_ = runs.get(entry.id);

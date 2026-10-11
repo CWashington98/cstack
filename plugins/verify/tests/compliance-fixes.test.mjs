@@ -112,3 +112,47 @@ test("record-review refuses an answer with no scenario verdicts", () => {
   assert.equal(r.status, 2);
   assert.equal(readFileSync(join(dir, "compliance.json"), "utf8"), "{}");
 });
+
+// ---- Executable specs: a step runner that reads the spec files itself ----
+
+import { bindingsIn } from "../scripts/lib/executable.mjs";
+
+const SEATS = "openspec/changes/add-seats/specs/seats/spec.md";
+const seatSpec = ["## ADDED Requirements", "", "### Requirement: seat-limit", "", "A full team SHALL be refused.", "", "#### Scenario: seat-refused-at-limit", "", "- **GIVEN** a full team", "- **WHEN** the team adds a seat", "- **THEN** the seat is refused", "- **AND** the team is told why", ""].join("\n");
+const RUNNER = ['import { readFileSync } from "node:fs";', 'import { steps } from "./registry.mjs";', 'import "./seats.steps.mjs";', 'const name = process.argv[2] ?? "";', `const spec = readFileSync(${JSON.stringify(SEATS)}, "utf8");`, "let failed = 0;", "for (const block of spec.split(/^#### Scenario: /m).slice(1)) {", '  const id = block.split("\\n")[0].trim();', "  if (name && !name.includes(`[${id}]`)) continue;", "  const w = {};", "  try {", "    for (const m of block.matchAll(/^- \\*\\*(?:GIVEN|WHEN|THEN|AND)\\*\\* (.+)$/gm)) { const st = steps.get(m[1].trim()); if (!st) throw new Error(`no binding for: ${m[1]}`); st(w); }", "    console.log(`ok [${id}]`);", "  } catch (e) { failed++; console.log(`not ok [${id}] assert ${e.message}`); }", "}", "process.exit(failed ? 1 : 0);", ""].join("\n");
+const REGISTRY = "export const steps = new Map();\nexport const Given = (t, r) => steps.set(t, r);\nexport const When = Given;\nexport const Then = Given;\n";
+const bindingFile = (told) => ['import assert from "node:assert/strict";', 'import { Given, When, Then } from "./registry.mjs";', 'import { addSeat } from "../src/seats.mjs";', 'Given("a full team", (w) => { w.team = { used: 3, limit: 3 }; });', 'When("the team adds a seat", (w) => { w.after = addSeat(w.team); });', 'Then("the seat is refused", (w) => { assert.equal(w.after.refused, true); });', `Then("the team is told why", (w) => { ${told} });`, "", "// A helper other step files use.", "export function assertRefused(t) { return t.refused === true; }", ""].join("\n");
+
+function seatsRepo(told) {
+  const settings = { ...SETTINGS, executableSpecs: { tool: "sample-steps", command: 'node steps/run.mjs "{name}"' } };
+  const d = makeRepo();
+  const base = commit(d, "start", { ".gitignore": ".verify/\n", "package.json": '{"type":"module"}\n', ".claude/verify.json": JSON.stringify(settings), "src/seats.mjs": "export const addSeat = (t) => t;\n" });
+  commit(d, "spec", { [SEATS]: seatSpec, "openspec/changes/add-seats/tasks.md": tasks("src/seats.mjs").replace("export-csv-downloads", "seat-refused-at-limit"), "openspec/changes/add-seats/approval.json": approval(seatSpec) });
+  commit(d, "tests", { "steps/registry.mjs": REGISTRY, "steps/run.mjs": RUNNER, "steps/seats.steps.mjs": bindingFile(told) });
+  commit(d, "build", { "src/seats.mjs": "export const addSeat = (t) => (t.used >= t.limit ? { ...t, refused: true, reason: 'This team is full.' } : { ...t, used: t.used + 1 });\n" });
+  return { d, base, settings };
+}
+const checkSeats = ({ d, base, settings }) => runCompliance({ root: d, change: "add-seats", base, lane: "normal", settings });
+
+// ---- 4. The starting-commit run can read the change's spec files ----
+
+test("with executable specs on, the starting-commit run has the change's spec files, so a fully bound scenario is proven", () => {
+  const report = checkSeats(seatsRepo("assert.ok(w.after.refused);"));
+  assert.deepEqual(report.holds.map((h) => h.why), []);
+  assert.equal(report.scenarios[0].status, "proven");
+});
+
+// ---- 5. A binding's body ends at its own closing bracket ----
+
+test("bindingsIn ends a binding's body at its closing bracket, so a later helper cannot lend it an assertion", () => {
+  const text = ['Then("a", (w) => { w.x; });', 'export function assertX(t) { return t; }', 'Then("b", function (w) { assert.ok(w.y); });', 'When("c", () => foo("(", ")"));', ""].join("\n");
+  const [a, b, c] = bindingsIn(text);
+  assert.doesNotMatch(a.body, /assertX/);
+  assert.match(b.body, /assert\.ok/);
+  assert.doesNotMatch(c.body, /Then|assert/);
+});
+
+test("a THEN-line binding that asserts nothing is held even when a helper named assertX follows it", () => {
+  const report = checkSeats(seatsRepo("w.after.reason;"));
+  assert.ok(report.holds.some((h) => /the team is told why/.test(h.why) && /no assertion/.test(h.why)), report.holds.map((h) => h.why).join(" | "));
+});

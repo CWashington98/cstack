@@ -11,12 +11,40 @@ const BINDING = /@?\b(given|when|then|and|but)\s*\(\s*(["'`])((?:\\.|(?!\2).)*)\
 // A project may add its own pattern with executableSpecs.assertion.
 const ASSERTS = /\b(assert\w*|expect\w*|should|throws?|raise|fail)\b/;
 
+// Where the step call that starts at `from` (just after its text and comma) closes:
+// the index of the bracket that matches the call's own opening one, with strings and
+// comments skipped over. -1 when the code never closes it.
+function callEnd(text, from) {
+  let depth = 1;
+  for (let i = from; i < text.length; i++) {
+    const c = text[i];
+    if (c === '"' || c === "'" || c === "`") {
+      for (i++; i < text.length && text[i] !== c; i++) if (text[i] === "\\") i++;
+    } else if (c === "/" && text[i + 1] === "/") {
+      while (i < text.length && text[i] !== "\n") i++;
+    } else if (c === "/" && text[i + 1] === "*") {
+      const end = text.indexOf("*/", i + 2);
+      if (end < 0) return -1;
+      i = end + 1;
+    } else if (c === "#" && /^[ \t]*$/.test(text.slice(text.lastIndexOf("\n", i - 1) + 1, i))) {
+      while (i < text.length && text[i] !== "\n") i++;
+    } else if (c === "(" || c === "[" || c === "{") depth++;
+    else if (c === ")" || c === "]" || c === "}") { if (--depth === 0) return i; }
+  }
+  return -1;
+}
+
+// A binding's body is its code up to the bracket that closes the call, so a helper
+// written after it in the same file is not counted as part of it.
 export function bindingsIn(text) {
   const found = [...text.matchAll(BINDING)].map((m) => ({
     keyword: m[1].toLowerCase(), text: m[3].replace(/\\(["'`\\])/g, "$1"), start: m.index, end: m.index + m[0].length,
     line: text.slice(0, m.index).split("\n").length,
   }));
-  return found.map((b, i) => ({ ...b, body: text.slice(b.end, found[i + 1]?.start ?? text.length) }));
+  return found.map((b, i) => {
+    const close = callEnd(text, b.end);
+    return { ...b, body: text.slice(b.end, close >= 0 ? close : found[i + 1]?.start ?? text.length) };
+  });
 }
 
 const stripComments = (code) => code.split("\n").filter((l) => !/^\s*(\/\/|#|\*|\/\*)/.test(l)).join("\n");
