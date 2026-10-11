@@ -8,7 +8,7 @@
 ## 2. Tracing scenarios to tasks and tests
 
 - [x] 2.1 Extend `checkScenarios` in `plan.mjs` to return each scenario's ID, requirement and step lines. Verify with its existing tests plus the tracing scenarios. Covers: scenario-without-a-task, task-cites-an-unknown-scenario, setup-task-needs-no-scenario. Touches: plugins/verify/scripts/lib/plan.mjs
-- [ ] 2.2 Read `Covers:` and `Touches:` from the task list, and find test names carrying `[scenario-id]`. Verify the tracing scenarios pass. Covers: scenario-without-a-test, test-cites-an-unknown-scenario. Touches: plugins/verify/scripts/lib/compliance.mjs
+- [x] 2.2 Read `Covers:` and `Touches:` from the task list, and find test names carrying `[scenario-id]`. Verify the tracing scenarios pass. Covers: scenario-without-a-test, test-cites-an-unknown-scenario. Touches: plugins/verify/scripts/lib/compliance.mjs
 
 ## 3. Running the scenario tests
 
