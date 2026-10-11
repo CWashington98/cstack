@@ -30,13 +30,15 @@ The cstack plugin runs `plugins/core/scripts/guard.mjs` before every shell
 command an agent sends. It refuses:
 
 - deploys that change a live system (`convex deploy`, `vercel --prod`,
-  `cdk deploy`, `terraform apply` and similar), unless that deploy names a
+  `cdk deploy`, `terraform apply`, `gcloud run deploy`, `supabase db push`, and
+  any other tool whose command is `deploy` or ends in `:deploy`), unless that deploy names a
   target from `agentsMayDeployTo`. The target must be named in the same command,
   in a variable or env file that feeds it, or in the command that ran the script
   the deploy sits in. A target named elsewhere in the line doesn't count;
-- store submissions (`eas submit`, `--auto-submit`), production app builds and
-  updates, package publishes, GitHub releases, tag pushes, and GitHub workflows
-  that deploy or release (by name, or because they use a production environment);
+- store submissions (`eas submit`, `--auto-submit`), production app builds,
+  updates and channel changes, `eas deploy --prod`, EAS and GitHub workflows that
+  deploy or release, package publishes, GitHub releases, and tag pushes
+  (including a tag made earlier in the same command, or a name like `v1.2.0`);
 - pushes to protected branches, `--force` and `+` pushes, and deleting protected
   branches. `--force-with-lease` to your own branch is allowed;
 - changes to GitHub secrets, keys, rulesets, branch protection, access and
@@ -54,7 +56,9 @@ It reads commands the way the shell runs them. It looks through:
 
 - wrappers such as `npx` and `dotenvx run --`;
 - shell blocks (`if`, `for`, `while`, `{ }`), `bash -c`, `eval`, `$( )` and heredocs;
-- package scripts, with their pre and post scripts, in the right workspace;
+- package scripts, with their pre and post scripts, in the right workspace, or
+  in every workspace for `pnpm -r`, `--workspaces`, `yarn workspaces foreach`,
+  `turbo run`, `nx` and `lerna run`;
 - shell scripts, `source`, and scripts written and run in the same command.
 
 It follows variables the command sets, so `tmp=$(mktemp -d) && rm -rf "$tmp"`
@@ -80,7 +84,13 @@ files it loads. These can still get past it:
   recipe (only the target's name is read), a GitHub workflow's own steps;
 - commands fed to a shell through a pipe, such as `echo ... | sh`;
 - a workflow whose name and file don't show that it deploys;
+- a script written with `echo` or `printf` and run in the same command (scripts
+  written with a heredoc are read);
 - a production target the project hasn't listed in `agentsNeverTouch`.
+
+An allowed deploy target counts when it's named in the deploy's own command or
+in any variable set earlier in the same command, even one that doesn't feed the
+deploy.
 
 It guards against mistakes, not against an agent working to get around it.
 

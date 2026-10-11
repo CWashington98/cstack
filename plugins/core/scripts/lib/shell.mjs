@@ -5,15 +5,15 @@
 
 // Pulls heredoc bodies out of the text so their lines aren't read as commands
 // of the outer shell. Each body is replaced by a marker the caller can look up.
+let heredocCount = 0;
 export function extractHeredocs(cmd) {
   const heredocs = new Map();
-  let n = 0;
   const keep = (body) => {
-    const key = `__HEREDOC_${n++}__`;
+    const key = `__HEREDOC_${heredocCount++}__`;
     heredocs.set(key, body);
     return key;
   };
-  const text = cmd.replace(/<<-?\s*(['"]?)(\w+)\1([^\n]*)\n([\s\S]*?)(?:\n[ \t]*\2[ \t]*(?=\n|$)|$)/g, (_m, _q, _tag, rest, body) => ` <<HEREDOC ${keep(body)}${rest}`);
+  const text = cmd.replace(/(?<![<\w)])<<-?(?!<)\s*(['"]?)(\w+)\1([^\n]*)\n([\s\S]*?)(?:\n[ \t]*\2[ \t]*(?=\n|$)|$)/g, (_m, _q, _tag, rest, body) => ` <<HEREDOC ${keep(body)}${rest}`);
   return { text, heredocs };
 }
 

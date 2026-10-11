@@ -68,7 +68,7 @@ const RUN_WRAPPERS = {
 const ENV_FILE_FLAGS = { dotenvx: ["-f", "--env-file"], dotenv: ["-e"], "dotenv-cli": ["-e"], "env-cmd": ["-f", "--file"], op: ["--env-file"], node: ["--env-file"], bun: ["--env-file"] };
 const SHELLS = new Set(["bash", "sh", "zsh", "dash", "ksh"]);
 // Shell words that start or end a block. They come before the command, or alone.
-const KEYWORDS = new Set(["if", "then", "elif", "else", "do", "while", "until", "!", "{", "}"]);
+const KEYWORDS = new Set(["if", "then", "elif", "else", "do", "while", "until", "!", "{", "}", "coproc"]);
 const BLOCK_ONLY = new Set(["fi", "done", "esac", "for", "case", "select", "in", ";;"]);
 // Programs that only read or write text. A "never" name inside them is being
 // mentioned, as in a search or a commit message, not used.
@@ -98,7 +98,18 @@ const GH_SETTINGS = { secret: /^(set|delete|remove)$/, variable: /^(set|delete|r
 const GH_SETTING_PATHS = /\/(rulesets|protection|actions\/secrets|actions\/variables|actions\/permissions|environments|collaborators|hooks|keys|teams|transfer)(\/|$)|^\/?repos\/[^/]+\/[^/]+\/?$/;
 const GRAPHQL_SETTINGS = /\b((create|update|delete)BranchProtectionRule|(update|delete|archive|unarchive|transfer)Repository|(create|update|delete)RepositoryRuleset|updateRefs?|deleteRef)\b/;
 // Words that make a command look guarded, for the fail-closed check.
-const LOOKS_GUARDED = /deploy|submit|publish|release|promote|rollback|push|--prod|--target|secret|variable|ruleset|protection|\brm\b|\bgh\s|apply|destroy|import|\bup\b|\beas\b|workflow|fastlane|alias|merge/i;
+const LOOKS_GUARDED = /deploy|submit|publish|release|promote|rollback|push|--prod|--target|secret|variable|ruleset|protection|\brm\b|\bgh\s|apply|destroy|import|\bup\b|\beas\b|workflow|fastlane|alias|merge|\bsync\b|delete|remove|channel|migrate/i;
+// bun's own commands. `bun build` runs bun's bundler, not a package script.
+const BUN_BUILTINS = new Set(["build", "test", "install", "i", "add", "remove", "rm", "pm", "link", "unlink", "create", "init", "upgrade", "outdated", "publish", "patch", "x", "repl", "exec", "update", "audit", "info", "why"]);
+// Programs that work on files, where a word like "deploy" names a folder.
+const FILE_TOOLS = new Set(["mkdir", "cp", "mv", "touch", "ln", "chmod", "chown", "rmdir", "open", "code", "vim", "nano", "cursor", "du", "zip", "unzip", "tar"]);
+// Programs the guard reads in their own way, so the general deploy-word rule skips them.
+const OWN_RULES = new Set(["git", "gh", "vercel", "netlify", "eas", "firebase", "convex", "npm", "pnpm", "yarn", "bun", "make", "just", "turbo", "run-s", "rm", "find"]);
+// $( ) forms whose value the guard can work out: the checked-out branch, the
+// repository's top folder and the current folder.
+const CURRENT_BRANCH = /\$\(\s*git\s+(branch\s+--show-current|rev-parse\s+--abbrev-ref\s+HEAD|symbolic-ref\s+--short(\s+-q)?\s+HEAD)\s*\)/g;
+const TOP_FOLDER = /\$\(\s*git\s+rev-parse\s+--show-toplevel\s*\)/g;
+const VERSION_LIKE = /^v?\d+\.\d+(\.\d+)?([-+][\w.]+)?$/;
 
 const log = (entry) => {
   try {
@@ -229,6 +240,7 @@ export function unwrap(words) {
     }
     if ((prog === "pnpm" || prog === "yarn") && (w[1] === "dlx" || w[1] === "exec")) {
       w.splice(0, 2);
+      if (w[0] === "--") w.shift();
       continue;
     }
     if ((prog === "npm" && w[1] === "exec") || (prog === "bun" && w[1] === "x")) {
@@ -357,6 +369,9 @@ class Checker {
     this.dirs = new Set([this.cwd]);
     this.used = [];
     this.written = new Map();
+    this.heredocs = new Map();
+    this.newTags = new Set();
+    this.running = new Set();
   }
 
   refuse(rule, reason) {
@@ -384,7 +399,8 @@ class Checker {
   deploy(what, ctx) {
     const allowed = [...this.dirs].flatMap((d) => listed(projectFor(d, this.cache).settings.agentsMayDeployTo));
     const text = lower(ctx.here ?? "");
-    if (allowed.some((t) => text.includes(lower(t)))) return;
+    const named = (t) => new RegExp(`(?<![\\w.-])${lower(t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`).test(text);
+    if (allowed.some(named)) return;
     const where = this.project.settingsFile ?? SETTINGS;
     this.refuse("deploy", `${what} changes a live system, and it names no target from "agentsMayDeployTo" in ${where}. Agents deploy only to targets listed there, such as a staging backend or a sandbox. The target must be named in the same command, or in a variable or env file that feeds it.`);
   }
@@ -394,9 +410,12 @@ class Checker {
   // the path points.
   expand(word, ctx) {
     let unknown = false;
-    const value = (name) => (ctx.vars.has(name) ? ctx.vars.get(name) : process.env[name] ?? null);
+    const value = (name) => (name === "PWD" && ctx.dir ? ctx.dir : ctx.vars.has(name) ? ctx.vars.get(name) : process.env[name] ?? null);
     const out = word
       .replace(/^~(?=\/|$)/, homedir())
+      .replace(CURRENT_BRANCH, () => (ctx.dir && this.currentBranch(ctx.dir)) || "$(unknown)")
+      .replace(TOP_FOLDER, () => (ctx.dir && projectFor(ctx.dir, this.cache).root) || "$(unknown)")
+      .replace(/\$\(\s*pwd\s*\)/g, () => ctx.dir ?? "$(unknown)")
       .replace(/\$\(\s*mktemp\b[^)]*\)/g, () => join(tmpdir(), "guard-mktemp"))
       .replace(/\$\(\s*(?:cd\s+)?"?\$\(\s*dirname\s+"?\$\{?0\}?"?\s*\)"?(?:\s*&&\s*pwd)?\s*\)|\$\(\s*dirname\s+"?\$\{?0\}?"?\s*\)/g, () => {
         if (!ctx.scriptDir) unknown = true;
@@ -411,8 +430,11 @@ class Checker {
     return unknown || /^~|`|\$\(|\$[0-9@*#?]/.test(out) ? null : out;
   }
 
-  // A word once for each value of a loop variable it uses, or just the word.
+  // A word once for each value of a loop variable it uses and each choice in
+  // a {a,b} brace list, or just the word.
   variants(word, ctx) {
+    const brace = word.match(/\{([^{}]*,[^{}]*)\}/);
+    if (brace) return brace[1].split(",").flatMap((v) => this.variants(word.replace(brace[0], v), ctx));
     for (const [name, values] of ctx.loops ?? []) {
       const re = new RegExp(`\\$\\{?${name}\\}?(?![A-Za-z0-9_])`, "g");
       if (re.test(word)) return values.map((v) => word.replace(re, v));
@@ -420,9 +442,16 @@ class Checker {
     return [word];
   }
 
+  currentBranch(dir) {
+    const key = `branch:${dir}`;
+    if (!this.cache.has(key)) this.cache.set(key, gitOut(dir, "symbolic-ref", "--short", "-q", "HEAD"));
+    return this.cache.get(key);
+  }
+
   check(command, dir, depth, ctx) {
     if (depth > MAX_DEPTH) return;
     const { text, heredocs } = extractHeredocs(command);
+    for (const [k, v] of heredocs) this.heredocs.set(k, v);
     for (const inner of substitutions(text)) this.check(inner, dir, depth + 1, { ...ctx, here: undefined });
     const vars = new Map(ctx.vars);
     const loops = new Map(ctx.loops ?? []);
@@ -435,9 +464,9 @@ class Checker {
         this.used.push(words.slice(3).filter((x) => !x.startsWith("$(")).join(" "));
       }
       if (!words.length || BLOCK_ONLY.has(words[0])) continue;
-      const heredoc = words.includes("<<HEREDOC") ? heredocs.get(words[words.indexOf("<<HEREDOC") + 1]) ?? "" : null;
+      const heredoc = words.includes("<<HEREDOC") ? this.heredocs.get(words[words.indexOf("<<HEREDOC") + 1]) ?? "" : null;
       const plain = words.filter((w, i) => w !== "<<HEREDOC" && words[i - 1] !== "<<HEREDOC");
-      const segCtx = { ...ctx, vars, loops, here: `${local}\n${segment}` };
+      const segCtx = { ...ctx, vars, loops, dir, here: `${local}\n${segment}` };
       // A line of NAME=value words only sets variables for the commands after it.
       const bare = plain.filter((w) => !KEYWORDS.has(w));
       const assigns = bare[0] && ["export", "local", "readonly", "declare"].includes(bare[0]) ? bare.slice(1).filter((w) => !w.startsWith("-")) : bare;
@@ -499,7 +528,11 @@ class Checker {
       const same = { ...ctx, context: ctx.here };
       if (prog === "eval") return this.check(w.slice(1).join(" "), dir, depth + 1, same);
       const flag = w.findIndex((x, i) => i > 0 && /^-[a-zA-Z]*c[a-zA-Z]*$/.test(x));
-      if (flag !== -1 && w[flag + 1] !== undefined) return this.check(w[flag + 1], dir, depth + 1, same);
+      const cmd = flag === -1 ? undefined : w.slice(flag + 1).find((x) => !/^[-+][a-zA-Z]+$/.test(x));
+      if (cmd !== undefined) {
+        const fromHeredoc = cmd.match(/^\$\(\s*cat\s+<<HEREDOC\s+(__HEREDOC_\d+__)\s*\)$/);
+        return this.check(fromHeredoc ? this.heredocs.get(fromHeredoc[1]) ?? "" : cmd, dir, depth + 1, same);
+      }
       if (heredoc) return this.check(heredoc, dir, depth + 1, same);
       const file = w.slice(1).find((x, i) => !x.startsWith("-") && !["-o", "+o"].includes(w[i]));
       if (file) this.checkScriptFile(resolve(dir, file), dir, depth, inner);
@@ -517,8 +550,7 @@ class Checker {
     if (Object.hasOwn(RELEASE_TOOLS, prog)) {
       const words = RELEASE_TOOLS[prog];
       const args = w.slice(1).filter((x) => !x.startsWith("-"));
-      if (prog === "fastlane" ? args.some((x) => FASTLANE_RELEASE.test(x)) : !words || args.some((x) => words.includes(x))) this.refuse("release", `\`${prog}${words ? " publish" : ""}\` publishes a release for everyone to install.`);
-      return;
+      if (prog === "fastlane" ? args.some((x) => FASTLANE_RELEASE.test(x)) : !words || args.some((x) => words.includes(x))) return this.refuse("release", `\`${prog}${words ? " publish" : ""}\` publishes a release for everyone to install.`);
     }
     switch (prog) {
       case "git":
@@ -541,11 +573,11 @@ class Checker {
         const sub = subcommand(w, ["--scope", "--token", "--cwd", "--target", "-A", "--local-config", "-e", "--env", "-b", "--build-env", "-m", "--meta"]);
         if (sub === "build" || sub === "pull" || sub === "env" || sub === "link") return;
         const target = flagValue(w, ["--target"]);
-        if (w.includes("--prod") || w.includes("--production") || /prod/i.test(target ?? "") || ["promote", "rollback", "alias"].includes(sub)) this.deploy("A Vercel production deploy", ctx);
+        if (w.some((x) => /^--prod(uction)?(=|$)/.test(x)) || /prod/i.test(target ?? "") || ["promote", "rollback", "alias"].includes(sub)) this.deploy("A Vercel production deploy", ctx);
         return;
       }
       case "netlify":
-        if (w.includes("deploy") && w.some((x) => x.startsWith("--prod"))) this.deploy("A Netlify production deploy", ctx);
+        if (w.includes("deploy") && w.some((x) => x.startsWith("--prod") || x === "-p")) this.deploy("A Netlify production deploy", ctx);
         return;
       case "aws":
         if (w.includes("cloudformation") && w.some((x) => AWS_CHANGES.test(x))) this.deploy("An AWS CloudFormation change", ctx);
@@ -562,15 +594,48 @@ class Checker {
       case "turbo":
         for (const target of w.slice(1).filter((x) => !x.startsWith("-") && x !== "run")) {
           if (DEPLOY_WORDS.test(target)) this.deploy(`\`${prog} ${target}\``, ctx);
+          if (prog === "turbo") this.runEverywhere(target, dir, depth, ctx);
         }
         return;
     }
     const words = DEPLOY_TOOLS[prog];
+    const dash = w.indexOf("--");
+    const args = w.slice(1, dash === -1 ? undefined : dash).filter((x) => !x.startsWith("-"));
     if (words) {
-      const dash = w.indexOf("--");
-      const hit = w.slice(1, dash === -1 ? undefined : dash).find((x) => !x.startsWith("-") && words.includes(x));
+      const hit = args.find((x) => words.includes(x));
       if (hit) this.deploy(`\`${prog} ${hit}\``, ctx);
+      return;
     }
+    if (prog === "supabase" && args[0] === "db" && args[1] === "push") return this.deploy("`supabase db push`", ctx);
+    // Any other tool whose command is `deploy` or ends in `:deploy`, such as
+    // `gcloud run deploy`, `supabase functions deploy` or `nx run api:deploy`.
+    if (!OWN_RULES.has(prog) && !FILE_TOOLS.has(prog) && !mentionsOnly(w)) {
+      const hit = args.slice(0, 3).find((x) => x === "deploy" || x.endsWith(":deploy"));
+      if (hit) this.deploy(`\`${prog} ${args.slice(0, args.indexOf(hit) + 1).join(" ")}\``, ctx);
+    }
+    if (["nx", "lerna"].includes(prog)) {
+      const target = args[0] === "run" ? args[1] : args[0] === "run-many" ? flagValue(w, ["-t", "--target", "--targets"]) : null;
+      if (target) this.runEverywhere(target.split(":").pop(), dir, depth, ctx);
+    }
+  }
+
+  // Runs a script in every workspace that has it, for commands that run a
+  // script across the whole repository.
+  runEverywhere(name, dir, depth, ctx) {
+    const root = projectFor(dir, this.cache).root ?? dir;
+    for (const pkg of [nearestPackage(root), ...workspacePackages(root)].filter(Boolean)) this.runScript(pkg, name, depth, ctx);
+  }
+
+  // Checks one package script, unless it is already being checked further up,
+  // so a script that calls itself can't make the guard loop.
+  runScript(pkg, name, depth, ctx) {
+    const body = scriptsOf(pkg)[name];
+    const key = `${pkg}#${name}`;
+    if (typeof body !== "string" || this.running.has(key)) return typeof body === "string";
+    this.running.add(key);
+    this.check(body, dirname(pkg), depth + 1, { context: ctx.here, vars: new Map(), scriptDir: null, indirect: true });
+    this.running.delete(key);
+    return true;
   }
 
   checkScriptFile(file, dir, depth, ctx) {
@@ -595,11 +660,16 @@ class Checker {
         else dir = this.enter(real(resolve(dir, glued[2])));
       } else if (["--cwd", "--prefix", "-C", "--dir"].includes(a) && w[i + 1]) dir = this.enter(real(resolve(dir, w[++i])));
       else if (["--filter", "-F", "--workspace", "-w"].includes(a) && w[i + 1]) filters.push(w[++i]);
+      else if (["-r", "--recursive", "--workspaces", "-ws", "-A", "--all"].includes(a)) filters.push("*every*");
       else if (["--registry", "--tag", "--otp", "--access", "--loglevel"].includes(a)) i++;
       else if (!a.startsWith("-")) args.push({ word: a, index: i });
     }
     if (prog === "yarn" && args[0]?.word === "workspace" && args[1]) {
       filters.push(args[1].word);
+      args.splice(0, 2);
+    }
+    if (prog === "yarn" && args[0]?.word === "workspaces" && args[1]?.word === "foreach") {
+      filters.push("*every*");
       args.splice(0, 2);
     }
     const sub = args[0]?.word;
@@ -612,15 +682,14 @@ class Checker {
     }
     const named = sub === "run" || sub === "run-script" ? args[1] : prog === "npm" ? null : args[0];
     if (!named) return;
+    // Without `run`, these name the tool's own command, not a package script.
+    if (sub !== "run" && ((prog === "bun" && BUN_BUILTINS.has(named.word)) || (prog === "pnpm" && named.word === "deploy"))) return;
     const root = projectFor(dir, this.cache).root ?? dir;
-    const packages = filters.length ? pickWorkspaces(dir, root, filters) : [nearestPackage(dir)].filter(Boolean);
+    const packages = filters.includes("*every*") ? [nearestPackage(root), ...workspacePackages(root)].filter(Boolean) : filters.length ? pickWorkspaces(dir, root, filters) : [nearestPackage(dir)].filter(Boolean);
     let found = false;
     for (const pkg of packages) {
-      const scripts = scriptsOf(pkg);
       for (const name of [`pre${named.word}`, named.word, `post${named.word}`]) {
-        if (typeof scripts[name] !== "string") continue;
-        if (name === named.word) found = true;
-        this.check(scripts[name], dirname(pkg), depth + 1, { context: ctx.here, vars: new Map(), scriptDir: null, indirect: true });
+        if (this.runScript(pkg, name, depth, ctx) && name === named.word) found = true;
       }
     }
     if (found) return;
@@ -650,9 +719,21 @@ class Checker {
       if (profile === null || /prod/i.test(profile)) this.refuse("release", `\`eas build\` ${profile === null ? "with no profile uses the production profile" : `with the profile "${profile}" makes a store build`}. Name a development or preview profile.`);
       return;
     }
-    if (sub === "update") {
+    if (sub === "update" || sub === "update:republish" || sub === "update:roll-back-to-embedded") {
       const target = flagValue(w, ["--branch", "--channel"]);
-      if (target === null || /prod/i.test(target)) this.refuse("release", "`eas update` without a non-production --branch or --channel can send an update to people's phones.");
+      if (target === null || /prod/i.test(target)) this.refuse("release", `\`eas ${sub}\` without a non-production --branch or --channel can send an update to people's phones.`);
+      return;
+    }
+    if (sub === "channel:edit" || sub === "channel:rollout") {
+      const channel = w.slice(w.indexOf(sub) + 1).find((x) => !x.startsWith("-"));
+      if (!channel || /prod/i.test(channel)) this.refuse("release", `\`eas ${sub}\` on ${channel ? `the channel "${channel}"` : "a channel it doesn't name"} changes what people's phones download.`);
+      return;
+    }
+    if (sub === "deploy" && w.some((x) => /^--prod(uction)?$/.test(x))) return this.refuse("release", "`eas deploy --prod` publishes the production website.");
+    if (sub === "workflow:run") {
+      const file = w.slice(w.indexOf(sub) + 1).find((x) => !x.startsWith("-")) ?? "";
+      const text = readText(resolve(this.cwd, file)) ?? readText(resolve(this.cwd, ".eas", "workflows", file)) ?? "";
+      if (!file || PROD_WORDS.test(file) || /submit|production/i.test(text)) this.refuse("release", `\`eas workflow:run ${file}\` runs a workflow that builds for the stores, submits or deploys.`);
     }
   }
 
@@ -665,6 +746,15 @@ class Checker {
         i += 2;
       } else if (["-c", "--git-dir", "--work-tree", "--namespace"].includes(w[i])) i += 2;
       else i++;
+    }
+    if (w[i] === "tag") {
+      const values = ["-m", "-F", "-u", "--message", "--file", "--local-user"];
+      const rest = w.slice(i + 1);
+      if (!rest.some((x) => ["-d", "--delete", "-l", "--list", "-v", "--verify"].includes(x))) {
+        const name = rest.find((x, k) => !x.startsWith("-") && !values.includes(rest[k - 1]));
+        if (name) this.newTags.add(name);
+      }
+      return;
     }
     if (w[i] !== "push") return;
     const args = w.slice(i + 1);
@@ -682,14 +772,17 @@ class Checker {
       else if (["-o", "--push-option", "--repo", "--receive-pack", "--exec"].includes(a)) j++;
       else if (!a.startsWith("-")) positional.push(a);
     }
-    const refspecs = positional.slice(1);
+    let refspecs = positional.slice(1);
+    if (refspecs[0] === "tag" && refspecs[1]) {
+      this.refuse("release", `It pushes the tag "${refspecs[1]}", and tags often start a release. The owner pushes tags.`);
+      refspecs = refspecs.slice(2);
+    }
+    if (refspecs.some((r) => r.includes("*"))) return this.refuse("push", "It pushes branches matching a pattern, which can include protected ones.");
     if (force || refspecs.some((r) => r.startsWith("+"))) this.refuse("push", "It force-pushes with `--force` or `+`, which can overwrite other people's work. Use `--force-with-lease` on your own branch, or ask the owner.");
-    const current = () => gitOut(dir, "symbolic-ref", "--short", "-q", "HEAD");
-    const CURRENT = /^\$\(\s*git\s+(branch\s+--show-current|rev-parse\s+--abbrev-ref\s+HEAD|symbolic-ref\s+--short\s+HEAD)\s*\)$/;
+    const current = () => this.currentBranch(dir);
     const targets = refspecs.length ? refspecs.flatMap((r) => this.variants(r, ctx)).map((r) => {
       const spec = r.replace(/^\+/, "");
       let dst = spec.includes(":") ? spec.split(":").pop() : spec;
-      if (CURRENT.test(dst)) return current();
       if (dst.includes("$")) {
         dst = this.expand(dst, ctx);
         if (dst === null && !ctx.indirect) this.refuse("push", `It pushes to "${r}", and the guard can't tell which branch that is. Name the branch.`);
@@ -697,7 +790,8 @@ class Checker {
       return dst === "HEAD" || dst === "@" ? current() : dst;
     }) : del ? [] : [current()];
     for (const t of targets.filter(Boolean)) {
-      const isTag = t.startsWith("refs/tags/") || (!t.startsWith("refs/heads/") && this.refs(dir, "tags").has(t) && !this.refs(dir, "heads").has(t));
+      const branchExists = this.refs(dir, "heads").has(t);
+      const isTag = t.startsWith("refs/tags/") || (!t.startsWith("refs/heads/") && !branchExists && (this.refs(dir, "tags").has(t) || this.newTags.has(t) || VERSION_LIKE.test(t)));
       if (isTag && !del) {
         this.refuse("release", `It pushes the tag "${t.replace(/^refs\/tags\//, "")}", and tags often start a release. The owner pushes tags.`);
         continue;
@@ -735,7 +829,12 @@ class Checker {
       return this.refuse(rule, `\`gh ${group} ${verb}\` changes ${group === "release" ? "a published GitHub release" : "GitHub settings, keys or secrets"}. The owner does this.`);
     }
     if (group === "pr" && verb === "merge" && w.includes("--admin")) return this.refuse("github-settings", "`gh pr merge --admin` overrides the repository's merge rules. Merge without `--admin`, or ask the owner.");
-    if (group === "workflow" && verb === "run" && w[k + 2] && this.workflowDeploys(dir, w[k + 2])) return this.refuse("deploy", `\`gh workflow run ${w[k + 2]}\` starts a workflow that deploys or releases. The owner starts it.`);
+    if (group === "workflow" && verb === "run") {
+      const rest = w.slice(k + 2);
+      const name = rest.find((x, j) => !x.startsWith("-") && !["-r", "--ref", "-R", "--repo", "-f", "-F", "--field", "--raw-field", "--json"].includes(rest[j - 1]));
+      if (name && this.workflowDeploys(dir, name)) return this.refuse("deploy", `\`gh workflow run ${name}\` starts a workflow that deploys or releases. The owner starts it.`);
+      return;
+    }
     if (group !== "api") return;
     const rest = w.slice(k + 1);
     let method = null;
@@ -751,7 +850,7 @@ class Checker {
       else if (/^--(raw-)?field=/.test(a)) fields.push(a.replace(/^--(raw-)?field=/, ""));
       else if (a === "--input") fields.push(`@${rest[++j] ?? ""}`);
       else if (["-H", "--header", "-q", "--jq", "-t", "--template", "--hostname", "--cache", "-p", "--preview"].includes(a)) j++;
-      else if (!a.startsWith("-") && !path) path = a;
+      else if (!a.startsWith("-") && !path) path = a.replace(/^https?:\/\/[^/]+\/(api\/v3\/)?/, "");
     }
     method = (method ?? (fields.length ? "POST" : "GET")).toUpperCase();
     const field = (name) => fields.find((f) => f.startsWith(`${name}=`))?.slice(name.length + 1);
@@ -769,6 +868,8 @@ class Checker {
     if (wf ? this.workflowDeploys(dir, wf[1]) : /\/dispatches$/.test(clean)) return this.refuse("deploy", `It sends ${method} to ${path}, which starts a workflow that may deploy or release. The owner starts it.`);
     const branches = protectedBranches(this.project.settings);
     if (/\/merges$/.test(clean) && branches.has(field("base") ?? "")) return this.refuse("push", `It merges straight into the protected branch "${field("base")}" without a pull request.`);
+    if (/\/contents\//.test(clean) && branches.has(field("branch") ?? "")) return this.refuse("push", `It commits straight to the protected branch "${field("branch")}" through the GitHub interface.`);
+    if (/\/git\/(refs|tags)$/.test(clean) && /^refs\/tags\//.test(field("ref") ?? "")) return this.refuse("release", `It creates the tag "${field("ref").slice(10)}", and tags often start a release.`);
     const ref = clean.match(/\/git\/refs\/heads\/(.+)$/);
     if (ref && (method === "DELETE" || method === "PATCH") && branches.has(ref[1])) this.refuse("push", `It ${method === "DELETE" ? "deletes" : "moves"} the protected branch "${ref[1]}" through the GitHub interface.`);
   }
@@ -820,7 +921,8 @@ class Checker {
       run = w.slice(execAt + 1, end === -1 ? undefined : end);
     }
     const deletes = w.includes("-delete") || (run.length > 0 && programName(run[0]) === "rm");
-    if (deletes) this.checkPaths(starts.length ? starts : ["."], dir, ctx, " with `find`", true);
+    const filtered = w.some((x) => /^-(i?name|i?path|type|mtime|mmin|newer|i?regex|size|empty|user|perm|wholename|maxdepth|mindepth)$/.test(x));
+    if (deletes) this.checkPaths(starts.length ? starts : ["."], dir, ctx, " with `find`", filtered);
     if (run.length && programName(run[0]) !== "rm") {
       const cmd = unwrap(run);
       this.used.push(cmd.join(" "));
@@ -837,7 +939,7 @@ function mentionsOnly(w) {
   if (prog === "git") return !w.some((x) => GIT_REMOTE.has(x));
   if (prog === "gh") {
     if (["pr", "issue"].includes(w[1]) && ["create", "edit", "comment", "review", "view", "list"].includes(w[2])) return true;
-    if (w[1] === "api") return w.some((x) => /\/(comments|reviews)(\/\d+)?(\?|$)/.test(x));
+    if (w[1] === "api") return w.some((x) => /\/(comments|reviews)(\/\d+)?(\?|$)|\/(pulls|issues)(\/\d+)?(\?|$)/.test(x));
   }
   return false;
 }

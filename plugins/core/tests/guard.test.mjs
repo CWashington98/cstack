@@ -539,6 +539,94 @@ test("the hook refuses with exit 2 and a reason, allows with exit 0, fails close
   assert.equal(hook("not json").status, 0);
 });
 
+test("round 2: tags made in the same command, and version-like names, are tag pushes", () => {
+  const dir = project();
+  refused(dir, "git tag v1.2.0 && git push origin v1.2.0", /tag "v1.2.0"/);
+  refused(dir, "git tag -a rel-7 -m 'Release 7' && git push origin rel-7", /tag "rel-7"/);
+  refused(dir, "npm version patch && git push origin v1.0.1", /tag "v1.0.1"/);
+  refused(dir, "git push origin tag v9", /tag "v9"/);
+  refused(dir, "gh api -X POST repos/o/r/git/refs -f ref=refs/tags/v1.2.0 -f sha=abc", /creates the tag "v1.2.0"/);
+  allowed(dir, "git tag -l && git push origin feat/x");
+});
+
+test("round 2: a branch named through a variable is followed to the checked-out branch", () => {
+  const dir = project();
+  git(dir, "checkout", "-q", "-b", "main");
+  refused(dir, 'BRANCH=$(git branch --show-current); git push -u origin "$BRANCH"', /"main"/);
+  git(dir, "checkout", "-q", "-b", "feat/y");
+  allowed(dir, 'BRANCH=$(git branch --show-current); git push -u origin "$BRANCH"');
+  allowed(dir, "BRANCH=$(git rev-parse --abbrev-ref HEAD) && git push origin $BRANCH");
+  allowed(dir, 'rm -rf "$(git rev-parse --show-toplevel)/dist"');
+  refused(dir, 'cd ~ && rm -rf "$PWD/Documents"', /outside/);
+  refused(dir, 'rm -rf "$(git rev-parse --show-toplevel)"', /whole repository/);
+});
+
+test("round 2: pnpm and yarn exec or dlx with -- are read as the tool", () => {
+  const dir = project();
+  for (const c of ["pnpm exec -- convex deploy", "yarn exec -- convex deploy", "yarn dlx -- convex deploy", "pnpm dlx -- convex deploy"]) refused(dir, c, /convex deploy/);
+});
+
+test("round 2: gh workflow run finds the workflow name after its flags", () => {
+  const dir = project({ ".github/workflows/ship.yml": "jobs:\n  go:\n    environment: production\n" });
+  refused(dir, "gh workflow run --ref main deploy.yml", /deploy\.yml/);
+  refused(dir, "gh workflow run --repo o/r deploy.yml", /deploy\.yml/);
+  refused(dir, "gh workflow run -r main ship.yml", /ship\.yml/);
+  allowed(dir, "gh workflow run -r main ci.yml");
+});
+
+test("round 2: Expo commands that ship to production are refused", () => {
+  const dir = project({ ".eas/workflows/preview.yml": "jobs:\n  build:\n    type: build\n    params:\n      profile: preview\n", ".eas/workflows/ship.yml": "jobs:\n  submit:\n    type: submit\n" });
+  for (const c of ["eas deploy --prod", "npx eas-cli deploy --prod", "eas workflow:run create-production-builds.yml", "eas workflow:run .eas/workflows/ship.yml", "eas workflow:run", "eas channel:edit production --branch main", "eas channel:rollout production", "eas update:republish --channel production --group abc", "eas update:roll-back-to-embedded"]) refused(dir, c, /eas/);
+  for (const c of ["eas deploy", "eas workflow:run .eas/workflows/preview.yml", "eas channel:edit preview --branch main", "eas update:republish --channel preview --group abc", "eas channel:list"]) allowed(dir, c);
+});
+
+test("round 2: scripts run across every workspace are followed into each one", () => {
+  const dir = project({ "apps/web/package.json": JSON.stringify({ name: "@x/site", scripts: { ship: "vercel --prod", "deploy:web": "vercel deploy --prod", safe: "echo ok" } }), "package.json": JSON.stringify({ workspaces: ["apps/*", "packages/*"], scripts: {} }) });
+  for (const c of ["yarn workspaces foreach -A run ship", "yarn workspaces foreach --all run deploy:web", "pnpm -r run ship", "pnpm --recursive ship", "npm run ship --workspaces", "npm run ship -ws", "turbo run ship", "npx nx run web:ship", "nx run-many -t ship", "lerna run ship"]) refused(dir, c, /Vercel/);
+  for (const c of ["pnpm -r run safe", "turbo run safe", "yarn workspaces foreach -A run safe"]) allowed(dir, c);
+});
+
+test("round 2: other tools whose command is deploy are refused; files named deploy are not", () => {
+  const dir = project();
+  for (const c of ["gcloud run deploy api --source .", "gcloud app deploy", "gcloud functions deploy fn", "supabase functions deploy hello", "supabase db push", "npx prisma migrate deploy", "nx deploy api", "npx nx run api:deploy", "npx nx run-many -t deploy", "lerna run deploy", "docker stack deploy -c x.yml app", "netlify deploy -p"]) refused(dir, c, /changes a live system/);
+  for (const c of ["mkdir -p deploy", "cp x.yml deploy/", "ls deploy", "cat deploy/notes.md", "supabase db diff", "npx prisma migrate dev", "gcloud run services list", "firebase hosting:channel:deploy preview", "gh workflow view deploy.yml", "code deploy/x.ts"]) allowed(dir, c);
+});
+
+test("round 2: bun's own commands aren't read as scripts, and a script can't make the guard loop", () => {
+  const entries = Array.from({ length: 8 }, (_, i) => `bun build ./e${i}.ts --outdir dist`).join(" && ");
+  const tests = Array.from({ length: 8 }, (_, i) => `bun test src/part${i}`).join(" && ");
+  const dir = project({ "package.json": JSON.stringify({ scripts: { build: entries, test: tests, loop: "bun run loop", ping: "bun run pong", pong: "bun run ping && vercel --prod" } }) });
+  const start = Date.now();
+  allowed(dir, "bun run build");
+  allowed(dir, "bun run test");
+  allowed(dir, "bun test");
+  allowed(dir, "bun run loop");
+  refused(dir, "bun run ping", /Vercel/);
+  allowed(dir, "pnpm deploy --filter=api /tmp/out");
+  assert.ok(Date.now() - start < 3000, `took ${Date.now() - start} ms`);
+});
+
+test("round 2: smaller spellings that used to slip past", () => {
+  const dir = project();
+  refused(dir, "coproc npx convex deploy", /convex deploy/);
+  refused(dir, "bash -c -e 'npx convex deploy'", /convex deploy/);
+  refused(dir, "vercel --prod=true", /Vercel/);
+  refused(dir, "bash -c \"$(cat <<'EOF'\nnpx convex deploy\nEOF\n)\"", /convex deploy/);
+  refused(dir, "git push origin 'refs/heads/*:refs/heads/*'", /pattern/);
+  refused(dir, "gh api -X DELETE https://api.github.com/repos/o/r", /settings/);
+  refused(dir, "gh api -X PUT repos/o/r/contents/a.md -f branch=main -f message=x -f content=eA==", /commits straight to the protected branch "main"/);
+  refused(dir, "rm -rf {.,x}", /whole repository/);
+  refused(dir, "rm -rf ./{src,.git}", /history/);
+  refused(dir, "find . -delete", /whole repository/);
+  refused(dir, "wc -w <<< hello\nnpx convex deploy", /convex deploy/);
+  refused(dir, "echo $((1<<4))\nnpx convex deploy", /convex deploy/);
+  refused(dir, "npx convex deploy -m staging-backend-1-x", /convex deploy/);
+  allowed(dir, "gh api repos/o/r/pulls -f title=x -f body='about prod-backend-9' -f head=feat/x -f base=staging");
+  allowed(dir, "rm -rf {dist,build}");
+  allowed(dir, "rm -rf /tmp/guard-x");
+  refused(dir, "rm -rf /tmp", /outside/);
+});
+
 test("a long command is checked quickly", () => {
   const dir = project();
   const lines = Array.from({ length: 2000 }, (_, i) => `mkdir -p out/${i} && cp a out/${i}/`).join("\n");
