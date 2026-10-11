@@ -132,7 +132,8 @@ test("pre and post scripts run with the script, and are checked", () => {
 
 test("a tool run through yarn, pnpm or bun without `run` is checked as that tool", () => {
   const dir = project();
-  for (const c of ["yarn convex deploy", "bun run convex deploy", "pnpm convex deploy", "yarn eas submit -p ios", "yarn vercel --prod", "pnpm exec convex deploy", "pnpm --filter @x/api exec convex deploy"]) refused(dir, c);
+  for (const c of ["yarn convex deploy", "bun run convex deploy", "pnpm convex deploy", "yarn eas submit -p ios", "yarn vercel --prod"]) refused(dir, c);
+  for (const c of ["pnpm exec convex deploy", "pnpm --filter @x/api exec convex deploy", "bun x convex deploy"]) refused(dir, c, /^`convex deploy` changes/m);
 });
 
 test("workspace scripts are read from the workspace they run in", () => {
