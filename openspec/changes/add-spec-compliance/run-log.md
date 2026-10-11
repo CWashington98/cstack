@@ -56,9 +56,16 @@ Runs each scenario's tests on the starting commit, in a temporary worktree (remo
 - Ruling: top-level folders that git ignores (installed dependencies) are linked into the temporary checkout. Why: otherwise any project with installed dependencies would crash on old code. Cost if wrong: none; the links are removed with the checkout and the real folders are never touched.
 - Ruling: scenarios that did not run, or whose test is missing, get no fail-first holds. Why: the earlier hold already names them; repeating it would hide the real cause. Cost if wrong: none.
 
-## 2026-10-11 · task 4.1 · commit @@4.1@@
+## 2026-10-11 · task 4.1 · commit 78eaf8a
 
 `checkLocks` walks the commits after the starting one. An acceptance file is locked from the commit that adds it (or from the start, if it already existed); any later change, deletion or rename is a hold naming the commit and file, unless the commit message has a `Spec-Change:` line, in which case it goes in the report's `allowedEdits`. In other test files, a commit that skips a test, deletes a test, or leaves fewer assertion lines holds under the same check. Green now: `[builder-edits-a-locked-test]`, `[spec-change-allows-the-edit]`, `[a-test-is-weakened-or-skipped]`.
 
 - Ruling: weakened tests are found by reading each commit's diff for added skip markers, fewer test declarations, or fewer assertion lines, not by running anything. Why: it works for any language with no tool named. Cost if wrong: a rewrite that keeps the counts equal is missed, and a harmless refactor that removes an assertion line is held until it carries a `Spec-Change:` line.
 - Ruling: an unexplained edit to a locked test and an unexplained weakening both use the check `locked-acceptance-tests-stay-locked` (as phase 1 ruled). A skip or deletion of a locked acceptance file is reported once, as the locked edit.
+
+## 2026-10-11 · task 4.2 · commit @@4.2@@
+
+`checkScope` lists every file changed between the starting commit and the latest that no task's `Touches:` names, as a warning (`nothing-built-outside-the-spec`, with `file` and `why`) and never a hold. Left out: test files, the change's own folder, and `tests.alwaysAllowed`. Green now: `[unexplained-file-is-listed]` (and `[declared-file-is-not-listed]` stays green, now for a real reason).
+
+- Ruling: a `Touches:` entry also covers everything below it when it names a folder (`src/deep` covers `src/deep/c.txt`). Why: task lists name folders as often as files. Cost if wrong: a file under a named folder is not warned about.
+- Ruling: renames count as a delete plus an add, so both paths are checked. Why: simplest and safe. Cost if wrong: a moved file shows up twice in the warnings.

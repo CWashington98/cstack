@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { checkScenarios } from "../scripts/lib/plan.mjs";
 import { proseLines } from "../scripts/lib/markdown.mjs";
-import { testsInText, globToRegExp, matchesAny, isTestFile, parseTasks, readRun, withBaseTree, judgeFirstRun, checkLocks } from "../scripts/lib/compliance.mjs";
+import { testsInText, globToRegExp, matchesAny, isTestFile, parseTasks, readRun, withBaseTree, judgeFirstRun, checkLocks, checkScope } from "../scripts/lib/compliance.mjs";
 import { complianceSettings, checkRepoSettings } from "../scripts/lib/app-skill.mjs";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -259,4 +259,18 @@ test("checkLocks names a deleted test, a removed assertion and a skip in an ordi
 test("checkLocks leaves source edits and tests that gain assertions alone", () => {
   const { dir, base } = lockRepo([["Build", { "src/x.mjs": "y\n", "test/old.test.mjs": 'test("[old-b] works", () => {\n  assert.ok(1);\n  assert.ok(2);\n  assert.ok(9);\n});\ntest("[old-c] too", () => {\n  assert.ok(3);\n});\n' }]]);
   assert.deepEqual(checkLocks(dir, base, SETTINGS).holds, []);
+});
+
+// ---- Scope and approval ----
+
+test("checkScope lists changed files no task declares, and leaves out tests, the change's folder and allowed files", () => {
+  const dir = makeRepo({ "src/a.txt": "1\n", "src/b.txt": "1\n", "src/deep/c.txt": "1\n", "docs/x.txt": "1\n", "test/t.txt": "1\n", "openspec/changes/c/tasks.md": "x\n", "src/d.txt": "1\n" });
+  git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "start");
+  const base = git(dir, "rev-parse", "HEAD").trim();
+  for (const f of ["src/a.txt", "src/b.txt", "src/deep/c.txt", "docs/x.txt", "test/t.txt", "openspec/changes/c/tasks.md"]) writeFileSync(join(dir, f), "2\n");
+  git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "change");
+  const tasks = [{ touches: ["src/a.txt"] }, { touches: ["src/deep"] }];
+  const found = checkScope(dir, base, "c", tasks, { tests: { alwaysAllowed: ["docs/**"] } });
+  assert.deepEqual(found.map((w) => w.file), ["src/b.txt"]);
+  assert.equal(found[0].check, "nothing-built-outside-the-spec");
 });

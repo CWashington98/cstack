@@ -367,6 +367,22 @@ export function checkLocks(root, base, settings) {
   return { holds, allowedEdits };
 }
 
+// ---- Scope ----
+
+const declares = (touch, file) => matchesAny(file, [touch]) || file.startsWith(`${touch.replace(/\/+$/, "")}/`);
+
+// Changed files that no task says it touches. Test files, the change's own folder and
+// the project's always-allowed patterns are left out.
+export function checkScope(root, base, change, tasks, settings) {
+  const own = `openspec/changes/${change}/`;
+  const allowed = settings.tests?.alwaysAllowed ?? [];
+  const touches = tasks.flatMap((t) => t.touches);
+  const changed = git(root, "diff", "--name-only", "--no-renames", "-z", base, "HEAD").split("\0").filter(Boolean);
+  return changed
+    .filter((f) => !isTestFile(f, settings.tests?.acceptance ?? []) && !f.startsWith(own) && !matchesAny(f, allowed) && !touches.some((x) => declares(x, f)))
+    .map((file) => hold(CHECKS.scope, { file, why: `${file} changed, but no task says it touches it. Possible scope creep: add it to a task's Touches: line, or take it out.` }));
+}
+
 // ---- The whole check ----
 
 const now = () => Number(process.hrtime.bigint() / 1000000n);
@@ -382,6 +398,7 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
   t = now();
   const locks = checkLocks(root, base, settings);
   holds.push(...locks.holds);
+  warnings.push(...checkScope(root, base, change, traced.tasks, settings));
   timeMs.trace += now() - t;
   t = now();
   const runs = new Map();
