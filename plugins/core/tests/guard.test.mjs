@@ -629,6 +629,96 @@ test("round 2: smaller spellings that used to slip past", () => {
   refused(dir, "rm -rf /tmp", /outside/);
 });
 
+test("round 3: workspace scripts that run every workspace are checked once each, so the guard can't hang", () => {
+  const n = 8;
+  const files = { "package.json": JSON.stringify({ workspaces: ["packages/*"], scripts: { build: "turbo run build", ship: "npm run build --workspaces" } }) };
+  for (let i = 0; i < n; i++) files[`packages/q${i}/package.json`] = JSON.stringify({ name: `q${i}`, scripts: { build: i === n - 1 ? "turbo run build --filter=q0 && vercel --prod" : `tsc && npm run build --workspaces --if-present && turbo run build --filter=q${i + 1}` } });
+  const dir = project(files);
+  const start = Date.now();
+  refused(dir, "turbo run build");
+  refused(dir, "npm run build --workspaces");
+  assert.ok(Date.now() - start < 3000, `took ${Date.now() - start} ms`);
+  const flat = { "package.json": JSON.stringify({ workspaces: ["packages/*"], scripts: {} }) };
+  for (let i = 0; i < n; i++) flat[`packages/f${i}/package.json`] = JSON.stringify({ name: `f${i}`, scripts: { build: i === 3 ? "vercel --prod" : "turbo run build --filter=f3" } });
+  const flatDir = project(flat);
+  const again = Date.now();
+  refused(flatDir, "turbo run build", /Vercel/);
+  assert.ok(Date.now() - again < 3000, `took ${Date.now() - again} ms`);
+});
+
+test("round 3: a command too tangled to check in time is refused, not let through", () => {
+  const deep = Array.from({ length: 12 }, (_, i) => [`s${i}`, `bun run s${i + 1}`]);
+  const dir = project({ "package.json": JSON.stringify({ scripts: Object.fromEntries(deep) }) });
+  refused(dir, "bun run s0", /nested more than 8 levels/);
+});
+
+test("round 3: nx and Angular deploy targets are refused in every spelling", () => {
+  const dir = project({ "package.json": JSON.stringify({ workspaces: ["packages/*"], scripts: {} }), "packages/api/package.json": JSON.stringify({ name: "api", scripts: { ship: "convex deploy" } }) });
+  for (const c of ["npx nx run api:deploy:production", "npx ng run app:deploy:production", "npx nx affected --target=deploy", "npx nx run-many --target=deploy --all", "nx run-many --targets=deploy --projects=api", "nx deploy api", "ng deploy"]) refused(dir, c, /deploy/);
+  for (const c of ["nx affected -t ship", "nx affected --target=ship", "nx ship api", "nx run-many --targets ship,build", "nx run api:ship", "yarn workspaces run ship", "lerna exec -- convex deploy"]) refused(dir, c, /convex deploy/);
+  refused(dir, "nx release", /nx release/);
+  for (const c of ["nx run api:build", "nx affected -t test", "nx graph", "nx release --dry-run", "ng build", "nx show projects"]) allowed(dir, c);
+});
+
+test("round 3: tag pushes inside package scripts are found", () => {
+  const dir = project({ "package.json": JSON.stringify({ name: "x", version: "1.0.0", scripts: { postversion: "git push && git push --tags", release: "git push origin v$npm_package_version", tagpush: 'git push origin "refs/tags/$TAG"' } }) });
+  refused(dir, "npm version patch", /tags/);
+  refused(dir, "npm run release", /tag/);
+  refused(dir, "TAG=v1.0.0 npm run tagpush", /tag/);
+  refused(dir, "git push origin feat/x tag v9", /tag "v9"/);
+  refused(dir, "git tag -am msg nightly && git push origin nightly", /tag "nightly"/);
+  allowed(dir, "git checkout -b 3.0 && git push -u origin 3.0");
+  allowed(dir, "git switch -c v2.0-beta && git push -u origin v2.0-beta");
+  allowed(dir, "git tag --points-at HEAD && git push origin feat/x");
+});
+
+test("round 3: test, lint, format and read-only commands that name deploy are allowed", () => {
+  const dir = project({ "deploy/notes.md": "x" });
+  for (const c of [
+    "npx vitest run deploy", "npx vitest run -t deploy", "bunx vitest run deploy", "npx jest deploy", "npx playwright test deploy", "pnpm vitest run deploy",
+    "npx eslint deploy", "npx prettier --write deploy", "npx tsc -p deploy", "npx biome check deploy", "ruff check deploy", "black deploy", "yamllint deploy",
+    "pytest deploy", "python -m pytest -k deploy", "cargo test deploy", "node --test deploy", "fd deploy", "realpath deploy", "watchexec -w deploy bun test",
+    "kubectl get deploy", "kubectl describe deploy web", "docker build --target deploy -t app .",
+    "fly deploy --help", "gcloud run deploy --help", "supabase functions deploy -h", "vercel --prod --help",
+    "mytool one two three deploy",
+  ]) allowed(dir, c);
+  for (const c of ["gcloud run deploy api", "gcloud --project p run deploy api", "supabase functions deploy hello", "docker stack deploy -c x.yml app", "drizzle-kit push", "drizzle-kit migrate", "supabase migration up --linked", "az webapp deploy --name x"]) refused(dir, c, /changes a live system/);
+  allowed(project(), "vercel --prod=false");
+});
+
+test("round 3: Expo channel commands find the channel after flags, and eas deploy reads --prod=true", () => {
+  const dir = project({ ".eas/workflows/ship.yml": "jobs:\n  submit:\n    type: submit\n" });
+  for (const c of ["eas channel:edit --branch main production", "eas channel:edit --branch=main production", "eas channel:rollout --action create production", "eas deploy --prod=true", "eas workflow:run ship.yml"]) refused(dir, c, /eas/);
+  allowed(dir, "eas channel:edit --branch main preview");
+  allowed(dir, "eas channel:edit --json preview");
+});
+
+test("round 3: bun exec runs a shell string, and it is checked", () => {
+  const dir = project();
+  refused(dir, "bun exec 'npx convex deploy'", /convex deploy/);
+  refused(dir, 'bun exec "vercel --prod"', /Vercel/);
+  refused(dir, "bun exec 'git push origin main'", /"main"/);
+  refused(dir, "bun exec 'rm -rf ~'", /outside/);
+  allowed(dir, "bun exec 'echo hi'");
+});
+
+test("round 3: rules the breakage tests showed were unpinned", () => {
+  const dir = project({ "package.json": JSON.stringify({ workspaces: ["packages/*"], scripts: { rootship: "convex deploy", build: "vercel --prod" } }) });
+  refused(dir, "npx nx run api:deploy", /`nx deploy`/);
+  refused(dir, "turbo run rootship", /convex deploy/);
+  allowed(dir, "bun build ./x.ts --outdir dist");
+  allowed(dir, 'rm -rf "$(pwd)/dist"');
+  refused(dir, 'rm -rf "$(pwd)"', /whole repository/);
+  for (const c of ["sam sync", "prisma migrate deploy", "gh api -X DELETE x"]) assert.equal(refuseOnError(c, dir), true, c);
+  refused(dir, "gh workflow run --json deploy.yml", /deploy\.yml/);
+  refused(dir, "gh api -X PUT repos/o/r/contents/a.md -f message=x -f content=eA==", /default branch/);
+  refused(dir, "coproc ship { npx convex deploy; }", /convex deploy/);
+  refused(dir, "bash -c -o pipefail 'npx convex deploy'", /convex deploy/);
+  refused(dir, "bash -c -- 'npx convex deploy'", /convex deploy/);
+  refused(dir, "x=$(( 1 << 4 ))\ngit push origin main", /"main"/);
+  refused(dir, "npm exec --workspaces -- convex deploy", /convex deploy/);
+});
+
 test("a long command is checked quickly", () => {
   const dir = project();
   const lines = Array.from({ length: 2000 }, (_, i) => `mkdir -p out/${i} && cp a out/${i}/`).join("\n");

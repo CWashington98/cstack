@@ -46,6 +46,10 @@ import { extractHeredocs, substitutions, segments, tokenize } from "./lib/shell.
 
 const SETTINGS = join(".claude", "verify.json");
 const MAX_DEPTH = 8;
+// The most commands one hook call checks. A command past this is refused, so a
+// tangle of scripts can't run the guard past its time limit, which would let
+// the command through.
+const MAX_STEPS = 20000;
 const MAX_FILE_BYTES = 256 * 1024;
 const DEPLOY_WORDS = /deploy|release|publish|submit|promote/i;
 const PROD_WORDS = /deploy|release|publish|prod|promote|submit/i;
@@ -90,6 +94,7 @@ const DEPLOY_TOOLS = {
   fly: ["deploy"],
   wrangler: ["deploy", "publish"],
   railway: ["up"],
+  "drizzle-kit": ["push", "migrate"],
   helm: ["upgrade", "install", "uninstall", "rollback"],
   heroku: ["container:release", "releases:rollback", "container:push"],
 };
@@ -104,9 +109,19 @@ const LOOKS_GUARDED = /deploy|submit|publish|release|promote|rollback|push|--pro
 // bun's own commands. `bun build` runs bun's bundler, not a package script.
 const BUN_BUILTINS = new Set(["build", "test", "install", "i", "add", "remove", "rm", "pm", "link", "unlink", "create", "init", "upgrade", "outdated", "publish", "patch", "x", "repl", "exec", "update", "audit", "info", "why"]);
 // Programs that work on files, where a word like "deploy" names a folder.
-const FILE_TOOLS = new Set(["mkdir", "cp", "mv", "touch", "ln", "chmod", "chown", "rmdir", "open", "code", "vim", "nano", "cursor", "du", "zip", "unzip", "tar"]);
+// Programs that work on files, run tests or check code, where a word like
+// "deploy" names a folder or a test filter, never a deploy.
+const FILE_TOOLS = new Set([
+  "mkdir", "cp", "mv", "touch", "ln", "chmod", "chown", "rmdir", "open", "code", "vim", "nano", "cursor", "du", "zip", "unzip", "tar", "realpath", "fd", "watchexec",
+  "vitest", "jest", "mocha", "ava", "playwright", "cypress", "pytest", "tox", "cargo", "go", "node", "deno", "python", "python3", "ruby", "php",
+  "eslint", "prettier", "biome", "tsc", "mypy", "ruff", "black", "flake8", "pylint", "yamllint", "markdownlint", "stylelint", "oxlint", "knip",
+  "kubectl", "oc", "k9s",
+]);
 // Programs the guard reads in their own way, so the general deploy-word rule skips them.
-const OWN_RULES = new Set(["git", "gh", "vercel", "netlify", "eas", "firebase", "convex", "npm", "pnpm", "yarn", "bun", "make", "just", "turbo", "run-s", "rm", "find"]);
+const OWN_RULES = new Set(["git", "gh", "vercel", "netlify", "eas", "firebase", "convex", "npm", "pnpm", "yarn", "bun", "make", "just", "turbo", "run-s", "rm", "find", "nx", "ng", "lerna", "docker"]);
+// nx commands that aren't the name of a target.
+const NX_COMMANDS = new Set(["run", "run-many", "affected", "graph", "dep-graph", "show", "g", "generate", "init", "list", "migrate", "report", "reset", "daemon", "format", "format:write", "format:check", "release", "connect", "view-logs", "exec", "watch", "sync", "sync:check", "repair", "add", "import", "help"]);
+const DEPLOY_TARGET = /(^|:)deploy(:|$)/;
 // $( ) forms whose value the guard can work out: the checked-out branch, the
 // repository's top folder and the current folder.
 const CURRENT_BRANCH = /\$\(\s*git\s+(branch\s+--show-current|rev-parse\s+--abbrev-ref\s+HEAD|symbolic-ref\s+--short(\s+-q)?\s+HEAD)\s*\)/g;
@@ -214,6 +229,10 @@ const isAssignment = (w) => /^[A-Za-z_][A-Za-z0-9_]*=/.test(w);
 export function unwrap(words) {
   let w = [...words];
   for (let guard = 0; guard < 30 && w.length; guard++) {
+    if (w[0] === "coproc" && w[2] === "{") {
+      w = w.slice(3);
+      continue;
+    }
     if (isAssignment(w[0]) || KEYWORDS.has(w[0])) {
       w.shift();
       continue;
@@ -247,7 +266,8 @@ export function unwrap(words) {
     }
     if ((prog === "npm" && w[1] === "exec") || (prog === "bun" && w[1] === "x")) {
       w.splice(0, 2);
-      if (w[0] === "--") w.shift();
+      const dash = w.indexOf("--");
+      if (dash !== -1 && w.slice(0, dash).every((x) => x.startsWith("-"))) w = w.slice(dash + 1);
       continue;
     }
     if (Object.hasOwn(RUN_WRAPPERS, prog)) {
@@ -373,7 +393,10 @@ class Checker {
     this.written = new Map();
     this.heredocs = new Map();
     this.newTags = new Set();
+    this.newBranches = new Set();
     this.running = new Set();
+    this.checked = new Set();
+    this.steps = 0;
   }
 
   refuse(rule, reason) {
@@ -396,13 +419,17 @@ class Checker {
     return [...this.reasons].map(([reason, rule]) => ({ rule, reason }));
   }
 
+  // True when the text names a target the project lets agents deploy to.
+  namesAllowed(text = "") {
+    const allowed = [...this.dirs].flatMap((d) => listed(projectFor(d, this.cache).settings.agentsMayDeployTo));
+    const low = lower(text);
+    return allowed.some((t) => new RegExp(`(?<![\\w.-])${lower(t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`).test(low));
+  }
+
   // A deploy goes ahead only when its own context names a target the project
   // lets agents deploy to.
   deploy(what, ctx) {
-    const allowed = [...this.dirs].flatMap((d) => listed(projectFor(d, this.cache).settings.agentsMayDeployTo));
-    const text = lower(ctx.here ?? "");
-    const named = (t) => new RegExp(`(?<![\\w.-])${lower(t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`).test(text);
-    if (allowed.some(named)) return;
+    if (this.namesAllowed(ctx.here)) return;
     const where = this.project.settingsFile ?? SETTINGS;
     this.refuse("deploy", `${what} changes a live system, and it names no target from "agentsMayDeployTo" in ${where}. Agents deploy only to targets listed there, such as a staging backend or a sandbox. The target must be named in the same command, or in a variable or env file that feeds it.`);
   }
@@ -451,7 +478,8 @@ class Checker {
   }
 
   check(command, dir, depth, ctx) {
-    if (depth > MAX_DEPTH) return;
+    if (depth > MAX_DEPTH) return this.refuse("complex", `It runs scripts nested more than ${MAX_DEPTH} levels deep, which the guard doesn't check. Run the inner command directly.`);
+    if (++this.steps > MAX_STEPS) return this.refuse("complex", "It runs more scripts than the guard can check in time. Run the parts separately.");
     const { text, heredocs } = extractHeredocs(command);
     for (const [k, v] of heredocs) this.heredocs.set(k, v);
     for (const inner of substitutions(text)) this.check(inner, dir, depth + 1, { ...ctx, here: undefined });
@@ -480,6 +508,16 @@ class Checker {
         local += `\n${segment}`;
         this.used.push(segment);
         continue;
+      }
+      const lead = [];
+      for (const word of plain) {
+        if (!isAssignment(word)) break;
+        lead.push(word);
+      }
+      segCtx.passVars = new Map(vars);
+      for (const a of lead) {
+        const [name, ...rest] = a.split("=");
+        segCtx.passVars.set(name, this.expand(rest.join("="), segCtx));
       }
       const envText = this.envFiles(plain, dir);
       if (envText) segCtx.here += `\n${envText}`;
@@ -530,7 +568,8 @@ class Checker {
       const same = { ...ctx, context: ctx.here };
       if (prog === "eval") return this.check(w.slice(1).join(" "), dir, depth + 1, same);
       const flag = w.findIndex((x, i) => i > 0 && /^-[a-zA-Z]*c[a-zA-Z]*$/.test(x));
-      const cmd = flag === -1 ? undefined : w.slice(flag + 1).find((x) => !/^[-+][a-zA-Z]+$/.test(x));
+      const after = w.slice(flag + 1);
+      const cmd = flag === -1 ? undefined : after.find((x, j) => !/^([-+][a-zA-Z]+|--)$/.test(x) && !["-o", "+o", "-O", "+O"].includes(after[j - 1]));
       if (cmd !== undefined) {
         const fromHeredoc = cmd.match(/^\$\(\s*cat\s+<<HEREDOC\s+(__HEREDOC_\d+__)\s*\)$/);
         return this.check(fromHeredoc ? this.heredocs.get(fromHeredoc[1]) ?? "" : cmd, dir, depth + 1, same);
@@ -549,6 +588,8 @@ class Checker {
       const body = this.written.get(file) ?? readText(file);
       if (body && (/\.(sh|bash|zsh)$/.test(file) || /^#!.*\b(ba|z|da|k)?sh\b/.test(body))) this.checkScriptFile(file, dir, depth, inner);
     }
+    // Help never changes anything.
+    if (w.includes("--help") || w.includes("-h") || w[1] === "help") return;
     if (Object.hasOwn(RELEASE_TOOLS, prog)) {
       const words = RELEASE_TOOLS[prog];
       const args = w.slice(1).filter((x) => !x.startsWith("-"));
@@ -575,7 +616,7 @@ class Checker {
         const sub = subcommand(w, ["--scope", "--token", "--cwd", "--target", "-A", "--local-config", "-e", "--env", "-b", "--build-env", "-m", "--meta"]);
         if (sub === "build" || sub === "pull" || sub === "env" || sub === "link") return;
         const target = flagValue(w, ["--target"]);
-        if (w.some((x) => /^--prod(uction)?(=|$)/.test(x)) || /prod/i.test(target ?? "") || ["promote", "rollback", "alias"].includes(sub)) this.deploy("A Vercel production deploy", ctx);
+        if (w.some((x) => /^--prod(uction)?(=(?!false$)|$)/.test(x)) || /prod/i.test(target ?? "") || ["promote", "rollback", "alias"].includes(sub)) this.deploy("A Vercel production deploy", ctx);
         return;
       }
       case "netlify":
@@ -591,6 +632,13 @@ class Checker {
         return this.checkPackageManager(prog, w, dir, depth, ctx);
       case "run-s":
         return this.checkRunAll(w, dir, depth, ctx);
+      case "docker":
+        if (subcommand(w, ["-H", "--host", "--context", "-c", "--config", "-l", "--log-level"]) === "stack" && w.includes("deploy")) this.deploy("`docker stack deploy`", ctx);
+        return;
+      case "nx":
+      case "ng":
+      case "lerna":
+        return this.checkMonorepoTool(prog, w, dir, depth, ctx);
       case "make":
       case "just":
       case "turbo":
@@ -609,15 +657,50 @@ class Checker {
       return;
     }
     if (prog === "supabase" && args[0] === "db" && args[1] === "push") return this.deploy("`supabase db push`", ctx);
-    // Any other tool whose command is `deploy` or ends in `:deploy`, such as
-    // `gcloud run deploy`, `supabase functions deploy` or `nx run api:deploy`.
+    if (prog === "supabase" && args[0] === "migration" && args[1] === "up" && w.includes("--linked")) return this.deploy("`supabase migration up --linked`", ctx);
+    // Any other tool whose command is `deploy`, such as `gcloud run deploy` or
+    // `supabase functions deploy`. Only the tool's command words count, not a
+    // flag's value.
     if (!OWN_RULES.has(prog) && !FILE_TOOLS.has(prog) && !mentionsOnly(w)) {
-      const hit = args.slice(0, 3).find((x) => x === "deploy" || x.endsWith(":deploy"));
-      if (hit) this.deploy(`\`${prog} ${args.slice(0, args.indexOf(hit) + 1).join(" ")}\``, ctx);
+      const command = [];
+      for (let i = 1; i < w.length && command.length < 3; i++) {
+        if (w[i] === "--") break;
+        if (w[i].startsWith("-")) {
+          if (!w[i].includes("=") && w[i + 1] && !w[i + 1].startsWith("-")) i++;
+          continue;
+        }
+        command.push(w[i]);
+      }
+      const hit = command.find((x) => DEPLOY_TARGET.test(x));
+      if (hit) this.deploy(`\`${prog} ${command.slice(0, command.indexOf(hit) + 1).join(" ")}\``, ctx);
     }
-    if (["nx", "lerna"].includes(prog)) {
-      const target = args[0] === "run" ? args[1] : args[0] === "run-many" ? flagValue(w, ["-t", "--target", "--targets"]) : null;
-      if (target) this.runEverywhere(target.split(":").pop(), dir, depth, ctx);
+  }
+
+  // nx, Angular and Lerna run targets across the repository. A target named
+  // deploy is a deploy; any other target is read as a package script in every
+  // workspace that has it.
+  checkMonorepoTool(prog, w, dir, depth, ctx) {
+    const args = [];
+    for (let i = 1; i < w.length; i++) {
+      if (w[i] === "--") {
+        if (prog === "lerna" && args[0] === "exec") return this.checkWords(unwrap(w.slice(i + 1)), dir, depth, ctx);
+        break;
+      }
+      if (w[i].startsWith("-")) {
+        if (!w[i].includes("=") && ["-t", "--target", "--targets", "-p", "--projects", "-c", "--configuration", "--base", "--head", "--scope"].includes(w[i])) i++;
+        continue;
+      }
+      args.push(w[i]);
+    }
+    if (prog === "nx" && args[0] === "release" && !w.includes("--dry-run") && !w.includes("-d")) return this.refuse("release", "`nx release` versions, tags and publishes packages. The owner releases.");
+    let targets = [];
+    if (args[0] === "run" && args[1]) targets = [args[1].includes(":") ? args[1].split(":")[1] : args[1]];
+    else if (["run-many", "affected"].includes(args[0])) targets = (flagValue(w, ["-t", "--target", "--targets"]) ?? "").split(",").filter(Boolean);
+    else if (prog === "ng" && args[0] === "deploy") targets = ["deploy"];
+    else if (prog === "nx" && args[0] && !NX_COMMANDS.has(args[0])) targets = [args[0].includes(":") ? args[0].split(":")[1] : args[0]];
+    for (const t of targets) {
+      if (DEPLOY_TARGET.test(t)) this.deploy(`\`${prog} ${t}\``, ctx);
+      this.runEverywhere(t, dir, depth, ctx);
     }
   }
 
@@ -632,10 +715,20 @@ class Checker {
   // so a script that calls itself can't make the guard loop.
   runScript(pkg, name, depth, ctx) {
     const body = scriptsOf(pkg)[name];
-    const key = `${pkg}#${name}`;
-    if (typeof body !== "string" || this.running.has(key)) return typeof body === "string";
+    if (typeof body !== "string") return false;
+    // A script's result depends only on its own text and on whether the command
+    // that runs it names an allowed target, so each pair is checked once.
+    const key = `${pkg}#${name}#${this.namesAllowed(ctx.here)}`;
+    if (this.running.has(key) || this.checked.has(key)) return true;
     this.running.add(key);
-    this.check(body, dirname(pkg), depth + 1, { context: ctx.here, vars: new Map(), scriptDir: null, indirect: true });
+    this.checked.add(key);
+    const vars = new Map(ctx.passVars ?? ctx.vars ?? []);
+    try {
+      const json = JSON.parse(readFileSync(pkg, "utf8"));
+      if (json.version) vars.set("npm_package_version", String(json.version));
+      if (json.name) vars.set("npm_package_name", String(json.name));
+    } catch {}
+    this.check(body, dirname(pkg), depth + 1, { context: ctx.here, vars, scriptDir: null, indirect: true });
     this.running.delete(key);
     return true;
   }
@@ -670,14 +763,21 @@ class Checker {
       filters.push(args[1].word);
       args.splice(0, 2);
     }
-    if (prog === "yarn" && args[0]?.word === "workspaces" && args[1]?.word === "foreach") {
+    if (prog === "yarn" && args[0]?.word === "workspaces" && ["foreach", "run"].includes(args[1]?.word)) {
       filters.push("*every*");
-      args.splice(0, 2);
+      args.splice(0, args[1].word === "run" ? 1 : 2);
     }
     const sub = args[0]?.word;
     if (sub === "publish" || (prog === "yarn" && sub === "npm" && args[1]?.word === "publish")) {
       return this.refuse("release", `\`${prog} publish\` publishes a package for everyone to install.`);
     }
+    if (sub === "version") {
+      this.versionBump = true;
+      const pkg = nearestPackage(dir);
+      if (pkg) for (const name of ["preversion", "version", "postversion"]) this.runScript(pkg, name, depth, ctx);
+      return;
+    }
+    if (prog === "bun" && sub === "exec") return this.check(w.slice(args[0].index + 1).join(" "), dir, depth + 1, { ...ctx, context: ctx.here });
     if (["exec", "dlx", "x"].includes(sub)) {
       const rest = w.slice(args[0].index + 1);
       return this.checkWords(unwrap(rest[0] === "--" ? rest.slice(1) : rest), dir, depth, ctx);
@@ -727,11 +827,12 @@ class Checker {
       return;
     }
     if (sub === "channel:edit" || sub === "channel:rollout") {
-      const channel = w.slice(w.indexOf(sub) + 1).find((x) => !x.startsWith("-"));
+      const rest = w.slice(w.indexOf(sub) + 1);
+      const channel = rest.find((x, j) => !x.startsWith("-") && !(rest[j - 1]?.startsWith("-") && !rest[j - 1].includes("=") && !["--json", "--non-interactive"].includes(rest[j - 1])));
       if (!channel || /prod/i.test(channel)) this.refuse("release", `\`eas ${sub}\` on ${channel ? `the channel "${channel}"` : "a channel it doesn't name"} changes what people's phones download.`);
       return;
     }
-    if (sub === "deploy" && w.some((x) => /^--prod(uction)?$/.test(x))) return this.refuse("release", "`eas deploy --prod` publishes the production website.");
+    if (sub === "deploy" && w.some((x) => /^--prod(uction)?(=(?!false$)|$)/.test(x))) return this.refuse("release", "`eas deploy --prod` publishes the production website.");
     if (sub === "workflow:run") {
       const file = w.slice(w.indexOf(sub) + 1).find((x) => !x.startsWith("-")) ?? "";
       const text = readText(resolve(this.cwd, file)) ?? readText(resolve(this.cwd, ".eas", "workflows", file)) ?? "";
@@ -750,12 +851,20 @@ class Checker {
       else i++;
     }
     if (w[i] === "tag") {
-      const values = ["-m", "-F", "-u", "--message", "--file", "--local-user"];
+      const takesValue = (x) => ["--message", "--file", "--local-user"].includes(x) || /^-[a-zA-Z]*[mFu]$/.test(x ?? "");
       const rest = w.slice(i + 1);
-      if (!rest.some((x) => ["-d", "--delete", "-l", "--list", "-v", "--verify"].includes(x))) {
-        const name = rest.find((x, k) => !x.startsWith("-") && !values.includes(rest[k - 1]));
+      if (!rest.some((x) => ["-d", "--delete", "-l", "--list", "-v", "--verify", "--contains", "--points-at", "--merged"].includes(x))) {
+        const name = rest.find((x, k) => !x.startsWith("-") && !takesValue(rest[k - 1]));
         if (name) this.newTags.add(name);
       }
+      return;
+    }
+    if ((w[i] === "checkout" && w[i + 1] === "-b") || (w[i] === "switch" && ["-c", "--create"].includes(w[i + 1]))) {
+      if (w[i + 2]) this.newBranches.add(w[i + 2]);
+      return;
+    }
+    if (w[i] === "branch" && w[i + 1] && !w[i + 1].startsWith("-")) {
+      this.newBranches.add(w[i + 1]);
       return;
     }
     if (w[i] !== "push") return;
@@ -775,9 +884,13 @@ class Checker {
       else if (!a.startsWith("-")) positional.push(a);
     }
     let refspecs = positional.slice(1);
-    if (refspecs[0] === "tag" && refspecs[1]) {
-      this.refuse("release", `It pushes the tag "${refspecs[1]}", and tags often start a release. The owner pushes tags.`);
-      refspecs = refspecs.slice(2);
+    const tagWord = refspecs.indexOf("tag");
+    if (tagWord !== -1 && refspecs[tagWord + 1]) {
+      this.refuse("release", `It pushes the tag "${refspecs[tagWord + 1]}", and tags often start a release. The owner pushes tags.`);
+      refspecs = refspecs.filter((_, j) => j !== tagWord && j !== tagWord + 1);
+    }
+    for (const r of refspecs) {
+      if (/refs\/tags\//.test(r) || /^\+?v\$/.test(r.split(":").pop())) this.refuse("release", `It pushes the tag "${r}", and tags often start a release. The owner pushes tags.`);
     }
     if (refspecs.some((r) => r.includes("*"))) return this.refuse("push", "It pushes branches matching a pattern, which can include protected ones.");
     if (force || refspecs.some((r) => r.startsWith("+"))) this.refuse("push", "It force-pushes with `--force` or `+`, which can overwrite other people's work. Use `--force-with-lease` on your own branch, or ask the owner.");
@@ -792,7 +905,7 @@ class Checker {
       return dst === "HEAD" || dst === "@" ? current() : dst;
     }) : del ? [] : [current()];
     for (const t of targets.filter(Boolean)) {
-      const branchExists = this.refs(dir, "heads").has(t);
+      const branchExists = this.refs(dir, "heads").has(t) || this.newBranches.has(t);
       const isTag = t.startsWith("refs/tags/") || (!t.startsWith("refs/heads/") && !branchExists && (this.refs(dir, "tags").has(t) || this.newTags.has(t) || VERSION_LIKE.test(t)));
       if (isTag && !del) {
         this.refuse("release", `It pushes the tag "${t.replace(/^refs\/tags\//, "")}", and tags often start a release. The owner pushes tags.`);
@@ -833,7 +946,7 @@ class Checker {
     if (group === "pr" && verb === "merge" && w.includes("--admin")) return this.refuse("github-settings", "`gh pr merge --admin` overrides the repository's merge rules. Merge without `--admin`, or ask the owner.");
     if (group === "workflow" && verb === "run") {
       const rest = w.slice(k + 2);
-      const name = rest.find((x, j) => !x.startsWith("-") && !["-r", "--ref", "-R", "--repo", "-f", "-F", "--field", "--raw-field", "--json"].includes(rest[j - 1]));
+      const name = rest.find((x, j) => !x.startsWith("-") && !["-r", "--ref", "-R", "--repo", "-f", "-F", "--field", "--raw-field"].includes(rest[j - 1]));
       if (name && this.workflowDeploys(dir, name)) return this.refuse("deploy", `\`gh workflow run ${name}\` starts a workflow that deploys or releases. The owner starts it.`);
       return;
     }
@@ -870,7 +983,7 @@ class Checker {
     if (wf ? this.workflowDeploys(dir, wf[1]) : /\/dispatches$/.test(clean)) return this.refuse("deploy", `It sends ${method} to ${path}, which starts a workflow that may deploy or release. The owner starts it.`);
     const branches = protectedBranches(this.project.settings);
     if (/\/merges$/.test(clean) && branches.has(field("base") ?? "")) return this.refuse("push", `It merges straight into the protected branch "${field("base")}" without a pull request.`);
-    if (/\/contents\//.test(clean) && branches.has(field("branch") ?? "")) return this.refuse("push", `It commits straight to the protected branch "${field("branch")}" through the GitHub interface.`);
+    if (/\/contents\//.test(clean) && (method === "PUT" || method === "DELETE") && (field("branch") === undefined || branches.has(field("branch")))) return this.refuse("push", `It commits straight to ${field("branch") ? `the protected branch "${field("branch")}"` : "the default branch"} through the GitHub interface.`);
     if (/\/git\/(refs|tags)$/.test(clean) && /^refs\/tags\//.test(field("ref") ?? "")) return this.refuse("release", `It creates the tag "${field("ref").slice(10)}", and tags often start a release.`);
     const ref = clean.match(/\/git\/refs\/heads\/(.+)$/);
     if (ref && (method === "DELETE" || method === "PATCH") && branches.has(ref[1])) this.refuse("push", `It ${method === "DELETE" ? "deletes" : "moves"} the protected branch "${ref[1]}" through the GitHub interface.`);

@@ -7,6 +7,7 @@
 // of the outer shell. Each body is replaced by a marker the caller can look up.
 let heredocCount = 0;
 export function extractHeredocs(cmd) {
+  cmd = cmd.replace(/\$\(\([\s\S]*?\)\)/g, (m) => m.replace(/<</g, "\u00ab\u00ab"));
   const heredocs = new Map();
   const keep = (body) => {
     const key = `__HEREDOC_${heredocCount++}__`;

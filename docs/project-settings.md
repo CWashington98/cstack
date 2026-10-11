@@ -30,16 +30,19 @@ The cstack plugin runs `plugins/core/scripts/guard.mjs` before every shell
 command an agent sends. It refuses:
 
 - deploys that change a live system (`convex deploy`, `vercel --prod`,
-  `cdk deploy`, `terraform apply`, `gcloud run deploy`, `supabase db push`, and
-  any other tool whose command is `deploy` or ends in `:deploy`), unless that deploy names a
+  `cdk deploy`, `terraform apply`, `gcloud run deploy`, `supabase db push`,
+  `drizzle-kit push`, an nx or Angular target named `deploy`, and any other
+  tool whose command is `deploy`), unless that deploy names a
   target from `agentsMayDeployTo`. The target must be named in the same command,
   in a variable or env file that feeds it, or in the command that ran the script
   the deploy sits in. A target named elsewhere in the line doesn't count;
 - app store releases: `eas submit`, `--auto-submit`, production app builds,
   updates and channel changes, `eas deploy --prod`, and Expo Application
   Services workflows that build for the stores or submit;
-- package publishes, GitHub releases, and GitHub workflows that deploy or release;
-- tag pushes, including a tag made earlier in the same command or a name like `v1.2.0`;
+- package publishes, `nx release`, GitHub releases, and GitHub workflows that
+  deploy or release;
+- tag pushes, including a tag made earlier in the same command, a name like
+  `v1.2.0`, and tag pushes in the scripts `npm version` runs;
 - pushes to protected branches, `--force` and `+` pushes, and deleting protected
   branches. `--force-with-lease` to your own branch is allowed;
 - changes to GitHub secrets, keys, rulesets, branch protection, access and
@@ -63,7 +66,12 @@ It reads commands the way the shell runs them. It looks through:
 - shell scripts, `source`, and scripts written and run in the same command.
 
 It follows variables the command sets, so `tmp=$(mktemp -d) && rm -rf "$tmp"`
-is allowed.
+is allowed. Test, lint and format tools never count as deploys, so
+`npx vitest run deploy` is allowed, and so is any command with `--help`.
+
+Each package script is checked once per command. A command that runs scripts
+nested more than 8 levels deep, or more scripts than the guard can check in
+time, is refused rather than let through.
 
 It does not refuse ordinary merges. Agents merge when the owner says so.
 
@@ -86,6 +94,7 @@ files it loads. These can still get past it:
 - commands fed to a shell through a pipe, such as `echo ... | sh`;
 - a workflow whose name and file don't show that it deploys;
 - `docker push` and `kubectl`, which often point at a local setup;
+- nx targets defined in `project.json`, which are judged by their name only;
 - a script written with `echo` or `printf` and run in the same command (scripts
   written with a heredoc are read);
 - a production target the project hasn't listed in `agentsNeverTouch`.
