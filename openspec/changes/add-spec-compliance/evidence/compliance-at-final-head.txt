@@ -1,0 +1,11 @@
+# node plugins/verify/scripts/spec-compliance.mjs add-spec-compliance --base 5c9ab64
+# run at HEAD 95f7bbd (the evidence file itself is committed after this run)
+Report: /Users/crishonwashington/Source/cstack-wt-spec/.verify/runs/spec-compliance/20261011T220750Z-95f7bbd/compliance.json
+30 of 30 scenario tests ran.
+Held: spec compliance for add-spec-compliance found 4 problem(s) to fix.
+  - Commit 19c5469 changed the locked acceptance test plugins/verify/tests/fixtures/compliance/README.md with no Spec-Change: line. Put the edit in a commit that says which spec change needs it, or undo it.
+  - Commit 19c5469 changed the locked acceptance test plugins/verify/tests/fixtures/compliance/typescript/change/2-acceptance/test/acceptance/seats.test.ts with no Spec-Change: line. Put the edit in a commit that says which spec change needs it, or undo it.
+  - Commit 19c5469 changed the locked acceptance test plugins/verify/tests/fixtures/compliance/typescript/starting/test/team.test.ts with no Spec-Change: line. Put the edit in a commit that says which spec change needs it, or undo it.
+  - Commit 19c5469 changed the locked acceptance test plugins/verify/tests/spec-compliance.test.mjs with no Spec-Change: line. Put the edit in a commit that says which spec change needs it, or undo it.
+Breaking changed lines: skipped (the normal lane does not break changed lines).
+# exit 1
