@@ -114,7 +114,7 @@ function testSettingsProblems(s) {
   return out;
 }
 
-const MISSING_BY_NAME = `Add "tests.byName" to .claude/verify.json: the command that runs one scenario's tests by name, with {name} where the name goes. {name} becomes [scenario-id], brackets included. If your test tool reads the name as a pattern, escape the opening bracket, as in "<your test command> --filter \"\\{name}\"".`;
+const MISSING_BY_NAME = `Add "tests.byName" to .claude/verify.json: the command that runs one scenario's tests by name, with {name} where the name goes. {name} becomes the bracket text a scenario's tests carry, such as [scenario-id] or a longer [area/feature:requirement/scenario-id], brackets included. If your test tool reads the name as a pattern, escape the opening bracket, as in "<your test command> --filter \"\\{name}\"".`;
 
 // The settings the spec compliance check needs, or what is wrong with them.
 export function complianceSettings(repoRoot) {

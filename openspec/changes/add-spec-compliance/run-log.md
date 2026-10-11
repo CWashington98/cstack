@@ -111,7 +111,7 @@ Added `spec-match-brief.md` to the pr-review skill and made SKILL.md start the s
 - Ruling: the reviewer's findings are folded into the claims auditor's answer before reproduction (high becomes blocking; medium becomes blocking only if cheap or on a high-risk path, else decide; low becomes note; a spec-wrong finding is always decide and goes back to spec approval). Why: the verdict machinery knows two reviewers and three severities; adding a third reviewer would change `verdict.mjs` and its tests, outside this task. Cost if wrong: a third verdict slot is a later change; spec-match findings show under the claims auditor's name.
 - Ruling: the reviewer runs as a general-purpose agent with its own copy made by `review-prep.mjs --copies ...,spec-match`, and gets no `pr.md` at all. Why: the claims auditor's agent type may be given the description; this one must not. Cost if wrong: none.
 
-## 2026-10-11 · task 8.1 · commit aa892ef (amended; see git log)
+## 2026-10-11 · task 8.1 · commit 82c5b3e (amended; see git log)
 
 New `lib/executable.mjs`, used by `runCompliance` only when `executableSpecs` is set. It finds bindings in tracked files matching `tests.acceptance`, holds under `executable-specs-when-turned-on` for each step line with no binding and each THEN binding with no assertion, and runs the scenarios through `executableSpecs.command` in place of `tests.byName` (current commit, starting commit, and breaks). Green now: `[unbound-then-line]`, `[binding-without-an-assertion]`; `[setting-off-changes-nothing]` and both samples stay green. Unit tests added for binding parsing, assertion detection and THEN/AND marking.
 
