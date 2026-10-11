@@ -1,0 +1,7 @@
+{
+  "integrationBranch": "main",
+  "highRisk": [],
+  "protectedBranches": ["main"],
+  "agentsMayDeployTo": [],
+  "agentsNeverTouch": []
+}
