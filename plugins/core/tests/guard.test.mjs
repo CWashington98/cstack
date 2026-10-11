@@ -595,7 +595,7 @@ test("round 2: other tools whose command is deploy are refused; files named depl
 test("round 2: bun's own commands aren't read as scripts, and a script can't make the guard loop", () => {
   const entries = Array.from({ length: 8 }, (_, i) => `bun build ./e${i}.ts --outdir dist`).join(" && ");
   const tests = Array.from({ length: 8 }, (_, i) => `bun test src/part${i}`).join(" && ");
-  const dir = project({ "package.json": JSON.stringify({ scripts: { build: entries, test: tests, loop: "bun run loop", fan: "bun run fan && bun run fan && bun run fan && bun run fan", ping: "bun run pong", pong: "bun run ping && vercel --prod" } }) });
+  const dir = project({ "package.json": JSON.stringify({ scripts: { build: entries, test: tests, loop: "bun run loop", fan: Array(6).fill("bun run fan").join(" && "), ping: "bun run pong", pong: "bun run ping && vercel --prod" } }) });
   const start = Date.now();
   allowed(dir, "bun run build");
   allowed(dir, "bun run test");
@@ -634,10 +634,14 @@ test("a long command is checked quickly", () => {
   const start = Date.now();
   run(dir, lines);
   assert.ok(Date.now() - start < 5000, `took ${Date.now() - start} ms`);
-  const pushes = Array.from({ length: 600 }, (_, i) => (i % 2 ? `git push origin feat/${i}` : "git push origin HEAD")).join("\n");
+  const pushes = Array.from({ length: 600 }, (_, i) => `git push origin feat/${i}`).join("\n");
   const again = Date.now();
   run(dir, pushes);
   assert.ok(Date.now() - again < 2500, `600 pushes took ${Date.now() - again} ms`);
+  const heads = Array(500).fill("git push origin HEAD").join("\n");
+  const third = Date.now();
+  run(dir, heads);
+  assert.ok(Date.now() - third < 1000, `500 HEAD pushes took ${Date.now() - third} ms`);
 });
 
 test("the core plugin runs the guard before every shell command", () => {
