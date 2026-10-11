@@ -883,7 +883,8 @@ test("round 4: a script written with echo or printf and run in the same command 
   refused(dir, `echo 'npx convex deploy' > ${tmp}/d.sh; echo 'echo done' >> ${tmp}/d.sh; bash ${tmp}/d.sh`, /convex deploy/);
   refused(dir, `echo 'npx convex deploy' >${tmp}/g.sh; echo 'echo done' >>${tmp}/g.sh; bash ${tmp}/g.sh`, /convex deploy/);
   refused(dir, `printf 'npx %s deploy' convex > ${tmp}/h.sh && bash ${tmp}/h.sh`, /convex deploy/);
-  refused(dir, `echo 'echo hi\nnpx convex deploy' > ${tmp}/i.sh && bash ${tmp}/i.sh`, /convex deploy/);
+  refused(dir, `echo -e 'echo hi\\nnpx convex deploy' > ${tmp}/i.sh && bash ${tmp}/i.sh`, /convex deploy/);
+  refused(dir, `echo 'echo hi\nnpx convex deploy' > ${tmp}/l.sh && bash ${tmp}/l.sh`, /convex deploy/);
   refused(dir, `echo 'npx convex deploy' > ${tmp}/j.sh; cat >> ${tmp}/j.sh <<'EOF'\necho done\nEOF\nbash ${tmp}/j.sh`, /convex deploy/);
   refused(dir, `echo 'npx convex deploy' > ${tmp}/k.sh; tee -a ${tmp}/k.sh <<'EOF'\necho done\nEOF\nbash ${tmp}/k.sh`, /convex deploy/);
   allowed(dir, `echo 'echo hi' > ${tmp}/e.sh && bash ${tmp}/e.sh`);
