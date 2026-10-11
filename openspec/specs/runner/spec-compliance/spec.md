@@ -1,7 +1,7 @@
 # runner/spec-compliance Specification
 
 ## Purpose
-Proves that a change does what its approved spec says. Code proves what it can, the same way on every run: every scenario has a task and a test that failed on the old code and passes on the new, locked tests stay locked, and the spec still matches what was approved. A spec-match reviewer judges what code can't: whether each test checks the whole outcome its scenario promises. It works in any project through that project's settings file alone.
+Proves that a change does what its approved spec says. Code proves what it can, the same way on every run. Every scenario must have a task and a test that failed on the old code and passes on the new. Locked tests must stay locked, and the spec must still match what was approved. A spec-match reviewer judges what code can't: whether each test checks the whole outcome its scenario promises. It works in any project through that project's settings file alone.
 
 ## Requirements
 
