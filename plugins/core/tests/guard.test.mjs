@@ -229,6 +229,7 @@ test("commands that use a never entry are refused; commands that only mention it
   refused(dir, "CONVEX_DEPLOYMENT=prod:prod-backend-9; npx convex run x");
   refused(dir, "for d in staging-backend-1 prod-backend-9; do npx convex data --deployment-name $d; done", /prod-backend-9/);
   allowed(dir, "for f in a.md b.md; do grep prod-backend-9 $f; done");
+  allowed(dir, "for f in $(grep -l prod-backend-9 docs); do echo $f; done");
   refused(dir, "find . -name x -exec curl https://app.example.com \\;", /app\.example\.com/);
   allowed(dir, 'git commit -m "Document that prod-backend-9 is production"');
   allowed(dir, "git commit -F - <<'EOF'\nprod-backend-9 is production\nEOF");
@@ -255,7 +256,8 @@ test("store submissions and production app builds are refused; preview builds ar
   refused(dir, "npx eas-cli build --platform ios", /no profile/);
   refused(dir, "eas build --profile production", /production/);
   refused(dir, "eas build -e production-ios");
-  refused(dir, "eas build -eproduction", /production/);
+  refused(dir, "eas build -eproduction", /profile "production"/);
+  allowed(dir, "eas build -epreview");
   refused(dir, "eas build --profile preview --auto-submit", /auto-submit/);
   refused(dir, "eas build --profile preview --auto-submit-with-profile=production", /auto-submit/);
   allowed(dir, "eas build --profile preview --platform android");
