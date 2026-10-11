@@ -803,6 +803,7 @@ test("round 4: the hook checks tool-server calls end to end", () => {
   const lines = readFileSync(logFile, "utf8").trim().split("\n").map((l) => JSON.parse(l));
   assert.equal(lines.length, 1);
   assert.equal(lines[0].tool, "mcp__plugin_convex_convex__envSet");
+  assert.match(lines[0].command, /"deploymentSelector":"prod:prod-backend-9"/);
   assert.doesNotMatch(lines[0].command, /sk_live_abcdef123456/);
 });
 
@@ -880,6 +881,11 @@ test("round 4: a script written with echo or printf and run in the same command 
   refused(dir, `printf '#!/bin/sh\\nvercel --prod\\n' > ${tmp}/b.sh; chmod +x ${tmp}/b.sh; ${tmp}/b.sh`, /Vercel/);
   refused(dir, `printf '%s\\n' 'git push origin main' >> ${tmp}/c.sh && sh ${tmp}/c.sh`, /"main"/);
   refused(dir, `echo 'npx convex deploy' > ${tmp}/d.sh; echo 'echo done' >> ${tmp}/d.sh; bash ${tmp}/d.sh`, /convex deploy/);
+  refused(dir, `echo 'npx convex deploy' >${tmp}/g.sh; echo 'echo done' >>${tmp}/g.sh; bash ${tmp}/g.sh`, /convex deploy/);
+  refused(dir, `printf 'npx %s deploy' convex > ${tmp}/h.sh && bash ${tmp}/h.sh`, /convex deploy/);
+  refused(dir, `echo 'echo hi\nnpx convex deploy' > ${tmp}/i.sh && bash ${tmp}/i.sh`, /convex deploy/);
+  refused(dir, `echo 'npx convex deploy' > ${tmp}/j.sh; cat >> ${tmp}/j.sh <<'EOF'\necho done\nEOF\nbash ${tmp}/j.sh`, /convex deploy/);
+  refused(dir, `echo 'npx convex deploy' > ${tmp}/k.sh; tee -a ${tmp}/k.sh <<'EOF'\necho done\nEOF\nbash ${tmp}/k.sh`, /convex deploy/);
   allowed(dir, `echo 'echo hi' > ${tmp}/e.sh && bash ${tmp}/e.sh`);
   allowed(dir, `echo 'npx convex deploy' > ${tmp}/f.sh; echo 'echo hi' > ${tmp}/f.sh; bash ${tmp}/f.sh`);
 });

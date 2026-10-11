@@ -8,7 +8,7 @@
 // A << inside quotes is text, not a heredoc, unless it sits in a $( ) that
 // starts inside double quotes, as in git commit -m "$(cat <<'EOF' ... )".
 let heredocCount = 0;
-const HEREDOC = /(?<![<\w)])<<-?(?!<)\s*(['"]?)(\w+)\1([^\n]*)\n([\s\S]*?)(?:\n[ \t]*\2[ \t]*(?=\n|$)|$)/dy;
+const HEREDOC = /(?<![<\w)])<<-?(?!<)\s*(['"]?)(\w+)\1([^\n]*)\n([\s\S]*?)(?:\n[ \t]*\2[ \t]*(?=\n|$)|$)/y;
 export function extractHeredocs(cmd) {
   cmd = cmd.replace(/\$\(\([\s\S]*?\)\)/g, (m) => m.replace(/<</g, "\u00ab\u00ab"));
   const heredocs = new Map();
@@ -50,7 +50,6 @@ export function extractHeredocs(cmd) {
         const key = `__HEREDOC_${heredocCount++}__`;
         heredocs.set(key, m[4]);
         text += `${cmd.slice(from, i)} <<HEREDOC ${key}${m[3]}`;
-        for (let j = m.indices[3][0]; j < m.indices[3][1]; ) j = step(j);
         from = i = m.index + m[0].length;
         continue;
       }

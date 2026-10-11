@@ -1123,18 +1123,6 @@ function mentionsOnly(w) {
   return false;
 }
 
-// The input of a call to a tool server, as text: its JSON, and each name and
-// text value in it as written.
-function toolText(input) {
-  const strings = [];
-  const walk = (v) => {
-    if (typeof v === "string") strings.push(v);
-    else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) strings.push(k), walk(x);
-  };
-  walk(input);
-  return [JSON.stringify(input) ?? "", ...strings].join("\n");
-}
-
 const isToolServer = (name) => typeof name === "string" && name.startsWith("mcp__");
 
 export function decide({ tool_name, tool_input = {}, cwd = process.cwd() }) {
@@ -1145,7 +1133,7 @@ export function decide({ tool_name, tool_input = {}, cwd = process.cwd() }) {
   if (isToolServer(tool_name)) {
     const project = projectFor(real(cwd), new Map());
     const refusals = project.problem ? [{ rule: "settings", reason: settingsReason(project.problem) }] : [];
-    const text = lower(toolText(tool_input));
+    const text = lower(JSON.stringify(tool_input) ?? "");
     for (const entry of listed(project.settings.agentsNeverTouch)) if (text.includes(lower(entry))) refusals.push({ rule: "never", reason: neverReason(entry, project.settingsFile) });
     return { allow: refusals.length === 0, refusals };
   }
