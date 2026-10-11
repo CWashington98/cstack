@@ -75,6 +75,15 @@ test("the repository's verify settings must name the integration branch", () => 
   assert.deepEqual(checkRepoSettings(makeRepo()), []);
 });
 
+test("the guard's lists in the verify settings must be lists of entries the guard can match safely", () => {
+  const msg = (s) => checkRepoSettings(makeRepo({ ".claude/verify.json": JSON.stringify({ integrationBranch: "main", ...s }) })).map((f) => f.message).join();
+  assert.match(msg({ agentsNeverTouch: "prod-1" }), /"agentsNeverTouch" must be a list/);
+  assert.match(msg({ agentsMayDeployTo: ["ok-target", "x"] }), /"agentsMayDeployTo" must be a list.*at least 3/);
+  assert.match(msg({ protectedBranches: [1] }), /"protectedBranches" must be a list/);
+  assert.equal(msg({ protectedBranches: ["qa"] }), "");
+  assert.equal(msg({ agentsNeverTouch: ["prod-1"], agentsMayDeployTo: ["staging-2"], protectedBranches: ["main"] }), "");
+});
+
 test("the command exits 0 on a pass, 1 on a hold and 2 on a missing folder", () => {
   const good = skill();
   assert.equal(spawnSync("node", [script, good.dir], { encoding: "utf8" }).status, 0);

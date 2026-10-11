@@ -19,10 +19,18 @@ If `.claude/skills/verify-<app>/` already exists, don't overwrite it. Offer the 
 
 ## 2. Settings first
 
-If `.claude/verify.json` is missing, create it with two fields:
+If `.claude/verify.json` is missing, create it. Start with two fields:
 
 - `integrationBranch`: the branch pull requests target. Read `git symbolic-ref refs/remotes/origin/HEAD` and the base branch of recent pull requests. Ask the owner if they disagree.
 - `highRisk`: path patterns for code where a mistake hurts most: patient or customer data, results, recording, sync, sign-in, billing, consent and security. Propose them from the code and let the owner confirm.
+
+After step 3, come back and fill in the three lists the cstack guard reads before every shell command. Each entry is text the guard looks for inside commands, so use full names, never a short word like "prod":
+
+- `agentsNeverTouch`: production backend names, production addresses, cloud profiles for production, and any whole command agents must never run. Take them from the Production answers in step 3. The owner always confirms this list.
+- `agentsMayDeployTo`: the targets agents may deploy to, such as a staging backend or a cloud sandbox profile. Leave it empty if agents never deploy.
+- `protectedBranches`: branches agents never push to directly. Leave it out to use `main` and `master`. The `integrationBranch` is always protected.
+
+The full format is in `docs/project-settings.md` in cstack.
 
 Add `.verify/` to `.gitignore` if it is not there. Evidence runs go in that folder and must never be committed.
 

@@ -49,6 +49,13 @@ done: it re-runs the tests and builds itself, checks the scope against the claim
 a "ready" or "not ready" verdict.
 It was called `karen` until core 3.0.0. If you called `cstack:karen`, call `cstack:claims-auditor` instead.
 
+The core plugin also runs the **guard** before every shell command an agent sends, in every
+project. It refuses production deploys, store submissions, package publishes, releases,
+pushes to protected branches, force pushes, GitHub settings changes, deletes outside the
+repository, and anything on the project's "never" list. It allows merges and deploys to
+targets the project lists as safe for agents. Each project lists those in `.claude/verify.json`; the
+format is in [docs/project-settings.md](docs/project-settings.md).
+
 ## Matt Pocock's skills
 
 cstack used to ship copies of these. Install them from his own marketplace, which carries his latest release. The copy in Anthropic's official marketplace lags behind it (on 2026-10-05 it was 27 commits older than his version 1.3.1):
@@ -147,7 +154,8 @@ rule. A test fails if an agent file's name doesn't match the name inside it.
 
 ```
 .claude-plugin/marketplace.json   # catalog: core plugin + pinned externals
-plugins/core/                     # the "cstack" plugin (skills/)
+plugins/core/                     # the "cstack" plugin: skills, the claims-auditor agent, the guard hook
+docs/project-settings.md          # the .claude/verify.json format each project fills in
 snippets/py/                      # copy-paste by design: atomic write, telegram sink, launchd, curl_cffi
 templates/                        # stamped once at project birth: CLAUDE.md constitution + cstack.md delta
 recipes/                          # agent-stack-brief (operating model) · bootstrap (zero→agent-ready) · expert-agents · review-pipeline

@@ -1,0 +1,13 @@
+{
+  "description": "cstack guard: refuses production deploys, store submissions, pushes to protected branches, force pushes, GitHub settings changes, deletes outside the repository, and anything on the project's never list",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/guard.mjs\"", "timeout": 30 }
+        ]
+      }
+    ]
+  }
+}
