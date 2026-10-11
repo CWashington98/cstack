@@ -1035,3 +1035,11 @@ test("round 5: git's own leftovers and hooks may be deleted; the rest of .git ma
   refused(dir, "rm -rf .git/config", /inside the repository's \.git folder/);
   refused(dir, "rm -rf .git", /the repository's history/);
 });
+
+test("round 5: $'...' quoting is read the way bash reads it everywhere a command is split", () => {
+  const dir = project();
+  refused(dir, "x=$(echo $'it\\'s)') ; npx convex deploy", /convex deploy/);
+  refused(dir, "echo $'it\\'s' $(npx convex deploy)", /convex deploy/);
+  allowed(dir, "rm -rf $'dist\\'s' build");
+  refused(dir, "x=$(python3 - <<'EOF'\nimport urllib.request\nurllib.request.urlopen('https://app.example.com/admin')\nEOF\n)", /app\.example\.com/);
+});
