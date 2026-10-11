@@ -4,6 +4,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative, sep, basename, dirname } from "node:path";
+import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { proseLines } from "./markdown.mjs";
 import { checkScenarios, gather, ITEM } from "./plan.mjs";
@@ -383,6 +384,60 @@ export function checkScope(root, base, change, tasks, settings) {
     .map((file) => hold(CHECKS.scope, { file, why: `${file} changed, but no task says it touches it. Possible scope creep: add it to a task's Touches: line, or take it out.` }));
 }
 
+// ---- The approved spec ----
+
+const sha256 = (bytes) => createHash("sha256").update(bytes).digest("hex");
+
+// One spec file: the hash of its bytes. Several: the hash of a sorted list of
+// "<hash>  <path>" lines, paths relative to the change's folder.
+export function fingerprintOf(files) {
+  if (files.length === 1) return sha256(files[0].bytes);
+  return sha256(files.slice().sort((a, b) => (a.path < b.path ? -1 : 1)).map((f) => `${sha256(f.bytes)}  ${f.path}\n`).join(""));
+}
+
+const diffLines = (patch) => patch.split("\n").filter((l) => /^[+-]/.test(l) && !/^(\+\+\+|---)/.test(l));
+
+// Holds when the spec files no longer match the fingerprint recorded at approval, and
+// shows the lines that differ from the approved text when that text is in the history.
+export function checkApproval(root, change, settings) {
+  const dir = changeDir(root, change);
+  const rel = `openspec/changes/${change}`;
+  const file = join(dir, "approval.json");
+  const fail = (why, extra = {}) => [hold(CHECKS.approved, { why, ...extra })];
+  if (!existsSync(file)) return fail(`The change has no approval.json, so there is no record of which spec text was approved. Record the approval, then run the check again.`);
+  let approval;
+  try { approval = JSON.parse(readText(file)); } catch (e) { return fail(`approval.json is not valid JSON: ${e.message}`); }
+  const recorded = String(approval.fingerprint ?? "").replace(/^sha256:/, "");
+  if (!recorded) return fail(`approval.json has no fingerprint of the approved spec.`);
+  const covers = approval.covers ?? "specs/**/*.md";
+  const inScope = (path) => matchesAny(path, [covers]);
+  const now = walk(dir).map((f) => posix(relative(dir, f))).filter(inScope).sort()
+    .map((path) => ({ path, bytes: readFileSync(join(dir, path)) }));
+  const current = now.length ? fingerprintOf(now) : null;
+  if (current === recorded) return [];
+
+  // Look back through the history for the text that was approved.
+  let approvedAt = null;
+  const history = (gitOk(root, "log", "--format=%H", "-n", "200", "--", rel) ?? "").split("\n").filter(Boolean);
+  for (const sha of history) {
+    const names = (gitOk(root, "ls-tree", "-r", "--name-only", "-z", sha, "--", rel) ?? "").split("\0").filter(Boolean)
+      .map((n) => n.slice(rel.length + 1)).filter(inScope).sort();
+    if (!names.length) continue;
+    const files = names.map((path) => ({ path, bytes: execFileSync("git", ["show", `${sha}:${rel}/${path}`], { cwd: root, maxBuffer: 64 * 1024 * 1024 }) }));
+    if (fingerprintOf(files) === recorded) { approvedAt = { sha, names }; break; }
+  }
+  let shown = "";
+  let lines = [];
+  if (approvedAt) {
+    const paths = [...new Set([...approvedAt.names, ...now.map((f) => f.path)])].map((p) => `${rel}/${p}`);
+    lines = diffLines(gitOk(root, "diff", "-U0", approvedAt.sha, "--", ...paths) ?? "");
+    shown = lines.length ? ` Lines that differ from the approved text: ${lines.map((l) => `${l[0]} ${l.slice(1).trim()}`).join(" | ")}` : "";
+  } else {
+    shown = " The approved text is not in the history, so the edited lines cannot be shown.";
+  }
+  return fail(`The spec no longer matches what was approved (recorded ${recorded.slice(0, 12)}, now ${current ? current.slice(0, 12) : "no spec files"}), so it needs approval again.${shown}`, { approvedCommit: approvedAt ? short(approvedAt.sha) : null, lines });
+}
+
 // ---- The whole check ----
 
 const now = () => Number(process.hrtime.bigint() / 1000000n);
@@ -399,6 +454,7 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
   const locks = checkLocks(root, base, settings);
   holds.push(...locks.holds);
   warnings.push(...checkScope(root, base, change, traced.tasks, settings));
+  holds.push(...checkApproval(root, change, settings));
   timeMs.trace += now() - t;
   t = now();
   const runs = new Map();

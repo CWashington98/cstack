@@ -4,7 +4,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { checkScenarios } from "../scripts/lib/plan.mjs";
 import { proseLines } from "../scripts/lib/markdown.mjs";
-import { testsInText, globToRegExp, matchesAny, isTestFile, parseTasks, readRun, withBaseTree, judgeFirstRun, checkLocks, checkScope } from "../scripts/lib/compliance.mjs";
+import { testsInText, globToRegExp, matchesAny, isTestFile, parseTasks, readRun, withBaseTree, judgeFirstRun, checkLocks, checkScope, checkApproval, fingerprintOf } from "../scripts/lib/compliance.mjs";
+import { createHash } from "node:crypto";
 import { complianceSettings, checkRepoSettings } from "../scripts/lib/app-skill.mjs";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -263,6 +264,8 @@ test("checkLocks leaves source edits and tests that gain assertions alone", () =
 
 // ---- Scope and approval ----
 
+const sha = (b) => createHash("sha256").update(b).digest("hex");
+
 test("checkScope lists changed files no task declares, and leaves out tests, the change's folder and allowed files", () => {
   const dir = makeRepo({ "src/a.txt": "1\n", "src/b.txt": "1\n", "src/deep/c.txt": "1\n", "docs/x.txt": "1\n", "test/t.txt": "1\n", "openspec/changes/c/tasks.md": "x\n", "src/d.txt": "1\n" });
   git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "start");
@@ -273,4 +276,42 @@ test("checkScope lists changed files no task declares, and leaves out tests, the
   const found = checkScope(dir, base, "c", tasks, { tests: { alwaysAllowed: ["docs/**"] } });
   assert.deepEqual(found.map((w) => w.file), ["src/b.txt"]);
   assert.equal(found[0].check, "nothing-built-outside-the-spec");
+});
+
+test("fingerprintOf hashes one file's bytes, and several files by sorted path", () => {
+  const a = { path: "a/spec.md", bytes: Buffer.from("one\n") };
+  const b = { path: "b/spec.md", bytes: Buffer.from("two\n") };
+  assert.equal(fingerprintOf([a]), sha("one\n"));
+  assert.equal(fingerprintOf([b, a]), fingerprintOf([a, b]));
+  assert.equal(fingerprintOf([a, b]), sha(`${sha("one\n")}  a/spec.md\n${sha("two\n")}  b/spec.md\n`));
+});
+
+function approvedRepo(extraSpecs = {}) {
+  const specs = { "openspec/changes/c/specs/x/spec.md": "- **THEN** it works\n", ...extraSpecs };
+  const prefix = "openspec/changes/c/";
+  const relFiles = Object.entries(specs).map(([p, c]) => ({ path: p.slice(prefix.length), bytes: Buffer.from(c) }));
+  const dir = makeRepo({ ...specs, [`${prefix}approval.json`]: JSON.stringify({ covers: "specs/**/*.md", fingerprint: `sha256:${fingerprintOf(relFiles)}` }) });
+  git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "approve");
+  return dir;
+}
+
+test("checkApproval passes while the spec is as approved", () => {
+  assert.deepEqual(checkApproval(approvedRepo(), "c", {}), []);
+  assert.deepEqual(checkApproval(approvedRepo({ "openspec/changes/c/specs/y/spec.md": "other\n" }), "c", {}), []);
+});
+
+test("checkApproval holds an edited spec and shows the lines that changed since approval", () => {
+  const dir = approvedRepo();
+  writeFileSync(join(dir, "openspec/changes/c/specs/x/spec.md"), "- **THEN** it works for every row\n");
+  git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "tighten");
+  const [h, ...rest] = checkApproval(dir, "c", {});
+  assert.equal(rest.length, 0);
+  assert.equal(h.check, "spec-matches-what-was-approved");
+  assert.match(h.why, /needs approval again/);
+  assert.deepEqual(h.lines, ["-- **THEN** it works", "+- **THEN** it works for every row"]);
+});
+
+test("checkApproval holds a change with no approval record", () => {
+  const dir = makeRepo({ "openspec/changes/c/specs/x/spec.md": "x\n" });
+  assert.match(checkApproval(dir, "c", {})[0].why, /no approval\.json/);
 });

@@ -63,9 +63,17 @@ Runs each scenario's tests on the starting commit, in a temporary worktree (remo
 - Ruling: weakened tests are found by reading each commit's diff for added skip markers, fewer test declarations, or fewer assertion lines, not by running anything. Why: it works for any language with no tool named. Cost if wrong: a rewrite that keeps the counts equal is missed, and a harmless refactor that removes an assertion line is held until it carries a `Spec-Change:` line.
 - Ruling: an unexplained edit to a locked test and an unexplained weakening both use the check `locked-acceptance-tests-stay-locked` (as phase 1 ruled). A skip or deletion of a locked acceptance file is reported once, as the locked edit.
 
-## 2026-10-11 · task 4.2 · commit @@4.2@@
+## 2026-10-11 · task 4.2 · commit 1dba048
 
 `checkScope` lists every file changed between the starting commit and the latest that no task's `Touches:` names, as a warning (`nothing-built-outside-the-spec`, with `file` and `why`) and never a hold. Left out: test files, the change's own folder, and `tests.alwaysAllowed`. Green now: `[unexplained-file-is-listed]` (and `[declared-file-is-not-listed]` stays green, now for a real reason).
 
 - Ruling: a `Touches:` entry also covers everything below it when it names a folder (`src/deep` covers `src/deep/c.txt`). Why: task lists name folders as often as files. Cost if wrong: a file under a named folder is not warned about.
 - Ruling: renames count as a delete plus an add, so both paths are checked. Why: simplest and safe. Cost if wrong: a moved file shows up twice in the warnings.
+
+## 2026-10-11 · task 4.3 · commit @@4.3@@
+
+`checkApproval` reads `approval.json` in the change's folder, fingerprints the spec files it covers (default `specs/**/*.md`) and holds under `spec-matches-what-was-approved` when they differ, or when there is no approval record. It looks back through the folder's history for the commit whose spec text matches the recorded fingerprint, and shows the lines that differ from it (`-` old, `+` new). Green now: `[spec-edited-after-approval]`.
+
+- Ruling: one spec file is fingerprinted as the sha256 hash of its bytes (as the samples and this change's own `approval.json` record). Several are fingerprinted as the sha256 hash of the sorted lines `<file hash>  <path relative to the change folder>`. Why: phase 1 left the multi-file form to this task; this keeps the single-file form unchanged. Cost if wrong: a change with several spec files needs its fingerprint recomputed once.
+- Ruling: a change with no `approval.json` is held. Why: without a record there is nothing to compare, and silence would pass an unapproved spec. Cost if wrong: a hand-run on a change not yet approved shows one hold.
+- Ruling: if the approved text is no longer in the last 200 commits touching the change's folder, the hold still fires and says the edited lines cannot be shown. Cost if wrong: less detail, same hold.
