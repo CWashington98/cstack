@@ -4,9 +4,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { checkScenarios } from "../scripts/lib/plan.mjs";
 import { proseLines } from "../scripts/lib/markdown.mjs";
-import { testsInText, globToRegExp, matchesAny, isTestFile, parseTasks, readRun } from "../scripts/lib/compliance.mjs";
+import { testsInText, globToRegExp, matchesAny, isTestFile, parseTasks, readRun, withBaseTree, judgeFirstRun } from "../scripts/lib/compliance.mjs";
 import { complianceSettings, checkRepoSettings } from "../scripts/lib/app-skill.mjs";
-import { makeRepo } from "../../../tests/helpers.mjs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
+import { makeRepo, git } from "../../../tests/helpers.mjs";
 
 const SPEC = [
   "## ADDED Requirements", "",
@@ -145,4 +147,60 @@ test("readRun reads the spec reporter, where a failing test is printed twice", (
 test("readRun reads a description line that ends in the result, and a qualified name", () => {
   const out = ["test_x (tests.a.B.test_x)", "[export-has-header-row] the first line ... FAIL", "[a/b:c/qualified-one] works ... ok", "[skip-me] later ... skipped 'why'"].join("\n");
   assert.deepEqual(readRun(out).map((t) => [t.id, t.status]), [["export-has-header-row", "failed"], ["qualified-one", "passed"], ["skip-me", "skipped"]]);
+});
+
+// ---- The starting commit ----
+
+test("withBaseTree checks out the starting commit with the latest acceptance tests, then removes it", () => {
+  const dir = makeRepo({ ".gitignore": "deps/\n", "src/a.txt": "old\n", "test/acceptance/a.txt": "first\n" });
+  git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "start");
+  const base = git(dir, "rev-parse", "HEAD").trim();
+  writeFileSync(join(dir, "src/a.txt"), "new\n");
+  writeFileSync(join(dir, "test/acceptance/a.txt"), "locked\n");
+  writeFileSync(join(dir, "test/acceptance/b.txt"), "added\n");
+  git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "change");
+  mkdirSync(join(dir, "deps")); writeFileSync(join(dir, "deps/lib.txt"), "dependency\n");
+  writeFileSync(join(dir, "src/dirty.txt"), "uncommitted\n");
+
+  let seen;
+  withBaseTree(dir, base, ["test/acceptance/**"], (tree) => {
+    seen = {
+      tree,
+      src: readFileSync(join(tree, "src/a.txt"), "utf8"),
+      tests: [readFileSync(join(tree, "test/acceptance/a.txt"), "utf8"), readFileSync(join(tree, "test/acceptance/b.txt"), "utf8")],
+      dep: readFileSync(join(tree, "deps/lib.txt"), "utf8"),
+      dirty: existsSync(join(tree, "src/dirty.txt")),
+    };
+  });
+  assert.equal(seen.src, "old\n");
+  assert.deepEqual(seen.tests, ["locked\n", "added\n"]);
+  assert.equal(seen.dep, "dependency\n");
+  assert.equal(seen.dirty, false);
+  assert.ok(!existsSync(seen.tree), "the temporary checkout is gone");
+  assert.doesNotMatch(git(dir, "worktree", "list"), /compliance-base/);
+  assert.equal(readFileSync(join(dir, "src/a.txt"), "utf8"), "new\n");
+  assert.equal(readFileSync(join(dir, "src/dirty.txt"), "utf8"), "uncommitted\n");
+});
+
+test("withBaseTree removes the checkout even when the run throws", () => {
+  const dir = makeRepo({ "a.txt": "x\n" });
+  git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "start");
+  const base = git(dir, "rev-parse", "HEAD").trim();
+  let tree;
+  assert.throws(() => withBaseTree(dir, base, [], (t) => { tree = t; throw new Error("boom"); }), /boom/);
+  assert.ok(!existsSync(tree));
+});
+
+test("judgeFirstRun counts only a test that ran and failed an assertion", () => {
+  const entry = { id: "x-works" };
+  const run = (o) => ({ passed: 0, failed: 0, skipped: 0, exits: [0], out: "", ...o });
+  assert.equal(judgeFirstRun(entry, run({ failed: 1, exits: [1], out: "AssertionError: 1 !== 2" })).failsFirst, true);
+  const same = judgeFirstRun(entry, run({ passed: 1 }));
+  assert.equal(same.failsFirst, false);
+  assert.match(same.why, /doesn't depend on the change/);
+  const crash = judgeFirstRun(entry, run({ exits: [1], out: "Error: Cannot find module './x.mjs'" }));
+  assert.equal(crash.failsFirst, false);
+  assert.match(crash.why, /assertion/);
+  assert.equal(judgeFirstRun(entry, run({ failed: 1, exits: [1], out: "TypeError: x is not a function" })).failsFirst, false);
+  assert.equal(judgeFirstRun(entry, run({ exits: [0] })).failsFirst, false);
 });

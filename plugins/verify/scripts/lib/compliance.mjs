@@ -1,8 +1,9 @@
 // The spec compliance check: does a change do what its approved spec says?
 // It traces every scenario to a task and a test, runs the tests, and reports what
 // holds. Nothing here names a project or a test tool: a project's settings do.
-import { existsSync, readFileSync } from "node:fs";
-import { join, relative, sep, basename } from "node:path";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, relative, sep, basename, dirname } from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import { proseLines } from "./markdown.mjs";
 import { checkScenarios, gather, ITEM } from "./plan.mjs";
@@ -255,6 +256,48 @@ export function whyNotRun(entry, r) {
   return `The test command found no test for ${entry.id}: no test named [${entry.id}] ran (the command ended with code ${r.exits.join(", ")}; last output: ${tail(r.out)}). Check the test is picked up by the command in tests.byName.`;
 }
 
+// ---- The starting commit, in a temporary worktree ----
+
+// Runs fn(folder) in a throwaway checkout of the starting commit with the latest
+// acceptance tests laid over it, since those tests did not exist yet when the
+// change started. Folders git ignores at the top (installed dependencies) are
+// linked in so the old code can run. The checkout is always removed.
+export function withBaseTree(root, base, acceptance, fn) {
+  const holder = mkdtempSync(join(tmpdir(), "compliance-base-"));
+  const tree = join(holder, "tree");
+  git(root, "worktree", "add", "--detach", "--quiet", tree, base);
+  try {
+    for (const file of git(root, "ls-tree", "-r", "--name-only", "-z", "HEAD").split("\0").filter(Boolean)) {
+      if (!matchesAny(file, acceptance)) continue;
+      const bytes = execFileSync("git", ["show", `HEAD:${file}`], { cwd: root, maxBuffer: 64 * 1024 * 1024 });
+      mkdirSync(dirname(join(tree, file)), { recursive: true });
+      writeFileSync(join(tree, file), bytes);
+    }
+    const ignored = gitOk(root, "ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z") ?? "";
+    for (const dir of ignored.split("\0").filter((d) => d.endsWith("/") && !d.startsWith(".verify/"))) {
+      const link = join(tree, dir.slice(0, -1));
+      if (existsSync(link) || !existsSync(dirname(link))) continue;
+      try { symlinkSync(join(root, dir), link); } catch { /* the old code may not need it */ }
+    }
+    return fn(tree);
+  } finally {
+    gitOk(root, "worktree", "remove", "--force", tree);
+    rmSync(holder, { recursive: true, force: true });
+    gitOk(root, "worktree", "prune");
+  }
+}
+
+// A failure only counts when a test ran and an assertion failed. A crash, a missing
+// file or a test that never ran leaves no failed test with the scenario's ID.
+const ASSERTION = /assert|expect/i;
+
+export function judgeFirstRun(entry, r) {
+  const passedAll = r.failed === 0 && r.passed > 0 && r.exits.every((x) => x === 0);
+  if (passedAll) return { failsFirst: false, why: `The test for ${entry.id} passes on the starting commit as well as the latest, so it doesn't depend on the change. Write a test that fails until the change is built.` };
+  if (r.failed > 0 && r.exits.some((x) => x !== 0) && ASSERTION.test(r.out)) return { failsFirst: true };
+  return { failsFirst: false, why: `On the starting commit the test for ${entry.id} did not fail by an assertion: it crashed, a file it needs was missing, or it never ran (exit ${r.exits.join(", ")}; last output: ${tail(r.out)}). Write a test that reaches an assertion on the old code, for example through a stub.` };
+}
+
 // ---- The whole check ----
 
 const now = () => Number(process.hrtime.bigint() / 1000000n);
@@ -275,6 +318,21 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
     runs.set(entry.id, r);
     entry.ran = r.passed + r.failed > 0 && r.skipped === 0;
     if (!entry.ran) holds.push(hold(CHECKS.ran, { scenario: entry.id, why: whyNotRun(entry, r) }));
+  }
+  const ran = traced.scenarios.filter((e) => e.ran);
+  const first = ran.length ? withBaseTree(root, base, settings.tests.acceptance ?? [], (tree) =>
+    new Map(ran.map((e) => [e.id, runScenario(tree, settings.tests.byName, e)]))) : new Map();
+  for (const entry of ran) {
+    const now_ = runs.get(entry.id);
+    entry.passesNow = now_.failed === 0 && now_.passed > 0 && now_.exits.every((x) => x === 0);
+    const judged = judgeFirstRun(entry, first.get(entry.id));
+    entry.failsFirst = judged.failsFirst;
+    if (!judged.failsFirst) holds.push(hold(CHECKS.failFirst, { scenario: entry.id, why: judged.why }));
+    if (!entry.passesNow) {
+      const failing = now_.tests.filter((x) => x.status === "failed").map((x) => x.name);
+      holds.push(hold(CHECKS.failFirst, { scenario: entry.id, tests: failing, files: entry.testFiles, why: `The test for ${entry.id} fails on the latest commit: ${failing.join("; ") || tail(now_.out)} (${entry.testFiles.join(", ")}).` }));
+    }
+    entry.status = entry.failsFirst && entry.passesNow ? "proven" : "held";
   }
   timeMs.run = now() - t;
   const report = {

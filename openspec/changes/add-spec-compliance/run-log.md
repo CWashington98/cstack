@@ -38,10 +38,20 @@ Added `lib/compliance.mjs` (tracing: tasks, test names, scenario links) and a mi
 
 - Ruling: `tests.byName` is required by the compliance command only, not by `checkRepoSettings`. Why: projects that never use the check should not be told to add it; the existing settings tests expect an empty problem list for a file with only `integrationBranch`. Cost if wrong: one more message in the generic settings check.
 
-## 2026-10-11 · task 3.2 · commit @@3.2@@
+## 2026-10-11 · task 3.2 · commit 637dc82
 
 The check now runs each scenario's tests by name (`tests.byName`, one run for each bracket form the scenario's tests use), reads what the test tool printed, and counts. Green now: `[all-scenario-tests-ran]`, `[a-scenario-test-did-not-run]`. On both samples every scenario shows `ran: true`; the two sample acceptance tests stay red only on fail-first (task 3.3).
 
 - Ruling: a scenario "ran" when at least one test carrying its ID passed or failed and none was skipped. Why: the spec holds a change when any of a scenario's tests did not run. Cost if wrong: a scenario with one skipped test beside a passing one is held when it need not be.
 - Ruling: results are read from output lines that show a result mark (TAP `ok`/`not ok`, the spec reporter's check marks, `... ok`/`... FAIL`/`skipped`) and a bracketed ID; the exit code alone is never trusted. Why: Node's runner exits 0 when no name matches. Cost if wrong: a tool with another output format needs another mark added in `readRun`.
 - Ruling: the child environment drops `NODE_TEST_CONTEXT`. Why: the locked tests run the command from inside Node's own runner, and a nested `node --test` that inherits the variable prints nothing readable. Cost if wrong: none.
+
+## 2026-10-11 · task 3.3 · commit @@3.3@@
+
+Runs each scenario's tests on the starting commit, in a temporary worktree (removed afterwards, also when the run throws), with the latest acceptance files laid over it, and on the working folder for the latest commit. Green now: `[fails-on-old-passes-on-new]`, `[passes-on-old-code-too]`, `[crash-is-not-a-real-failure]`, `[fails-on-new-code]`, `[typescript-sample]`, `[python-sample]` (both samples now report every scenario proven). Unit tests cover the worktree (user's tree and HEAD untouched, dependencies linked, cleanup) and the failure judgement.
+
+- Ruling: a failure counts as "failing first" only when the old-commit run exited non-zero, at least one test carrying the scenario's ID is printed as failed, and the output mentions an assertion or expectation. Why: a crash before any test registers leaves no failed test; a crash inside a test leaves no assertion wording. Cost if wrong: a tool whose assertion failures never say "assert" or "expect" would be held; the hold says what to change.
+- Ruling: a scenario with several tests fails first when at least one of them fails by assertion on the old commit. Why: a scenario may rightly keep one test that already holds. Cost if wrong: a scenario whose other tests all pass on old code is not held.
+- Ruling: the acceptance tests do not exist at the starting commit, so the old-code run lays the latest-commit versions of the files matching `tests.acceptance` over it. Cost if wrong: a locked test that depended on support files outside `tests.acceptance` crashes on old code and is held with the "reach an assertion" message.
+- Ruling: top-level folders that git ignores (installed dependencies) are linked into the temporary checkout. Why: otherwise any project with installed dependencies would crash on old code. Cost if wrong: none; the links are removed with the checkout and the real folders are never touched.
+- Ruling: scenarios that did not run, or whose test is missing, get no fail-first holds. Why: the earlier hold already names them; repeating it would hide the real cause. Cost if wrong: none.
