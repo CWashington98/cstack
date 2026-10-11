@@ -13,6 +13,11 @@
 //   - anything that uses an entry on the project's "never" list
 // Ordinary merges are not guarded: agents merge when the owner says so.
 //
+// It also runs before every call to a tool server (a tool whose name starts
+// with mcp__, such as a hosting or database tool), and refuses a call whose
+// input uses an entry on the "never" list. Built-in tools that read or edit
+// files are not checked.
+//
 // Project facts come from the project's settings file, .claude/verify.json.
 // See docs/project-settings.md in cstack for every field. The guard reads:
 //   agentsNeverTouch   text agents must never use: production backend names,
@@ -35,8 +40,8 @@
 // shell scripts that text runs, and the env files it loads. Commands started
 // from inside a program (a Node or Python script, a Makefile recipe, a
 // workflow's own steps) can still get past it, and so can commands fed to a
-// shell through a pipe. It guards against mistakes, not against an agent
-// working to get around it.
+// shell through a pipe. docs/project-settings.md lists every known limit. It
+// guards against mistakes, not against an agent working to get around it.
 import { readFileSync, existsSync, statSync, readdirSync, appendFileSync, mkdirSync, realpathSync } from "node:fs";
 import { resolve, join, dirname, basename, sep } from "node:path";
 import { homedir, tmpdir } from "node:os";
@@ -51,8 +56,15 @@ const MAX_DEPTH = 8;
 // the command through.
 const MAX_STEPS = 20000;
 const MAX_FILE_BYTES = 256 * 1024;
+// The most folders one command may move into. Each new folder costs a call to
+// git, about 8 ms, so a command past this is refused rather than let run the
+// guard past its time limit.
+const MAX_FOLDERS = 200;
 const DEPLOY_WORDS = /deploy|release|publish|submit|promote/i;
 const PROD_WORDS = /deploy|release|publish|prod|promote|submit/i;
+// Names that only read about a deploy or release, such as release-notes or deploy:check.
+const ABOUT_A_DEPLOY = /[-:_.](notes?|changelog|check|lint|tests?|dry-?run|plan|diff|status|list|help)$/i;
+const namesDeploy = (name) => DEPLOY_WORDS.test(name) && !ABOUT_A_DEPLOY.test(name);
 
 // Each wrapper maps to its flags that take a value. A wrapper only passes
 // control to the words after it.
@@ -104,8 +116,10 @@ const AWS_CHANGES = /^(deploy|delete-stack|create-stack|update-stack|execute-cha
 const GH_SETTINGS = { secret: /^(set|delete|remove)$/, variable: /^(set|delete|remove)$/, repo: /^(edit|delete|rename|archive|unarchive|deploy-key)$/, release: /^(create|delete|edit|upload)$/ };
 const GH_SETTING_PATHS = /\/(rulesets|protection|actions\/secrets|actions\/variables|actions\/permissions|environments|collaborators|hooks|keys|teams|transfer)(\/|$)|^\/?repos\/[^/]+\/[^/]+\/?$/;
 const GRAPHQL_SETTINGS = /\b((create|update|delete)BranchProtectionRule|(update|delete|archive|unarchive|transfer)Repository|(create|update|delete)RepositoryRuleset|updateRefs?|deleteRef)\b/;
-// Words that make a command look guarded, for the fail-closed check.
-const LOOKS_GUARDED = /deploy|submit|publish|release|promote|rollback|push|--prod|--target|secret|variable|ruleset|protection|\brm\b|\bgh\s|apply|destroy|import|\bup\b|\beas\b|workflow|fastlane|alias|merge|\bsync\b|delete|remove|channel|migrate/i;
+// Words that make a command look guarded, for the fail-closed check, along
+// with every program and command word in the deploy and release tables.
+const LOOKS_GUARDED = /deploy|submit|publish|release|promote|rollback|push|--prod|--target|secret|variable|ruleset|protection|\brm\b|\bgh\s|apply|destroy|import|\bup\b|\beas\b|workflow|fastlane|alias|merge|\bsync\b|delete|remove|channel|migrate|cloudformation|\bversion\b/i;
+const GUARDED_WORDS = new Set([...Object.keys(DEPLOY_TOOLS), ...Object.values(DEPLOY_TOOLS).flat(), ...Object.keys(RELEASE_TOOLS)]);
 // bun's own commands. `bun build` runs bun's bundler, not a package script.
 const BUN_BUILTINS = new Set(["build", "test", "install", "i", "add", "remove", "rm", "pm", "link", "unlink", "create", "init", "upgrade", "outdated", "publish", "patch", "x", "repl", "exec", "update", "audit", "info", "why"]);
 // Programs that work on files, where a word like "deploy" names a folder.
@@ -144,6 +158,11 @@ export function mask(text) {
     .replace(/\b([A-Za-z0-9_]*(key|token|secret|password|pass|auth)[A-Za-z0-9_]*)=("[^"]*"|'[^']*'|\S+)/gi, "$1=<hidden>")
     .replace(/(--body|-b|--value)(=|\s+)("[^"]*"|'[^']*'|\S+)/g, "$1$2<hidden>")
     .replace(/(Bearer|Basic|token)\s+[^\s"']+/gi, "$1 <hidden>")
+    .replace(/(\b[a-z][a-z0-9+.-]*:\/\/[^\s:/@"']*:)[^\s@/"']+@/gi, "$1<hidden>@")
+    .replace(/((?:^|\s)(?:-u|--user)(?:=|\s+)["']?[^\s:"']*:)[^\s"']+/g, "$1<hidden>")
+    .replace(/\b([\w-]*(?:key|token|secret|auth|password|cookie)[\w-]*\s*:)\s*[^"'\n]+/gi, "$1 <hidden>")
+    .replace(/("\w*(?:key|token|secret|password|pass|auth|value)\w*"\s*:\s*)"(?:[^"\\]|\\.)*"/gi, '$1"<hidden>"')
+    .replace(/(<<<\s*)("[^"]*"|'[^']*'|\S+)/g, "$1<hidden>")
     .replace(/(\benv\s+set\s+\S+\s+)("[^"]*"|'[^']*'|\S+)/g, "$1<hidden>")
     .replace(/\|[A-Za-z0-9+/=_-]{16,}/g, "|<hidden>")
     .replace(/(?<![\w/.-])(?=[A-Za-z0-9_-]*\d)(?=[A-Za-z0-9_-]*[A-Za-z])[A-Za-z0-9_-]{24,}(?![\w/.-])/g, "<hidden>")
@@ -216,6 +235,8 @@ function projectFor(dir, cache) {
 }
 
 const lower = (s) => s.toLowerCase();
+const settingsReason = (problem) => `${problem}. The guard refuses shell commands and tool-server calls until the file is fixed, because it can't see the "never" list. Fix the file with an editor, not a shell command.`;
+const neverReason = (entry, file) => `It uses "${entry}", which ${file} lists under "agentsNeverTouch".`;
 const listed = (list = []) => list.map((s) => s.trim()).filter(Boolean);
 
 function protectedBranches(settings) {
@@ -406,17 +427,18 @@ class Checker {
   }
 
   enter(dir) {
-    this.dirs.add(dir);
+    if (!this.dirs.has(dir) && this.dirs.size >= MAX_FOLDERS) this.refuse("complex", `It moves through more folders than the guard can check in time (more than ${MAX_FOLDERS}). Run the parts separately.`);
+    else this.dirs.add(dir);
     return dir;
   }
 
   run() {
     this.check(this.command, this.cwd, 0, { context: "", vars: new Map(), scriptDir: null, indirect: false });
     const projects = [...new Map([...this.dirs].map((d) => projectFor(d, this.cache)).map((p) => [p.root ?? p, p])).values()];
-    for (const p of projects) if (p.problem) this.refuse("settings", `${p.problem}. The guard refuses shell commands until the file is fixed, because it can't see the "never" list. Fix the file with an editor, not a shell command.`);
+    for (const p of projects) if (p.problem) this.refuse("settings", settingsReason(p.problem));
     const entries = projects.flatMap((p) => listed(p.settings.agentsNeverTouch).map((entry) => ({ entry, file: p.settingsFile })));
     for (const text of this.used.filter(Boolean).map(lower)) {
-      for (const { entry, file } of entries) if (text.includes(lower(entry))) this.refuse("never", `It uses "${entry}", which ${file} lists under "agentsNeverTouch".`);
+      for (const { entry, file } of entries) if (text.includes(lower(entry))) this.refuse("never", neverReason(entry, file));
     }
     return [...this.reasons].map(([reason, rule]) => ({ rule, reason }));
   }
@@ -527,10 +549,12 @@ class Checker {
       if (!w.length) continue;
       if (!mentionsOnly(w)) this.used.push(segment, envText);
       if (heredoc !== null) {
-        for (const target of words.writes) this.written.set(real(resolve(dir, target)), heredoc);
-        if (programName(w[0]) === "tee") for (const f of w.slice(1).filter((x) => !x.startsWith("-"))) this.written.set(real(resolve(dir, f)), heredoc);
+        for (const target of words.writes) this.write(dir, target, heredoc, words.appends.has(target));
+        if (programName(w[0]) === "tee") for (const f of w.slice(1).filter((x) => !x.startsWith("-"))) this.write(dir, f, heredoc, w.includes("-a"));
         if (!mentionsOnly(w) && !SHELLS.has(programName(w[0]))) this.used.push(heredoc);
       }
+      const printed = printedText(w);
+      if (printed !== null) for (const target of words.writes) this.write(dir, target, printed, words.appends.has(target));
       if ((w[0] === "cd" || w[0] === "pushd") && w[1]) {
         const target = this.expand(w[1], segCtx);
         if (target) dir = this.enter(real(resolve(dir, target)));
@@ -542,6 +566,13 @@ class Checker {
       }
       this.checkWords(w, dir, depth, segCtx, heredoc);
     }
+  }
+
+  // Remembers what a command writes to a file, so a script run later in the
+  // same command is read from what was written.
+  write(dir, target, text, append) {
+    const file = real(resolve(dir, target));
+    this.written.set(file, append ? `${this.written.get(file) ?? readText(file) ?? ""}\n${text}` : text);
   }
 
   // The text of env files a wrapper or program loads, so a "never" name or a
@@ -627,9 +658,13 @@ class Checker {
       case "netlify":
         if (w.includes("deploy") && w.some((x) => x.startsWith("--prod") || x === "-p")) this.deploy("A Netlify production deploy", ctx);
         return;
-      case "aws":
+      case "aws": {
         if (w.includes("cloudformation") && w.some((x) => AWS_CHANGES.test(x))) this.deploy("An AWS CloudFormation change", ctx);
+        // A sync into a bucket that deletes what the source lacks replaces a live site.
+        const from = w.slice(w.indexOf("sync") + 1).find((x) => !x.startsWith("-"));
+        if (w.includes("s3") && w.includes("sync") && w.includes("--delete") && w.some((x) => x.startsWith("s3://") && x !== from)) this.deploy("`aws s3 sync --delete` into a bucket", ctx);
         return;
+      }
       case "npm":
       case "pnpm":
       case "yarn":
@@ -657,7 +692,7 @@ class Checker {
           else if (!w[i].startsWith("-") && w[i] !== "run") targets.push(w[i]);
         }
         for (const target of targets) {
-          if (DEPLOY_WORDS.test(target)) this.deploy(`\`${prog} ${target}\``, ctx);
+          if (namesDeploy(target)) this.deploy(`\`${prog} ${target}\``, ctx);
           if (prog !== "turbo") continue;
           if (!filters.length) this.runEverywhere(target, dir, depth, ctx);
           else for (const pkg of pickWorkspaces(dir, projectFor(dir, this.cache).root ?? dir, filters)) this.runScript(pkg, target, depth, ctx);
@@ -670,6 +705,7 @@ class Checker {
     const args = w.slice(1, dash === -1 ? undefined : dash).filter((x) => !x.startsWith("-"));
     if (words) {
       const hit = args.find((x) => words.includes(x));
+      if (prog === "helm" && (args[args.indexOf(hit) - 1] === "plugin" || w.some((x) => /^--dry-run(=(?!none$)|$)/.test(x)))) return;
       if (hit) this.deploy(`\`${prog} ${hit}\``, ctx);
       return;
     }
@@ -812,7 +848,7 @@ class Checker {
       }
     }
     if (found) return;
-    if (DEPLOY_WORDS.test(named.word)) this.deploy(`The package script \`${named.word}\``, ctx);
+    if (namesDeploy(named.word)) this.deploy(`The package script \`${named.word}\``, ctx);
     if (prog !== "npm") this.checkWords(w.slice(named.index), dir, depth, ctx);
   }
 
@@ -1025,7 +1061,7 @@ class Checker {
         this.refuse("delete", `It deletes "${p}"${how}, which is a whole repository or a folder that holds one.`);
         continue;
       }
-      if (roots.some((r) => target === join(r, ".git"))) {
+      if (roots.some((r) => target === join(r, ".git") || inside(target, join(r, ".git")))) {
         this.refuse("delete", `It deletes "${p}"${how}, the repository's history.`);
         continue;
       }
@@ -1063,6 +1099,17 @@ class Checker {
   }
 }
 
+// The text echo or printf prints, roughly: printf's format with its values
+// filled in, and \n read as a new line. Null for any other program.
+function printedText(w) {
+  const prog = programName(w[0]);
+  if (prog === "echo") return w.slice(1).filter((x) => !/^-[neE]+$/.test(x)).join(" ").replace(/\\n/g, "\n");
+  if (prog !== "printf" || w.includes("-v")) return null;
+  const [format = "", ...values] = w.slice(1).filter((x) => x !== "--");
+  const filled = format.replace(/%[-+ #0-9.]*[a-zA-Z%]/g, (spec) => (spec === "%%" ? "%" : values.shift() ?? ""));
+  return [filled, ...values].join("\n").replace(/\\n/g, "\n");
+}
+
 // True when a command only mentions names: it reads or writes text, writes a
 // commit, or posts a comment or pull request, and reaches nothing else.
 function mentionsOnly(w) {
@@ -1076,16 +1123,42 @@ function mentionsOnly(w) {
   return false;
 }
 
+// The input of a call to a tool server, as text: its JSON, and each name and
+// text value in it as written.
+function toolText(input) {
+  const strings = [];
+  const walk = (v) => {
+    if (typeof v === "string") strings.push(v);
+    else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) strings.push(k), walk(x);
+  };
+  walk(input);
+  return [JSON.stringify(input) ?? "", ...strings].join("\n");
+}
+
+const isToolServer = (name) => typeof name === "string" && name.startsWith("mcp__");
+
 export function decide({ tool_name, tool_input = {}, cwd = process.cwd() }) {
+  // A tool server, such as a hosting or database tool, can reach production
+  // without a shell command. Its calls are checked against the "never" list
+  // only. Built-in tools that edit or read files are never checked, so a file
+  // that mentions a production name can still be written.
+  if (isToolServer(tool_name)) {
+    const project = projectFor(real(cwd), new Map());
+    const refusals = project.problem ? [{ rule: "settings", reason: settingsReason(project.problem) }] : [];
+    const text = lower(toolText(tool_input));
+    for (const entry of listed(project.settings.agentsNeverTouch)) if (text.includes(lower(entry))) refusals.push({ rule: "never", reason: neverReason(entry, project.settingsFile) });
+    return { allow: refusals.length === 0, refusals };
+  }
   if (tool_name !== "Bash" || typeof tool_input.command !== "string") return { allow: true, refusals: [] };
   const refusals = new Checker(tool_input.command, cwd).run();
   return { allow: refusals.length === 0, refusals };
 }
 
 // What to do when the guard itself fails: refuse a command that looks guarded
-// or names a "never" entry, and allow the rest.
-export function refuseOnError(command, cwd) {
-  if (LOOKS_GUARDED.test(command)) return true;
+// or names a "never" entry, and allow the rest. A tool-server call is judged
+// by the "never" list only, as it is when the guard works.
+export function refuseOnError(command, cwd, { tool = false } = {}) {
+  if (!tool && (LOOKS_GUARDED.test(command) || command.split(/[\s;&|()`"'=]+/).some((x) => GUARDED_WORDS.has(programName(x))))) return true;
   try {
     const dir = typeof cwd === "string" ? cwd : process.cwd();
     const never = listed(projectFor(real(dir), new Map()).settings.agentsNeverTouch);
@@ -1095,12 +1168,14 @@ export function refuseOnError(command, cwd) {
   }
 }
 
-export function message(refusals) {
+export function message(refusals, tool = null) {
   return [
-    "The cstack guard refused this command. Only the owner runs it.",
+    tool ? "The cstack guard refused this tool call. Only the owner does this." : "The cstack guard refused this command. Only the owner runs it.",
     ...refusals.map((r) => `- ${r.reason}`),
     "",
-    "If the owner wants it run, give them the exact command to run themselves with ! in front. Don't look for another way to run it.",
+    tool
+      ? `If the owner wants it done, give them the tool's name (${tool}) and its exact input, so they can do it themselves. Don't look for another way to do it.`
+      : "If the owner wants it run, give them the exact command to run themselves with ! in front. Don't look for another way to run it.",
   ].join("\n");
 }
 
@@ -1116,18 +1191,20 @@ async function main() {
     return 0;
   }
   const cwd = input.cwd || process.cwd();
-  const command = typeof input.tool_input?.command === "string" ? input.tool_input.command : "";
+  const tool = isToolServer(input.tool_name) ? input.tool_name : null;
+  let command = typeof input.tool_input?.command === "string" ? input.tool_input.command : "";
   try {
+    if (tool) command = JSON.stringify(input.tool_input ?? {});
     const result = decide({ tool_name: input.tool_name, tool_input: input.tool_input, cwd });
     if (result.allow) return 0;
-    log({ decision: "refused", cwd, rules: [...new Set(result.refusals.map((r) => r.rule))], command: mask(command) });
-    process.stderr.write(message(result.refusals) + "\n");
+    log({ decision: "refused", tool: input.tool_name, cwd, rules: [...new Set(result.refusals.map((r) => r.rule))], command: mask(command) });
+    process.stderr.write(message(result.refusals, tool) + "\n");
     return 2;
   } catch (error) {
-    const refuse = refuseOnError(command, cwd);
-    log({ decision: refuse ? "refused-on-error" : "error", cwd: String(cwd), command: mask(command), error: String(error?.stack ?? error).slice(0, 600) });
+    const refuse = refuseOnError(command, cwd, { tool: Boolean(tool) });
+    log({ decision: refuse ? "refused-on-error" : "error", tool: input.tool_name, cwd: String(cwd), command: mask(command), error: String(error?.stack ?? error).slice(0, 600) });
     if (!refuse) return 0;
-    process.stderr.write(message([{ reason: `The guard failed while checking it (${error?.message ?? error}), and the command looks like one it guards, so it refuses to be safe.` }]) + "\n");
+    process.stderr.write(message([{ reason: `The guard failed while checking it (${error?.message ?? error}), and it looks like something the guard refuses, so it refuses to be safe.` }], tool) + "\n");
     return 2;
   }
 }

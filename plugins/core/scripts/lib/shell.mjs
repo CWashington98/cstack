@@ -5,17 +5,59 @@
 
 // Pulls heredoc bodies out of the text so their lines aren't read as commands
 // of the outer shell. Each body is replaced by a marker the caller can look up.
+// A << inside quotes is text, not a heredoc, unless it sits in a $( ) that
+// starts inside double quotes, as in git commit -m "$(cat <<'EOF' ... )".
 let heredocCount = 0;
+const HEREDOC = /(?<![<\w)])<<-?(?!<)\s*(['"]?)(\w+)\1([^\n]*)\n([\s\S]*?)(?:\n[ \t]*\2[ \t]*(?=\n|$)|$)/dy;
 export function extractHeredocs(cmd) {
   cmd = cmd.replace(/\$\(\([\s\S]*?\)\)/g, (m) => m.replace(/<</g, "\u00ab\u00ab"));
   const heredocs = new Map();
-  const keep = (body) => {
-    const key = `__HEREDOC_${heredocCount++}__`;
-    heredocs.set(key, body);
-    return key;
+  const stack = [{ quote: null, depth: 0 }];
+  // Moves past the character at i, keeping track of quotes, comments and the
+  // $( ) pairs that start inside double quotes.
+  const step = (i) => {
+    const top = stack[stack.length - 1];
+    const c = cmd[i];
+    if (top.quote === "'") {
+      if (c === "'") top.quote = null;
+      return i + 1;
+    }
+    if (c === "\\") return i + 2;
+    if (top.quote === '"') {
+      if (c === '"') top.quote = null;
+      else if (c === "$" && cmd[i + 1] === "(") {
+        stack.push({ quote: null, depth: 1 });
+        return i + 2;
+      }
+      return i + 1;
+    }
+    if (c === "'" || c === '"') top.quote = c;
+    else if (c === "#" && (i === 0 || /\s/.test(cmd[i - 1]))) {
+      const end = cmd.indexOf("\n", i);
+      return end === -1 ? cmd.length : end;
+    } else if (stack.length > 1 && c === "(") top.depth++;
+    else if (stack.length > 1 && c === ")" && --top.depth === 0) stack.pop();
+    return i + 1;
   };
-  const text = cmd.replace(/(?<![<\w)])<<-?(?!<)\s*(['"]?)(\w+)\1([^\n]*)\n([\s\S]*?)(?:\n[ \t]*\2[ \t]*(?=\n|$)|$)/g, (_m, _q, _tag, rest, body) => ` <<HEREDOC ${keep(body)}${rest}`);
-  return { text, heredocs };
+  let text = "";
+  let from = 0;
+  let i = 0;
+  while (i < cmd.length) {
+    if (!stack[stack.length - 1].quote && cmd.startsWith("<<", i)) {
+      HEREDOC.lastIndex = i;
+      const m = HEREDOC.exec(cmd);
+      if (m) {
+        const key = `__HEREDOC_${heredocCount++}__`;
+        heredocs.set(key, m[4]);
+        text += `${cmd.slice(from, i)} <<HEREDOC ${key}${m[3]}`;
+        for (let j = m.indices[3][0]; j < m.indices[3][1]; ) j = step(j);
+        from = i = m.index + m[0].length;
+        continue;
+      }
+    }
+    i = step(i);
+  }
+  return { text: text + cmd.slice(from), heredocs };
 }
 
 // The index just past the ) that closes the $( starting at i.
@@ -128,7 +170,8 @@ export function segments(cmd) {
 
 // Splits one command into words, removing quotes. Redirections such as
 // 2>/dev/null are dropped from the words, since they never change what runs;
-// the files written with > or >> are kept in words.writes.
+// the files written with > or >> are kept in words.writes, and those written
+// with >> also in words.appends.
 export function tokenize(segment) {
   const out = [];
   let cur = "";
@@ -171,6 +214,7 @@ export function tokenize(segment) {
   if (started) out.push(cur);
   const words = [];
   words.writes = [];
+  words.appends = new Set();
   for (let i = 0; i < out.length; i++) {
     const w = out[i];
     if (w === "<<HEREDOC") {
@@ -179,13 +223,17 @@ export function tokenize(segment) {
     }
     const alone = w.match(/^\d*(>>?|<)&?$|^&>>?$/);
     if (alone) {
-      if (w.includes(">") && !w.endsWith("&") && out[i + 1]) words.writes.push(out[i + 1]);
+      if (w.includes(">") && !w.endsWith("&") && out[i + 1]) {
+        words.writes.push(out[i + 1]);
+        if (w.includes(">>")) words.appends.add(out[i + 1]);
+      }
       i++;
       continue;
     }
     const glued = w.match(/^\d*(>>?)(?!&)(\S+)$|^&>>?(\S+)$/);
     if (glued) {
       words.writes.push(glued[2] ?? glued[3]);
+      if (w.includes(">>")) words.appends.add(glued[2] ?? glued[3]);
       continue;
     }
     if (/^\d*(>>?|<)&?\S/.test(w)) continue;

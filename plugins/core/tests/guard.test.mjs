@@ -771,3 +771,132 @@ test("the core plugin runs the guard before every shell command", () => {
   assert.ok(entry, "a PreToolUse entry for Bash");
   assert.match(entry.hooks[0].command, /\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/guard\.mjs/);
 });
+
+test("round 4: tool-server calls that use a never entry are refused; file tools that mention it are not", () => {
+  const dir = project();
+  const call = (tool_name, tool_input, cwd = dir) => decide({ tool_name, tool_input, cwd });
+  const no = call("mcp__plugin_convex_convex__run", { deploymentSelector: "prod-backend-9", functionName: "seed:all" });
+  assert.equal(no.allow, false);
+  assert.match(reasons(no), /"prod-backend-9", which .* lists under "agentsNeverTouch"/);
+  assert.equal(call("mcp__vercel__get_logs", { request: { urls: ["https://APP.example.com/api"] } }).allow, false);
+  assert.equal(call("mcp__plugin_convex_convex__run", { deploymentSelector: "staging-backend-1", functionName: "seed:all" }).allow, true);
+  assert.equal(call("mcp__vercel__deploy", {}).allow, true);
+  for (const tool of ["Write", "Edit", "Read", "MultiEdit", "Grep"]) {
+    assert.equal(call(tool, { file_path: join(dir, "notes.md"), content: "prod-backend-9 is production", old_string: "app.example.com", pattern: "prod-backend-9" }).allow, true, tool);
+  }
+  assert.equal(call("mcp__x__y", { q: "prod-backend-9" }, project({}, null)).allow, true);
+  assert.match(reasons(call("mcp__x__y", { q: "hi" }, project({ ".claude/verify.json": "{not json" }, null))), /can't be read/);
+});
+
+test("round 4: the hook checks tool-server calls end to end", () => {
+  const dir = project();
+  const logFile = join(mkdtempSync(join(tmpdir(), "guard-log-")), "log.jsonl");
+  const hook = (input) => spawnSync("node", [script], { input: JSON.stringify(input), encoding: "utf8", env: { ...process.env, CSTACK_GUARD_LOG: logFile } });
+  const no = hook({ tool_name: "mcp__plugin_convex_convex__envSet", tool_input: { deploymentSelector: "prod:prod-backend-9", name: "API_KEY", value: "sk_live_abcdef123456" }, cwd: dir });
+  assert.equal(no.status, 2);
+  assert.match(no.stderr, /cstack guard refused this tool call/);
+  assert.match(no.stderr, /prod-backend-9/);
+  assert.match(no.stderr, /mcp__plugin_convex_convex__envSet/);
+  assert.match(no.stderr, /do it themselves/);
+  assert.equal(hook({ tool_name: "mcp__plugin_convex_convex__envSet", tool_input: { deploymentSelector: "staging-backend-1", name: "A", value: "b" }, cwd: dir }).status, 0);
+  assert.equal(hook({ tool_name: "Write", tool_input: { file_path: join(dir, "a.md"), content: "prod-backend-9 and app.example.com" }, cwd: dir }).status, 0);
+  const lines = readFileSync(logFile, "utf8").trim().split("\n").map((l) => JSON.parse(l));
+  assert.equal(lines.length, 1);
+  assert.equal(lines[0].tool, "mcp__plugin_convex_convex__envSet");
+  assert.doesNotMatch(lines[0].command, /sk_live_abcdef123456/);
+});
+
+test("round 4: the core plugin runs the guard before every tool-server call", () => {
+  const hooks = JSON.parse(readFileSync(join(here, "..", "hooks", "hooks.json"), "utf8"));
+  const entry = hooks.hooks.PreToolUse.find((h) => h.matcher !== "Bash");
+  assert.ok(entry, "a PreToolUse entry for tool servers");
+  const matches = (name) => new RegExp(`^(?:${entry.matcher})$`).test(name);
+  assert.ok(matches("mcp__plugin_convex_convex__run"));
+  assert.ok(matches("mcp__claude_ai_Vercel__deploy"));
+  for (const name of ["Write", "Edit", "Read", "Bash"]) assert.ok(!matches(name), name);
+  assert.match(entry.hooks[0].command, /\$\{CLAUDE_PLUGIN_ROOT\}\/scripts\/guard\.mjs/);
+});
+
+test("round 4: names that only read about a release are allowed; deploy and release targets are not", () => {
+  const dir = project();
+  for (const c of ["make release-notes", "just release-notes", "make deploy-check", "make release:dry-run", "npm run release-notes", "make changelog"]) allowed(dir, c);
+  for (const c of ["make deploy", "make release", "just release", "make deploy-web", "make release:ios", "npm run release:mobile", "make redeploy", "make notes-release"]) refused(dir, c, /changes a live system/);
+});
+
+test("round 4: helm dry runs and plugin installs are allowed; real installs are not", () => {
+  const dir = project();
+  for (const c of ["helm install --dry-run api ./chart", "helm upgrade --install api ./chart --dry-run=client", "helm plugin install https://example.com/diff", "helm plugin uninstall diff"]) allowed(dir, c);
+  for (const c of ["helm install api ./chart", "helm upgrade --install api ./chart --dry-run=none", "helm uninstall api", "helm install plugin ./chart"]) refused(dir, c, /changes a live system/);
+});
+
+test("round 4: deleting anything inside .git is refused", () => {
+  const dir = project();
+  for (const c of ["rm -rf .git/objects", "rm -rf ./.git/refs/heads", "rm -rf .git/*"]) refused(dir, c, /history/);
+  allowed(dir, "rm -rf .github/workflows/old");
+  allowed(dir, "rm -rf .gitcache");
+});
+
+test("round 4: more kinds of secrets are hidden before a command is logged", () => {
+  const secrets = [
+    ["curl -u admin:hunter2pass https://x", "hunter2pass"],
+    ["curl --user=admin:hunter2pass https://x", "hunter2pass"],
+    ['curl -H "X-Api-Key: abc123secret" https://x', "abc123secret"],
+    ["curl -H 'Authorization: Basic dXNlcjpwYXNz' https://x", "dXNlcjpwYXNz"],
+    ['curl -H "Cookie: session=s3cr3tcookie" https://x', "s3cr3tcookie"],
+    ["psql postgres://admin:hunter2pass@db.example.com/app", "hunter2pass"],
+    ["git clone https://bot:ghs_tokenvalue@github.com/o/r", "ghs_tokenvalue"],
+    ['wc -c <<< "hunter2pass"', "hunter2pass"],
+    ["wc -c <<<hunter2pass", "hunter2pass"],
+  ];
+  for (const [command, secret] of secrets) assert.doesNotMatch(mask(command), new RegExp(secret), command);
+  assert.equal(mask("git push -u origin main"), "git push -u origin main");
+  assert.equal(mask("sudo -u deploy ls"), "sudo -u deploy ls");
+  assert.equal(mask("open https://example.com/a:b"), "open https://example.com/a:b");
+});
+
+test("round 4: << inside quotes doesn't start a heredoc", () => {
+  const dir = project();
+  refused(dir, 'echo "a <<EOF"\nnpx convex deploy\nEOF', /convex deploy/);
+  refused(dir, "echo 'use <<END here'\ngit push origin main", /"main"/);
+  refused(dir, 'grep -n "<<-X" notes.md && npx convex deploy\nX', /convex deploy/);
+  allowed(dir, "echo \"it's\" && cat <<'EOF'\napp.example.com\nEOF");
+  allowed(dir, "# it's a note\ncat <<'EOF'\napp.example.com\nEOF");
+  allowed(dir, 'git commit -m "$(cat <<\'EOF\'\nprod-backend-9 is production\nEOF\n)"');
+  allowed(dir, 'git commit -m "$(echo "x" && cat <<\'EOF\'\nprod-backend-9 is production\nEOF\n)"');
+});
+
+test("round 4: when the guard itself fails, it refuses every word the full rules refuse", () => {
+  const dir = project();
+  for (const c of ["helm upgrade api ./chart", "helm install api ./chart", "pulumi update", "aws cloudformation create-stack --stack-name x", "npm version patch", "/opt/bin/terraform apply", "npx semantic-release", "npx release-it", "lerna publish"]) assert.equal(refuseOnError(c, dir), true, c);
+  for (const c of ["ls -la", "bun test", "git status", "cat notes.md"]) assert.equal(refuseOnError(c, dir), false, c);
+  assert.equal(refuseOnError('{"q":"push the release"}', dir, { tool: true }), false);
+  assert.equal(refuseOnError('{"q":"prod-backend-9"}', dir, { tool: true }), true);
+});
+
+test("round 4: a script written with echo or printf and run in the same command is read", () => {
+  const dir = project();
+  const tmp = mkdtempSync(join(tmpdir(), "guard-echo-"));
+  refused(dir, `echo 'npx convex deploy' > ${tmp}/a.sh && bash ${tmp}/a.sh`, /convex deploy/);
+  refused(dir, `printf '#!/bin/sh\\nvercel --prod\\n' > ${tmp}/b.sh; chmod +x ${tmp}/b.sh; ${tmp}/b.sh`, /Vercel/);
+  refused(dir, `printf '%s\\n' 'git push origin main' >> ${tmp}/c.sh && sh ${tmp}/c.sh`, /"main"/);
+  refused(dir, `echo 'npx convex deploy' > ${tmp}/d.sh; echo 'echo done' >> ${tmp}/d.sh; bash ${tmp}/d.sh`, /convex deploy/);
+  allowed(dir, `echo 'echo hi' > ${tmp}/e.sh && bash ${tmp}/e.sh`);
+  allowed(dir, `echo 'npx convex deploy' > ${tmp}/f.sh; echo 'echo hi' > ${tmp}/f.sh; bash ${tmp}/f.sh`);
+});
+
+test("round 4: aws s3 sync --delete to a bucket is a deploy", () => {
+  const dir = project();
+  for (const c of ["aws s3 sync ./dist s3://site-bucket --delete", "aws --profile x s3 sync dist s3://site-bucket --delete --exact-timestamps"]) refused(dir, c, /aws s3 sync --delete/);
+  for (const c of ["aws s3 sync ./dist s3://site-bucket", "aws s3 sync s3://site-bucket ./backup --delete", "aws s3 sync ./dist s3://sandbox-dev --delete"]) allowed(dir, c);
+});
+
+test("round 4: a command that moves through more folders than the guard can check in time is refused", () => {
+  const dir = project();
+  const base = mkdtempSync(join(tmpdir(), "guard-cd-"));
+  for (let i = 0; i < 210; i++) mkdirSync(join(base, `d${i}`));
+  const visit = (n) => Array.from({ length: n }, (_, i) => `cd ${base}/d${i}`).join(" && ");
+  const start = Date.now();
+  refused(dir, visit(210), /more folders than the guard can check/);
+  allowed(dir, visit(150));
+  assert.ok(Date.now() - start < 5000, `took ${Date.now() - start} ms`);
+});
