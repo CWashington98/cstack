@@ -46,7 +46,7 @@ The check now runs each scenario's tests by name (`tests.byName`, one run for ea
 - Ruling: results are read from output lines that show a result mark (TAP `ok`/`not ok`, the spec reporter's check marks, `... ok`/`... FAIL`/`skipped`) and a bracketed ID; the exit code alone is never trusted. Why: Node's runner exits 0 when no name matches. Cost if wrong: a tool with another output format needs another mark added in `readRun`.
 - Ruling: the child environment drops `NODE_TEST_CONTEXT`. Why: the locked tests run the command from inside Node's own runner, and a nested `node --test` that inherits the variable prints nothing readable. Cost if wrong: none.
 
-## 2026-10-11 · task 3.3 · commit @@3.3@@
+## 2026-10-11 · task 3.3 · commit 6678273
 
 Runs each scenario's tests on the starting commit, in a temporary worktree (removed afterwards, also when the run throws), with the latest acceptance files laid over it, and on the working folder for the latest commit. Green now: `[fails-on-old-passes-on-new]`, `[passes-on-old-code-too]`, `[crash-is-not-a-real-failure]`, `[fails-on-new-code]`, `[typescript-sample]`, `[python-sample]` (both samples now report every scenario proven). Unit tests cover the worktree (user's tree and HEAD untouched, dependencies linked, cleanup) and the failure judgement.
 
@@ -55,3 +55,10 @@ Runs each scenario's tests on the starting commit, in a temporary worktree (remo
 - Ruling: the acceptance tests do not exist at the starting commit, so the old-code run lays the latest-commit versions of the files matching `tests.acceptance` over it. Cost if wrong: a locked test that depended on support files outside `tests.acceptance` crashes on old code and is held with the "reach an assertion" message.
 - Ruling: top-level folders that git ignores (installed dependencies) are linked into the temporary checkout. Why: otherwise any project with installed dependencies would crash on old code. Cost if wrong: none; the links are removed with the checkout and the real folders are never touched.
 - Ruling: scenarios that did not run, or whose test is missing, get no fail-first holds. Why: the earlier hold already names them; repeating it would hide the real cause. Cost if wrong: none.
+
+## 2026-10-11 · task 4.1 · commit @@4.1@@
+
+`checkLocks` walks the commits after the starting one. An acceptance file is locked from the commit that adds it (or from the start, if it already existed); any later change, deletion or rename is a hold naming the commit and file, unless the commit message has a `Spec-Change:` line, in which case it goes in the report's `allowedEdits`. In other test files, a commit that skips a test, deletes a test, or leaves fewer assertion lines holds under the same check. Green now: `[builder-edits-a-locked-test]`, `[spec-change-allows-the-edit]`, `[a-test-is-weakened-or-skipped]`.
+
+- Ruling: weakened tests are found by reading each commit's diff for added skip markers, fewer test declarations, or fewer assertion lines, not by running anything. Why: it works for any language with no tool named. Cost if wrong: a rewrite that keeps the counts equal is missed, and a harmless refactor that removes an assertion line is held until it carries a `Spec-Change:` line.
+- Ruling: an unexplained edit to a locked test and an unexplained weakening both use the check `locked-acceptance-tests-stay-locked` (as phase 1 ruled). A skip or deletion of a locked acceptance file is reported once, as the locked edit.

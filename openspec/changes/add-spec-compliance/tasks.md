@@ -18,7 +18,7 @@
 
 ## 4. Locks, scope and the approved spec
 
-- [ ] 4.1 Hold edits to locked acceptance tests and weakened or skipped tests unless a `Spec-Change:` line explains them. Verify the lock scenarios pass. Covers: builder-edits-a-locked-test, spec-change-allows-the-edit, a-test-is-weakened-or-skipped. Touches: plugins/verify/scripts/lib/compliance.mjs
+- [x] 4.1 Hold edits to locked acceptance tests and weakened or skipped tests unless a `Spec-Change:` line explains them. Verify the lock scenarios pass. Covers: builder-edits-a-locked-test, spec-change-allows-the-edit, a-test-is-weakened-or-skipped. Touches: plugins/verify/scripts/lib/compliance.mjs
 - [ ] 4.2 List changed files no task declares. Verify the scope scenarios pass and that the list is a warning only. Covers: unexplained-file-is-listed, declared-file-is-not-listed. Touches: plugins/verify/scripts/lib/compliance.mjs
 - [ ] 4.3 Record a fingerprint of the spec at approval, and hold when it changes. Verify the approval scenario passes. Covers: spec-edited-after-approval. Touches: plugins/verify/scripts/lib/compliance.mjs
 

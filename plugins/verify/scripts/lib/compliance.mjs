@@ -298,6 +298,75 @@ export function judgeFirstRun(entry, r) {
   return { failsFirst: false, why: `On the starting commit the test for ${entry.id} did not fail by an assertion: it crashed, a file it needs was missing, or it never ran (exit ${r.exits.join(", ")}; last output: ${tail(r.out)}). Write a test that reaches an assertion on the old code, for example through a stub.` };
 }
 
+// ---- Locked tests ----
+
+const short = (sha) => sha.slice(0, 7);
+const SPEC_CHANGE = /^Spec-Change:[ \t]*(\S.*)$/m;
+const SKIP = /\.(?:skip|todo|only)\s*\(|\b(?:xit|xtest|xdescribe|xcontext|pending)\s*\(|@(?:\w+\.)?skip|\.mark\.(?:skip|xfail)|\bt\.Skip\(|#\[ignore\]|@(?:Disabled|Ignore)\b/;
+const ASSERTION_LINE = /\bassert|\bexpect\s*\(|\.should\b|\bt\.(?:Error|Fatal)f?\(/i;
+const TEST_LINE = /\b(?:test|it|describe)\s*\(|\bdef test_|@Test\b|\bfunc Test\w|#\[test\]/;
+
+// The commits after the starting one, oldest first, with the files each touched.
+export function commitsSince(root, base) {
+  const shas = git(root, "rev-list", "--reverse", "--no-merges", `${base}..HEAD`).split("\n").filter(Boolean);
+  return shas.map((sha) => {
+    const message = git(root, "log", "-1", "--format=%B", sha);
+    const files = git(root, "diff-tree", "-r", "-M", "--no-commit-id", "--name-status", "-z", sha).split("\0").filter(Boolean);
+    const changes = [];
+    for (let i = 0; i < files.length;) {
+      const status = files[i][0];
+      if (status === "R" || status === "C") { changes.push({ status, path: files[i + 1], to: files[i + 2] }); i += 3; } else { changes.push({ status, path: files[i + 1] }); i += 2; }
+    }
+    return { sha, message, specChange: message.match(SPEC_CHANGE)?.[1].trim() ?? null, changes };
+  });
+}
+
+const lines = (patch, sign) => patch.split("\n").filter((l) => l.startsWith(sign) && !l.startsWith(sign.repeat(3))).map((l) => l.slice(1));
+
+// Holds for any edit to a locked acceptance test, and for any existing test that was
+// skipped, deleted or given fewer assertions, unless the commit has a Spec-Change: line.
+export function checkLocks(root, base, settings) {
+  const acceptance = settings.tests?.acceptance ?? [];
+  const holds = [];
+  const allowedEdits = [];
+  const locked = new Set(git(root, "ls-tree", "-r", "--name-only", "-z", base).split("\0").filter((f) => f && matchesAny(f, acceptance)));
+  for (const c of commitsSince(root, base)) {
+    for (const ch of c.changes) {
+      if (ch.status === "A") { if (matchesAny(ch.path, acceptance)) locked.add(ch.path); continue; }
+      if (locked.has(ch.path)) {
+        if (ch.to) { locked.delete(ch.path); locked.add(ch.to); }
+        const what = ch.status === "D" ? "deleted" : ch.to ? `renamed to ${ch.to}` : "changed";
+        if (c.specChange) {
+          allowedEdits.push({ commit: short(c.sha), file: ch.path, specChange: c.specChange, why: `Commit ${short(c.sha)} ${what} the locked test ${ch.path}; allowed by Spec-Change: ${c.specChange}.` });
+        } else {
+          holds.push(hold(CHECKS.locked, { commit: short(c.sha), file: ch.path, why: `Commit ${short(c.sha)} ${what} the locked acceptance test ${ch.path} with no Spec-Change: line. Put the edit in a commit that says which spec change needs it, or undo it.` }));
+        }
+        continue;
+      }
+      if (c.specChange || !isTestFile(ch.path, acceptance)) continue;
+      const name = (text) => [...new Set(testsInText(text).map((t) => t.token))].join(", ");
+      const parent = gitOk(root, "show", `${c.sha}~1:${ch.path}`) ?? "";
+      const at = `Commit ${short(c.sha)}`;
+      if (ch.status === "D") {
+        holds.push(hold(CHECKS.locked, { commit: short(c.sha), file: ch.path, why: `${at} deleted the test file ${ch.path}${name(parent) ? ` (${name(parent)})` : ""} with no Spec-Change: line.` }));
+        continue;
+      }
+      const patch = gitOk(root, "diff-tree", "-p", "-U0", "--no-commit-id", c.sha, "--", ch.to ?? ch.path) ?? "";
+      const added = lines(patch, "+");
+      const removed = lines(patch, "-");
+      const count = (list, re) => list.filter((l) => re.test(l)).length;
+      const problem = added.some((l) => SKIP.test(l)) ? "marked a test as skipped"
+        : count(removed, TEST_LINE) > count(added, TEST_LINE) ? "deleted a test"
+        : count(removed, ASSERTION_LINE) > count(added, ASSERTION_LINE) ? "removed an assertion from a test" : null;
+      if (problem) {
+        const tests = name([...added, ...removed].join("\n")) || name(parent);
+        holds.push(hold(CHECKS.locked, { commit: short(c.sha), file: ch.path, ...(tests ? { tests } : {}), why: `${at} ${problem} in ${ch.path}${tests ? ` (${tests})` : ""} with no Spec-Change: line. A test is made weaker only when a spec change says so.` }));
+      }
+    }
+  }
+  return { holds, allowedEdits };
+}
+
 // ---- The whole check ----
 
 const now = () => Number(process.hrtime.bigint() / 1000000n);
@@ -310,6 +379,10 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
   timeMs.trace = now() - t;
   const holds = [...traced.holds];
   const warnings = [];
+  t = now();
+  const locks = checkLocks(root, base, settings);
+  holds.push(...locks.holds);
+  timeMs.trace += now() - t;
   t = now();
   const runs = new Map();
   for (const entry of traced.scenarios) {
@@ -337,7 +410,7 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
   timeMs.run = now() - t;
   const report = {
     change, commit, base, lane, held: false,
-    scenarios: traced.scenarios, holds, warnings, allowedEdits: [],
+    scenarios: traced.scenarios, holds, warnings, allowedEdits: locks.allowedEdits,
     counts: { expected: traced.scenarios.length, ran: traced.scenarios.filter((e) => e.ran).length },
     breaks: { skipped: true, reason: lane === "high-risk" ? "not built yet" : "the normal lane does not break changed lines" },
     reviewer: { mismatches: 0 },
@@ -360,6 +433,10 @@ export function summarize(report) {
   if (report.warnings.length) {
     out.push(`${report.warnings.length} warning(s), which do not hold the change:`);
     for (const w of report.warnings) out.push(`  - ${w.why}`);
+  }
+  if (report.allowedEdits.length) {
+    out.push(`${report.allowedEdits.length} edit(s) to locked tests, allowed by a Spec-Change: line:`);
+    for (const e of report.allowedEdits) out.push(`  - ${e.why}`);
   }
   if (report.breaks.skipped) out.push(`Breaking changed lines: skipped (${report.breaks.reason}).`);
   return out.join("\n");

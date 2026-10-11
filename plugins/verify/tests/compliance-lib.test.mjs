@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { checkScenarios } from "../scripts/lib/plan.mjs";
 import { proseLines } from "../scripts/lib/markdown.mjs";
-import { testsInText, globToRegExp, matchesAny, isTestFile, parseTasks, readRun, withBaseTree, judgeFirstRun } from "../scripts/lib/compliance.mjs";
+import { testsInText, globToRegExp, matchesAny, isTestFile, parseTasks, readRun, withBaseTree, judgeFirstRun, checkLocks } from "../scripts/lib/compliance.mjs";
 import { complianceSettings, checkRepoSettings } from "../scripts/lib/app-skill.mjs";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -203,4 +203,60 @@ test("judgeFirstRun counts only a test that ran and failed an assertion", () => 
   assert.match(crash.why, /assertion/);
   assert.equal(judgeFirstRun(entry, run({ failed: 1, exits: [1], out: "TypeError: x is not a function" })).failsFirst, false);
   assert.equal(judgeFirstRun(entry, run({ exits: [0] })).failsFirst, false);
+});
+
+// ---- Locked tests ----
+
+function lockRepo(later) {
+  const dir = makeRepo({
+    "test/acceptance/a.test.mjs": 'test("[one-a] works", () => { assert.ok(1); });\n',
+    "test/old.test.mjs": 'test("[old-b] works", () => {\n  assert.ok(1);\n  assert.ok(2);\n});\ntest("[old-c] too", () => {\n  assert.ok(3);\n});\n',
+    "src/x.mjs": "x\n",
+  });
+  git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "start");
+  const base = git(dir, "rev-parse", "HEAD").trim();
+  for (const [message, files] of later) {
+    for (const [f, c] of Object.entries(files)) writeFileSync(join(dir, f), c);
+    git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", message);
+  }
+  return { dir, base };
+}
+const SETTINGS = { tests: { acceptance: ["test/acceptance/**"] } };
+
+test("checkLocks holds an edit to a test that was locked before the change started", () => {
+  const { dir, base } = lockRepo([["Tweak", { "test/acceptance/a.test.mjs": 'test("[one-a] works", () => {});\n' }]]);
+  const r = checkLocks(dir, base, SETTINGS);
+  assert.equal(r.holds.length, 1);
+  assert.equal(r.holds[0].file, "test/acceptance/a.test.mjs");
+  assert.deepEqual(r.allowedEdits, []);
+});
+
+test("checkLocks allows the edit when the commit has a Spec-Change line, and lists it", () => {
+  const { dir, base } = lockRepo([["Clarify\n\nSpec-Change: clarify-it", { "test/acceptance/a.test.mjs": 'test("[one-a] works well", () => { assert.ok(1); });\n' }]]);
+  const r = checkLocks(dir, base, SETTINGS);
+  assert.deepEqual(r.holds, []);
+  assert.deepEqual(r.allowedEdits.map((e) => [e.file, e.specChange]), [["test/acceptance/a.test.mjs", "clarify-it"]]);
+});
+
+test("checkLocks locks a new acceptance file from the commit that adds it", () => {
+  const { dir, base } = lockRepo([
+    ["Add test", { "test/acceptance/b.test.mjs": 'test("[two-b] works", () => { assert.ok(1); });\n' }],
+    ["Change it", { "test/acceptance/b.test.mjs": 'test("[two-b] works", () => {});\n' }],
+  ]);
+  const r = checkLocks(dir, base, SETTINGS);
+  assert.deepEqual(r.holds.map((h) => h.file), ["test/acceptance/b.test.mjs"]);
+});
+
+test("checkLocks names a deleted test, a removed assertion and a skip in an ordinary test file", () => {
+  const skip = lockRepo([["Skip", { "test/old.test.mjs": readFileSync(join(lockRepo([]).dir, "test/old.test.mjs"), "utf8").replace('test("[old-c]', 'test.skip("[old-c]') }]]);
+  assert.match(checkLocks(skip.dir, skip.base, SETTINGS).holds[0].why, /skipped.*old-c/);
+  const fewer = lockRepo([["Trim", { "test/old.test.mjs": 'test("[old-b] works", () => {\n  assert.ok(1);\n});\ntest("[old-c] too", () => {\n  assert.ok(3);\n});\n' }]]);
+  assert.match(checkLocks(fewer.dir, fewer.base, SETTINGS).holds[0].why, /removed an assertion/);
+  const dropped = lockRepo([["Drop one", { "test/old.test.mjs": 'test("[old-b] works", () => {\n  assert.ok(1);\n  assert.ok(2);\n});\n' }]]);
+  assert.match(checkLocks(dropped.dir, dropped.base, SETTINGS).holds[0].why, /deleted a test/);
+});
+
+test("checkLocks leaves source edits and tests that gain assertions alone", () => {
+  const { dir, base } = lockRepo([["Build", { "src/x.mjs": "y\n", "test/old.test.mjs": 'test("[old-b] works", () => {\n  assert.ok(1);\n  assert.ok(2);\n  assert.ok(9);\n});\ntest("[old-c] too", () => {\n  assert.ok(3);\n});\n' }]]);
+  assert.deepEqual(checkLocks(dir, base, SETTINGS).holds, []);
 });
