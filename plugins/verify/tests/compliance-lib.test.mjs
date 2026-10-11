@@ -337,3 +337,12 @@ test("thenSteps treats an AND after a THEN as a THEN line", () => {
   const steps = thenSteps({ steps: [{ kind: "GIVEN" }, { kind: "AND" }, { kind: "WHEN" }, { kind: "THEN" }, { kind: "AND" }] });
   assert.deepEqual(steps.map((s) => s.isThen), [false, false, false, true, true]);
 });
+
+test("readRun does not read the word skipped in a test's own name as a skip", () => {
+  const out = [
+    "# Subtest: [one-a] a skipped scenario test holds the change", "ok 1 - [one-a] a skipped scenario test holds the change",
+    "  ✔ [two-b] a test is weakened or skipped (0.4ms)", "[three-c] is skipped when asked ... ok",
+    "ok 4 - [four-d] really skipped # SKIP",
+  ].join("\n");
+  assert.deepEqual(readRun(out).map((t) => [t.id, t.status]), [["one-a", "passed"], ["two-b", "passed"], ["three-c", "passed"], ["four-d", "skipped"]]);
+});

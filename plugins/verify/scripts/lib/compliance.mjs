@@ -201,7 +201,9 @@ export function trace(root, change, settings) {
 
 // A bracketed scenario token anywhere on a line of test output.
 const OUTPUT_TOKEN = new RegExp(TOKEN.source, "g");
-const SKIPPED = /#\s*(?:SKIP|TODO)\b|\bskipped\b|^\s*\uFE63/i;
+// A skip is a marker the runner adds around the name ("# SKIP", a leading skip mark,
+// "... skipped"), never the word inside a test's own name.
+const SKIPPED = /\s#\s*(?:SKIP|TODO)\b|^\s*\uFE63|\.\.\. skipped\b/i;
 const FAILED = /^\s*(?:\u2716|\u2717|\u2718|\u00D7|not ok\b|FAIL\b)|\.\.\. (?:FAIL|ERROR)\b/;
 const PASSED = /^\s*(?:\u2714|\u2713|ok\b|PASS\b)|\.\.\. ok\b/;
 const RANK = { passed: 0, skipped: 1, failed: 2 };

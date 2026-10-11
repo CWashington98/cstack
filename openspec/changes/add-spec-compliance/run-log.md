@@ -118,3 +118,9 @@ New `lib/executable.mjs`, used by `runCompliance` only when `executableSpecs` is
 - Ruling: a binding is `Given|When|Then|And|But(` plus the step text in quotes and a comma, in a file matching `tests.acceptance`; the text must equal the spec line exactly, whatever the keyword. Why: phase 1's ruling 6 and the locked tests. Cost if wrong: a tool that binds steps another way (for example by regular expression) is seen as unbound and held; the hold says what to add.
 - Ruling: an assertion is a word starting `assert` or `expect`, or `should`, `throw(s)`, `raise`, `fail`, outside comment lines, plus an optional project pattern in `executableSpecs.assertion`. Why: framework-neutral, as the lead asked; recorded in design.md. Cost if wrong: a binding using only an unusual helper is held until the project adds `assertion`; a binding that merely mentions `should` in code passes.
 - Ruling: with the setting on, the scenario's tests in the report are its bound step texts, and the "scenario has no test" hold is dropped (the unbound-line holds name the missing steps instead). Cost if wrong: a scenario with no steps at all passes the trace.
+
+## 2026-10-11 · fix session E · false holds found by the check's run on itself
+
+The check ran on its own change (task 9.1) and held for many reasons that were not real. Each fix below has a test that reproduced the false hold first.
+
+- Ruling: a test counts as skipped only when the runner puts a skip marker around the name (`# SKIP`, a leading skip mark, `... skipped`), never because the word "skipped" is inside the test's own name. Why: two acceptance tests have "skipped" in their titles and were read as skipped although they ran and passed. Cost if wrong: a runner that marks skips some other way would see a skipped test counted as run; add its marker to the pattern.
