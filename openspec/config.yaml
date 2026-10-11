@@ -1,0 +1,26 @@
+schema: spec-driven
+
+# cstack's own OpenSpec rules. They are also the defaults cstack will ship to
+# other projects through `cstack init`; a project can add its own.
+context: |
+  cstack is a library of Claude Code skills and a fixed workflow for building
+  changes. It must work in any repository through that repository's settings
+  file alone, so nothing in cstack names a project, framework or language.
+  Everything published is plain English for a reader with no outside context.
+
+rules:
+  proposal:
+    - "After Why, add '## Who it's for' and '## Before / After' (two plain lines a non-technical reader understands)."
+    - "Add '## Non-goals', including what was considered and rejected, and why."
+  specs:
+    - "Write every scenario as GIVEN / WHEN / THEN / AND bullets. Every scenario has WHEN and THEN."
+    - "Give every scenario a short kebab-case ID as its heading; tests carry it as [scenario-id] in their names."
+    - "Cover refusals and edge cases, not only the happy path."
+    - "No TBD, TODO or '?' placeholders."
+  design:
+    - "Include '## Reuse': for each new piece, what already exists and whether it is extended or created."
+    - "Include '## Decisions' with dates, and '## Open questions' for the owner, at most three."
+  tasks:
+    - "Group 1 is always the acceptance tests: one per scenario, written first, failing on the current code by an assertion, then locked."
+    - "End every task with 'Covers: <scenario-ids>' (or 'Covers: all' for the acceptance-test task, or 'Setup: <why>') and 'Touches: <files or globs>'."
+    - "Every task says how it is verified."
