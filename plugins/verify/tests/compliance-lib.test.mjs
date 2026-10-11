@@ -173,7 +173,7 @@ test("withBaseTree checks out the starting commit with the latest acceptance tes
       dep: readFileSync(join(tree, "deps/lib.txt"), "utf8"),
       dirty: existsSync(join(tree, "src/dirty.txt")),
     };
-  });
+  }, { shared: ["deps"] });
   assert.equal(seen.src, "old\n");
   assert.deepEqual(seen.tests, ["locked\n", "added\n"]);
   assert.equal(seen.dep, "dependency\n");

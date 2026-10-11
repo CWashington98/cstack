@@ -133,3 +133,9 @@ The check ran on its own change (task 9.1) and held for many reasons that were n
 - Ruling: the new `lib/source-text.mjs` is declared in task 2.2's `Touches:` line (test names are what 2.2 finds). Why: the scope check warned about it, rightly. Cost if wrong: none.
 
 - 2026-10-11, task 7.1 live verification (lead): the spec-match reviewer ran once, on Opus, with only its filled-in brief, on a small sample with three planted cases. Result in `evidence/spec-match-live-run.json`, the sample spec in `evidence/spec-match-live-run-sample-spec.md`. It marked the weak test "partly" with a high finding (proved by breaking `seatsLeft`: all tests still passed); marked the full test "matches"; reported the admin scenario contradicting the limit requirement as `spec-wrong` (back to approval, shown by seats left reading -1); and found one unplanted gap (the admin test doesn't check who got the seat), rated low. Every finding named what breaks, for whom, likelihood, cost and an exact reproduction. Ruling: one live run is enough evidence for version 0 — the judgment is what code can't test, and three of three planted cases plus one real extra were found — cost if wrong: a reviewer that misses gaps on bigger changes, which the retro's run records will show.
+
+## 2026-10-11 · fix session F · findings of the two reviews of PR #18
+
+Each fix has a test that failed first.
+
+- Ruling: the temporary copy of the code links no folder of the user's project unless `tests.sharedFolders` names it. Why: linking every git-ignored folder let a test that writes to `dist/`, `build/` or `out/` change the user's real folders, and on the high-risk lane could leave deliberately broken code there. Cost if wrong: a project whose old code needs its installed dependencies finds them missing in the starting-commit run until it lists them in `tests.sharedFolders`; the run then fails by a crash and the hold says so.

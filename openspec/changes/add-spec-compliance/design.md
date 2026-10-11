@@ -31,6 +31,7 @@ New: `spec-compliance.mjs`, a library behind it, its tests and two sample reposi
 | `tests.acceptance` | `["**/acceptance/**"]` | Which files are the locked acceptance tests |
 | `tests.namePattern` | `"^scenario (.+)$"` | Optional. A regular expression with one capture group that finds a test's name, in place of the built-in rule below. |
 | `tests.exclude` | `["samples/**"]` | Optional. Files the check never reads for test names, such as sample repositories kept as test data. |
+| `tests.sharedFolders` | `["node_modules"]` | Optional. Folders of your project, such as installed dependencies, that the temporary copies of the code may use. Each is linked, not copied, so a test that writes into one changes your real folder. Nothing is linked unless named here: folders your build writes to, such as `dist/` or `out/`, stay out of the copies. |
 | `tests.alwaysAllowed` | `["docs/**", "*.md"]` | Files the scope check never lists |
 | `executableSpecs` | `{ "tool": "cucumber-js", "command": "npx cucumber-js --name \"{name}\"", "assertion": "myCheck\\(" }` | Off when missing. `assertion` is optional. |
 

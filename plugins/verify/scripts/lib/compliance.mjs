@@ -281,9 +281,11 @@ export function whyNotRun(entry, r) {
 
 // Runs fn(folder) in a throwaway checkout of the starting commit with the latest
 // acceptance tests laid over it, since those tests did not exist yet when the
-// change started. Folders git ignores at the top (installed dependencies) are
-// linked in so the old code can run. The checkout is always removed.
-export function withBaseTree(root, base, acceptance, fn) {
+// change started. Nothing from the user's own folders is linked in unless the
+// project names it in tests.sharedFolders (installed dependencies, say): a linked
+// folder is shared, so a test that writes into it would change the user's real one.
+// The checkout is always removed.
+export function withBaseTree(root, base, acceptance, fn, { shared = [] } = {}) {
   const holder = mkdtempSync(join(tmpdir(), "compliance-base-"));
   const tree = join(holder, "tree");
   git(root, "worktree", "add", "--detach", "--quiet", tree, base);
@@ -294,11 +296,12 @@ export function withBaseTree(root, base, acceptance, fn) {
       mkdirSync(dirname(join(tree, file)), { recursive: true });
       writeFileSync(join(tree, file), bytes);
     }
-    const ignored = gitOk(root, "ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z") ?? "";
-    for (const dir of ignored.split("\0").filter((d) => d.endsWith("/") && !d.startsWith(".verify/"))) {
-      const link = join(tree, dir.slice(0, -1));
-      if (existsSync(link) || !existsSync(dirname(link))) continue;
-      try { symlinkSync(join(root, dir), link); } catch { /* the old code may not need it */ }
+    for (const dir of shared) {
+      const name = dir.replace(/^\.\//, "").replace(/\/+$/, "");
+      const target = join(root, name);
+      const link = join(tree, name);
+      if (!name || name.startsWith("..") || !existsSync(target) || existsSync(link) || !existsSync(dirname(link))) continue;
+      try { symlinkSync(target, link); } catch { /* the old code may not need it */ }
     }
     return fn(tree);
   } finally {
@@ -518,7 +521,7 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
   }
   const ran = traced.scenarios.filter((e) => e.ran);
   const first = ran.length ? withBaseTree(root, base, settings.tests.acceptance ?? [], (tree) =>
-    new Map(ran.map((e) => [e.id, runScenario(tree, template, e)]))) : new Map();
+    new Map(ran.map((e) => [e.id, runScenario(tree, template, e)])), { shared: settings.tests.sharedFolders }) : new Map();
   for (const entry of ran) {
     const now_ = runs.get(entry.id);
     entry.passesNow = now_.failed === 0 && now_.passed > 0 && now_.exits.every((x) => x === 0);
@@ -541,7 +544,7 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
       check: CHECKS.breaks,
       keep: (f) => !isTestFile(f, settings.tests.acceptance ?? []) && !/\.md$/i.test(f) && !f.startsWith("openspec/"),
       owners,
-      withTree: (fn) => withBaseTree(root, "HEAD", [], fn),
+      withTree: (fn) => withBaseTree(root, "HEAD", [], fn, { shared: settings.tests.sharedFolders }),
       runScenario: (tree, entry) => runScenario(tree, template, entry),
     } });
     holds.push(...r.holds);
