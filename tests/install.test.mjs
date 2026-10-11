@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, chmodSync, realpathSync, symlinkSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, chmodSync, realpathSync, symlinkSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,8 +29,10 @@ function toolbox(dir, reader) {
 // "not a character device" (/dev/null is one; a terminal is too, but tests never have one). `list` entries may use "HERE" as projectPath for the project folder. `fail`
 // names plugins whose install or update exits 1. It reads all of its input, so a script that
 // doesn't protect its own input would lose the rest of itself when piped. `repo` makes the project
-// a git repository, `cwd` runs the script from a subfolder of it, and `reader` limits the PATH.
-function run(args = [], { pkgs = {}, files = [], list = [], fail = [], piped = false, repo = false, cwd = "", reader = "node" } = {}) {
+// a git repository, `cwd` runs the script from a subfolder of it, `reader` limits the PATH, and
+// `home` makes the project folder the home folder. `shoutPwd` hands bash the folder's name in
+// capitals, as a shell on a case-blind disk can after `cd` with the wrong case.
+function run(args = [], { pkgs = {}, files = [], list = [], fail = [], piped = false, repo = false, cwd = "", reader = "node", home = false, shoutPwd = false } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "cstack-install-"));
   const bin = join(dir, "bin"), project = join(dir, "project"), log = join(dir, "calls.log");
   const whereLog = join(dir, "where.log"), openLog = join(dir, "open-input.log");
@@ -64,7 +66,7 @@ function run(args = [], { pkgs = {}, files = [], list = [], fail = [], piped = f
   // temporary folder, so a project that isn't a repository never finds one further up.
   const base = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("GIT_")));
   const path = reader === "node" ? `${bin}:${process.env.PATH}` : `${bin}:${toolbox(dir, reader)}`;
-  const env = { ...base, PATH: path, GIT_CEILING_DIRECTORIES: dir };
+  const env = { ...base, PATH: path, GIT_CEILING_DIRECTORIES: dir, ...(home ? { HOME: here } : {}), ...(shoutPwd ? { PWD: join(here, cwd).toUpperCase() } : {}) };
   const r = piped
     ? spawnSync("bash", ["-s", "--", ...args], { cwd: join(project, cwd), encoding: "utf8", env, input: readFileSync(script, "utf8") })
     : spawnSync("bash", [script, ...args], { cwd: join(project, cwd), encoding: "utf8", env, input: "" });
@@ -209,6 +211,7 @@ test("without node, python3 reads the installed list the same way", { skip: !PYT
     { id: "rn-callstack-picks@cstack", scope: "local", projectPath: "/somewhere/else" },
   ] });
   assert.equal(code, 0, err);
+  assert.doesNotMatch(err, /can't be read/, "python3 can read the list, so there is no warning");
   assert.ok(calls.includes("plugin update cstack@cstack --scope user"), calls.join("\n"));
   assert.ok(calls.includes("plugin update expo-picks@cstack --scope local"), calls.join("\n"));
   assert.match(callFor(calls, "rn-callstack-picks"), /^plugin install rn-callstack-picks .*--scope local/);
@@ -262,6 +265,15 @@ test("a group plugin installed for the user everywhere is named with the command
   assert.doesNotMatch(run(["web"]).out, /uninstall/, "no group plugin is installed everywhere, so nothing is said");
 });
 
+test("exactly one group plugin left for the user is named, and one installed only for this project is not", () => {
+  const { out } = run(["web"], { list: [
+    { id: "expo-picks@cstack", scope: "user" },
+    { id: "good-css-picks@cstack", scope: "local", projectPath: "HERE" },
+  ] });
+  const lines = out.split("\n").filter((l) => /claude plugin uninstall/.test(l)).map((l) => l.trim());
+  assert.deepEqual(lines, ["claude plugin uninstall expo-picks@cstack --scope user"], out);
+});
+
 // Issue #11, item 5.
 test("with neither node nor python3, it warns that the installed list can't be read, then installs everything", () => {
   const { code, err, calls } = run([], { reader: "none", list: [{ id: "cstack@cstack", scope: "user" }] });
@@ -294,4 +306,52 @@ test("run from a subfolder outside any git project, it stays in the current fold
   const w = where.find((x) => x.call.startsWith("plugin install expo-picks "));
   assert.ok(w, "expo-picks ran");
   assert.equal(w.at, join(here, "apps/mobile"));
+});
+
+test("run from a package.json five folders down, that app's own group is still found", () => {
+  const { code, out, where, here } = run([], {
+    repo: true, cwd: "packages/clients/apps/mobile",
+    pkgs: { "packages/clients/apps/mobile/package.json": { expo: "54" }, "apps/web/package.json": { next: "16" } },
+  });
+  assert.equal(code, 0);
+  assert.match(out, /Detected for this project: .*expo/, out);
+  for (const p of [...EXPO, "vercel-react-picks"]) {
+    const w = where.find((x) => x.call.startsWith(`plugin install ${p} `));
+    assert.ok(w, `${p} ran`);
+    assert.match(w.call, /--scope local/, p);
+    assert.equal(w.at, here, `${p} ran from the top folder`);
+  }
+});
+
+test("run from an app folder, the groups of the rest of the repository are found too", () => {
+  const n = names(run([], { repo: true, cwd: "apps/mobile", pkgs: { "apps/mobile/package.json": { expo: "54" }, "apps/web/package.json": { next: "16" } } }).calls);
+  assert.ok(n.includes("expo-picks") && n.includes("vercel-react-picks"), n.join(" "));
+});
+
+test("run from the top folder of a git project, it says nothing about moving and stays there", () => {
+  const { code, out, where, here } = run([], { repo: true, pkgs: { "apps/mobile/package.json": { expo: "54" } } });
+  assert.equal(code, 0);
+  assert.doesNotMatch(out, /Working from/);
+  assert.ok(where.length > 0 && where.every((w) => w.at === here), JSON.stringify(where));
+});
+
+test("the move to the top folder is announced before what was detected", () => {
+  const { out } = run([], { repo: true, cwd: "apps/mobile", pkgs: { "apps/mobile/package.json": { expo: "54" } } });
+  const moved = out.indexOf("Working from"), detected = out.indexOf("Detected for this project");
+  assert.ok(moved >= 0 && detected > moved, out);
+});
+
+test("a home folder that is itself a git repository isn't treated as the project", () => {
+  const { out, where, here } = run([], { repo: true, home: true, cwd: "Source/app", pkgs: { "Source/app/package.json": { expo: "54" } } });
+  assert.doesNotMatch(out, /Working from/);
+  const w = where.find((x) => x.call.startsWith("plugin install expo-picks "));
+  assert.ok(w, "expo-picks ran");
+  assert.equal(w.at, join(here, "Source/app"));
+});
+
+const caseBlind = existsSync(realpathSync(tmpdir()).toUpperCase());
+test("at the top folder, a different letter case in the folder's name doesn't count as a move", { skip: !caseBlind && "this disk tells letter case apart" }, () => {
+  const { code, out } = run([], { repo: true, shoutPwd: true });
+  assert.equal(code, 0);
+  assert.doesNotMatch(out, /Working from/);
 });
