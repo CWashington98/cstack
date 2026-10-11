@@ -32,8 +32,16 @@ Added `lib/compliance.mjs` (tracing: tasks, test names, scenario links) and a mi
 - Ruling: a scenario's run-by-name token is whatever bracket form its own tests use (plain `[id]` or qualified), one run per distinct token. Why: a plain `[id]` pattern cannot match a qualified name, because the qualified bracket opens earlier. Cost if wrong: one extra run per qualified scenario.
 - Ruling: `Covers: all` is accepted only on a task whose Touches are all acceptance files (when `tests.acceptance` is set). Why: the design says it is allowed only for the acceptance-test task. Cost if wrong: a hold on a task list that uses it elsewhere.
 
-## 2026-10-11 · task 3.1 · commit @@3.1@@
+## 2026-10-11 · task 3.1 · commit e54a9b6
 
 `app-skill.mjs` now checks `tests.all`, `tests.byName` (must contain `{name}`), `tests.acceptance`, `tests.alwaysAllowed` and `executableSpecs` (`tool`, and `command` with `{name}`), and exports `complianceSettings`, which also refuses to run without `tests.byName` and says which field to add and how to escape the bracket. The command now exits 2 with that message. Unit tests added; `app-skill.test.mjs` unchanged and green. No new acceptance test goes green (settings are exercised by every run).
 
 - Ruling: `tests.byName` is required by the compliance command only, not by `checkRepoSettings`. Why: projects that never use the check should not be told to add it; the existing settings tests expect an empty problem list for a file with only `integrationBranch`. Cost if wrong: one more message in the generic settings check.
+
+## 2026-10-11 · task 3.2 · commit @@3.2@@
+
+The check now runs each scenario's tests by name (`tests.byName`, one run for each bracket form the scenario's tests use), reads what the test tool printed, and counts. Green now: `[all-scenario-tests-ran]`, `[a-scenario-test-did-not-run]`. On both samples every scenario shows `ran: true`; the two sample acceptance tests stay red only on fail-first (task 3.3).
+
+- Ruling: a scenario "ran" when at least one test carrying its ID passed or failed and none was skipped. Why: the spec holds a change when any of a scenario's tests did not run. Cost if wrong: a scenario with one skipped test beside a passing one is held when it need not be.
+- Ruling: results are read from output lines that show a result mark (TAP `ok`/`not ok`, the spec reporter's check marks, `... ok`/`... FAIL`/`skipped`) and a bracketed ID; the exit code alone is never trusted. Why: Node's runner exits 0 when no name matches. Cost if wrong: a tool with another output format needs another mark added in `readRun`.
+- Ruling: the child environment drops `NODE_TEST_CONTEXT`. Why: the locked tests run the command from inside Node's own runner, and a nested `node --test` that inherits the variable prints nothing readable. Cost if wrong: none.

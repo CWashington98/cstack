@@ -3,7 +3,7 @@
 // holds. Nothing here names a project or a test tool: a project's settings do.
 import { existsSync, readFileSync } from "node:fs";
 import { join, relative, sep, basename } from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { proseLines } from "./markdown.mjs";
 import { checkScenarios, gather, ITEM } from "./plan.mjs";
 import { walk } from "./app-skill.mjs";
@@ -193,6 +193,68 @@ export function trace(root, change, settings) {
   return { scenarios: entries, tasks, tests, holds };
 }
 
+// ---- Running tests by name ----
+
+// A bracketed scenario token anywhere on a line of test output.
+const OUTPUT_TOKEN = new RegExp(TOKEN.source, "g");
+const SKIPPED = /#\s*(?:SKIP|TODO)\b|\bskipped\b|^\s*\uFE63/i;
+const FAILED = /^\s*(?:\u2716|\u2717|\u2718|\u00D7|not ok\b|FAIL\b)|\.\.\. (?:FAIL|ERROR)\b/;
+const PASSED = /^\s*(?:\u2714|\u2713|ok\b|PASS\b)|\.\.\. ok\b/;
+const RANK = { passed: 0, skipped: 1, failed: 2 };
+
+// What a test tool printed about each test whose name carries a scenario ID:
+// one entry per distinct test, where failed beats skipped beats passed. Tools
+// print a failing test twice (live, then in a summary), so the same name is one test.
+export function readRun(out) {
+  const tests = new Map();
+  for (const line of out.split(/\r?\n/)) {
+    const ids = [...line.matchAll(OUTPUT_TOKEN)].map((m) => m[1].split("/").pop());
+    if (!ids.length) continue;
+    const status = SKIPPED.test(line) ? "skipped" : FAILED.test(line) ? "failed" : PASSED.test(line) ? "passed" : null;
+    if (!status) continue;
+    const name = line.replace(/^\s*(?:\S{1,2}\s+|(?:not )?ok\s+\d*\s*-?\s*)/, "").replace(/\s*\(\d[\d.]*m?s\)\s*$/, "").replace(/\s*(?:#|\.\.\.).*$/, "").trim() || line.trim();
+    for (const id of new Set(ids)) {
+      const key = `${id}\0${name}`;
+      const before = tests.get(key);
+      if (!before || RANK[status] > RANK[before.status]) tests.set(key, { id, name, status });
+    }
+  }
+  return [...tests.values()];
+}
+
+// Node sets this inside its own test runs; left in, a nested run would print for its parent.
+const cleanEnv = () => {
+  const env = { ...process.env };
+  delete env.NODE_TEST_CONTEXT;
+  return env;
+};
+
+export function runCommand(cwd, template, name) {
+  const command = template.replaceAll("{name}", name);
+  const r = spawnSync(command, { cwd, shell: true, encoding: "utf8", env: cleanEnv(), timeout: 10 * 60 * 1000, maxBuffer: 256 * 1024 * 1024 });
+  return { command, status: r.status ?? (r.signal ? -1 : 1), out: `${r.stdout ?? ""}${r.stderr ?? ""}`, error: r.error ?? null };
+}
+
+// Runs a scenario's tests by name, once for each bracket form its tests use, and adds up what ran.
+export function runScenario(cwd, template, entry) {
+  const runs = entry.tokens.map((token) => runCommand(cwd, template, token));
+  const tests = runs.flatMap((r) => readRun(r.out)).filter((t) => t.id === entry.id);
+  const count = (status) => tests.filter((t) => t.status === status).length;
+  return {
+    runs, tests, passed: count("passed"), failed: count("failed"), skipped: count("skipped"),
+    exits: runs.map((r) => r.status), out: runs.map((r) => r.out).join("\n"),
+  };
+}
+
+const tail = (text, n = 6) => text.trim().split(/\r?\n/).slice(-n).join(" / ").slice(0, 400);
+
+export function whyNotRun(entry, r) {
+  if (r.skipped && !r.passed && !r.failed) return `The test for ${entry.id} was skipped, so it did not run.`;
+  if (r.skipped) return `Some of the tests for ${entry.id} were skipped, so they did not run.`;
+  if (r.runs.some((x) => x.error)) return `The command that runs ${entry.id}'s tests could not start: ${r.runs.find((x) => x.error).error.message}.`;
+  return `The test command found no test for ${entry.id}: no test named [${entry.id}] ran (the command ended with code ${r.exits.join(", ")}; last output: ${tail(r.out)}). Check the test is picked up by the command in tests.byName.`;
+}
+
 // ---- The whole check ----
 
 const now = () => Number(process.hrtime.bigint() / 1000000n);
@@ -205,10 +267,20 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
   timeMs.trace = now() - t;
   const holds = [...traced.holds];
   const warnings = [];
+  t = now();
+  const runs = new Map();
+  for (const entry of traced.scenarios) {
+    if (!entry.tokens.length) continue;
+    const r = runScenario(root, settings.tests.byName, entry);
+    runs.set(entry.id, r);
+    entry.ran = r.passed + r.failed > 0 && r.skipped === 0;
+    if (!entry.ran) holds.push(hold(CHECKS.ran, { scenario: entry.id, why: whyNotRun(entry, r) }));
+  }
+  timeMs.run = now() - t;
   const report = {
     change, commit, base, lane, held: false,
     scenarios: traced.scenarios, holds, warnings, allowedEdits: [],
-    counts: { expected: traced.scenarios.length, ran: 0 },
+    counts: { expected: traced.scenarios.length, ran: traced.scenarios.filter((e) => e.ran).length },
     breaks: { skipped: true, reason: lane === "high-risk" ? "not built yet" : "the normal lane does not break changed lines" },
     reviewer: { mismatches: 0 },
     timeMs,
@@ -222,6 +294,7 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
 export function summarize(report) {
   const out = [];
   const n = report.scenarios.length;
+  out.push(`${report.counts.ran} of ${report.counts.expected} scenario tests ran.`);
   out.push(report.held
     ? `Held: spec compliance for ${report.change} found ${report.holds.length} problem(s) to fix.`
     : `Proven: every one of the ${n} scenario(s) in ${report.change} is traced, tested and passing.`);

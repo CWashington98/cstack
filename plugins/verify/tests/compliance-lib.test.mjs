@@ -4,7 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { checkScenarios } from "../scripts/lib/plan.mjs";
 import { proseLines } from "../scripts/lib/markdown.mjs";
-import { testsInText, globToRegExp, matchesAny, isTestFile, parseTasks } from "../scripts/lib/compliance.mjs";
+import { testsInText, globToRegExp, matchesAny, isTestFile, parseTasks, readRun } from "../scripts/lib/compliance.mjs";
 import { complianceSettings, checkRepoSettings } from "../scripts/lib/app-skill.mjs";
 import { makeRepo } from "../../../tests/helpers.mjs";
 
@@ -122,4 +122,27 @@ test("the settings check names each wrong tests field, and ignores a project tha
   assert.match(msg({ executableSpecs: { tool: "steps" } }), /"executableSpecs\.command" must contain \{name\}/);
   assert.match(msg({ executableSpecs: { command: "x {name}" } }), /"executableSpecs\.tool"/);
   assert.equal(msg({ tests: { byName: 'run-one "{name}"' } }), "");
+});
+
+// ---- Reading what a test run printed ----
+
+test("readRun reads TAP output: passed, failed and skipped tests, each named once", () => {
+  const out = [
+    "TAP version 13", "# Subtest: [one-a] passes", "ok 1 - [one-a] passes", "  duration_ms: 0.2",
+    "not ok 2 - [two-b] fails", "  error: |-", "    Expected values to be strictly equal:",
+    "ok 3 - [three-c] skipped # SKIP", "ok 4 - an unrelated test",
+  ].join("\n");
+  assert.deepEqual(readRun(out).map((t) => [t.id, t.status]), [["one-a", "passed"], ["two-b", "failed"], ["three-c", "skipped"]]);
+});
+
+test("readRun reads the spec reporter, where a failing test is printed twice", () => {
+  const out = ["▶ suite", "  ✔ [one-a] passes (0.4ms)", "  ✖ [two-b] fails (0.9ms)", "  ﹣ [three-c] skipped (0.1ms) # SKIP", "", "✖ failing tests:", "✖ [two-b] fails (0.9ms)"].join("\n");
+  const tests = readRun(out);
+  assert.deepEqual(tests.map((t) => [t.id, t.status]), [["one-a", "passed"], ["two-b", "failed"], ["three-c", "skipped"]]);
+  assert.equal(tests[1].name, "[two-b] fails");
+});
+
+test("readRun reads a description line that ends in the result, and a qualified name", () => {
+  const out = ["test_x (tests.a.B.test_x)", "[export-has-header-row] the first line ... FAIL", "[a/b:c/qualified-one] works ... ok", "[skip-me] later ... skipped 'why'"].join("\n");
+  assert.deepEqual(readRun(out).map((t) => [t.id, t.status]), [["export-has-header-row", "failed"], ["qualified-one", "passed"], ["skip-me", "skipped"]]);
 });
