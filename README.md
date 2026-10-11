@@ -27,6 +27,13 @@ It installs the everyday set for you, in every project: `cstack`, `plain`, `veri
 
 To choose the groups yourself, name them: `... | bash -s -- expo web`, or `all`. A plugin already installed for you, or for this project, is updated instead. One installed only in another project doesn't count. Folders inside `node_modules` and hidden folders, such as old worktree copies, are skipped. Restart Claude Code afterwards. To install one plugin by hand: `claude plugin install <name>@cstack`.
 
+A few details, for when something looks odd:
+
+- **Run from a subfolder**, it works from the top folder of the project's git repository. That way the subfolder doesn't get its own copy of the groups. Outside a git repository, the current folder is the project.
+- **Installed both ways.** If a plugin is installed for you and also for this project, the install for you is the one updated. An install for the whole project, shared with the team through its settings, counts as installed here too.
+- **Reading what's installed** needs `node`, or `python3` when `node` is missing. With neither, the script says so and installs every plugin again instead of updating it.
+- **Groups installed for you everywhere.** An earlier version of this script installed the groups for you in every project. If any are still installed that way, the script lists them with the `claude plugin uninstall <name>@cstack --scope user` command for each. It never removes anything itself. After removing one, run the script again in each project that uses it.
+
 Borrowed skills are pinned pointers, never copies. Install the ones a project needs:
 
 | Pointer | What it gives you | Install where |

@@ -25,6 +25,13 @@ main() {
   local GROUP_VERCEL="vercel-deploy-picks"
   local GROUP_EXPO="expo-picks rn-callstack-picks rn-vercel-picks"
 
+  # Work from the project's top folder, so a subfolder doesn't get its own copy of the group
+  # plugins. Outside a git project, the current folder is the project.
+  local start top
+  start=$(pwd -P)
+  top=$(git rev-parse --show-toplevel 2>/dev/null || echo "$start")
+  cd "$top"
+
   local groups=() g
   if [ "$#" -eq 0 ]; then
     detect_groups
@@ -41,6 +48,12 @@ main() {
 
   local here
   here=$(pwd -P)
+  if [ "$here" != "$start" ]; then echo "Working from the project's top folder: $here"; fi
+
+  if ! command -v node >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
+    echo "Neither node nor python3 was found, so the list of installed plugins can't be read." >&2
+    echo "Every plugin will be installed again at its usual scope, instead of updated where it is." >&2
+  fi
 
   # Refresh the catalog if it's already added. If it isn't, the first install adds it.
   claude plugin marketplace update cstack </dev/null >/dev/null 2>&1 || true
@@ -62,6 +75,18 @@ main() {
       install_or_update "$p" local || failed+=("$p")
     done
   done
+
+  # An earlier version installed the group plugins for the user, in every project. Name any still
+  # there with the command to remove each one. Removing is the user's choice, so nothing is removed here.
+  local everywhere=()
+  for p in $GROUP_WEB $GROUP_VERCEL $GROUP_EXPO; do
+    if [ "$(installed_scope "$p@cstack")" = user ]; then everywhere+=("$p"); fi
+  done
+  if [ "${#everywhere[@]}" -gt 0 ]; then
+    echo "Installed for you in every project, but meant for one project at a time: ${everywhere[*]}"
+    echo "To keep one to the projects that use it, remove it everywhere, then run this script again in each of those projects:"
+    for p in "${everywhere[@]}"; do echo "  claude plugin uninstall $p@cstack --scope user"; done
+  fi
 
   if [ "${#failed[@]}" -gt 0 ]; then
     echo "These didn't install or update: ${failed[*]}" >&2

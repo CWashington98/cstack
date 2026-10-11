@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, chmodSync, realpathSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, chmodSync, realpathSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,12 +12,27 @@ const market = JSON.parse(readFileSync(join(root, ".claude-plugin", "marketplace
 const EVERYDAY = ["cstack", "plain", "verify", "pstack-picks", "ponytail-picks", "caveman-picks"];
 const EXPO = ["expo-picks", "rn-callstack-picks", "rn-vercel-picks"];
 
-// A fake `claude` that records every call. `list` entries may use "HERE" as projectPath for the
-// project folder. `fail` names plugins whose install or update exits 1. It reads all of its input,
-// so a script that doesn't protect its own input would lose the rest of itself when piped.
-function run(args = [], { pkgs = {}, files = [], list = [], fail = [], piped = false } = {}) {
+const which = (tool) => spawnSync("sh", ["-c", `command -v ${tool}`], { encoding: "utf8" }).stdout.trim();
+const PYTHON3 = which("python3");
+
+// A folder holding only the tools the script and the fake need, without node, so the script
+// must fall back. With reader "python3" it holds python3 too; with "none" it holds neither.
+function toolbox(dir, reader) {
+  const box = join(dir, "tools");
+  mkdirSync(box);
+  for (const t of ["bash", "find", "grep", "cat", ...(reader === "python3" ? ["python3"] : [])]) symlinkSync(which(t), join(box, t));
+  return box;
+}
+
+// A fake `claude` that records every call, the folder it ran in, and whether its input was a pipe
+// it could wait on. `list` entries may use "HERE" as projectPath for the project folder. `fail`
+// names plugins whose install or update exits 1. It reads all of its input, so a script that
+// doesn't protect its own input would lose the rest of itself when piped. `repo` makes the project
+// a git repository, `cwd` runs the script from a subfolder of it, and `reader` limits the PATH.
+function run(args = [], { pkgs = {}, files = [], list = [], fail = [], piped = false, repo = false, cwd = "", reader = "node" } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "cstack-install-"));
   const bin = join(dir, "bin"), project = join(dir, "project"), log = join(dir, "calls.log");
+  const whereLog = join(dir, "where.log"), pipedLog = join(dir, "piped.log");
   mkdirSync(bin); mkdirSync(project);
   const here = realpathSync(project);
   const json = JSON.stringify(list.map((e) => ({ ...e, projectPath: e.projectPath === "HERE" ? here : e.projectPath })));
@@ -25,6 +40,8 @@ function run(args = [], { pkgs = {}, files = [], list = [], fail = [], piped = f
   writeFileSync(join(bin, "claude"), [
     "#!/bin/sh",
     `echo "$*" >> "${log}"`,
+    `echo "$(pwd -P)	$*" >> "${whereLog}"`,
+    `if [ -p /dev/stdin ]; then echo "$*" >> "${pipedLog}"; fi`,
     "cat > /dev/null",
     `if [ "$1 $2" = "plugin list" ]; then cat "${join(dir, "list.json")}"; exit 0; fi`,
     ...fail.map((p) => `case "$*" in *"plugin install ${p} "*|*"plugin update ${p}@cstack"*) exit 1;; esac`),
@@ -40,13 +57,19 @@ function run(args = [], { pkgs = {}, files = [], list = [], fail = [], piped = f
     mkdirSync(join(project, dirname(f)), { recursive: true });
     writeFileSync(join(project, f), "{}");
   }
-  const env = { ...process.env, PATH: `${bin}:${process.env.PATH}` };
+  if (repo) spawnSync("git", ["init", "-q"], { cwd: project });
+  if (cwd) mkdirSync(join(project, cwd), { recursive: true });
+  // No git setting from a surrounding run (such as a hook) may leak in, and git stops at the
+  // temporary folder, so a project that isn't a repository never finds one further up.
+  const base = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith("GIT_")));
+  const path = reader === "node" ? `${bin}:${process.env.PATH}` : `${bin}:${toolbox(dir, reader)}`;
+  const env = { ...base, PATH: path, GIT_CEILING_DIRECTORIES: dir };
   const r = piped
-    ? spawnSync("bash", ["-s", "--", ...args], { cwd: project, encoding: "utf8", env, input: readFileSync(script, "utf8") })
-    : spawnSync("bash", [script, ...args], { cwd: project, encoding: "utf8", env, input: "" });
-  let calls = [];
-  try { calls = readFileSync(log, "utf8").trim().split("\n").filter(Boolean); } catch {}
-  return { code: r.status, out: r.stdout, err: r.stderr, calls, here };
+    ? spawnSync("bash", ["-s", "--", ...args], { cwd: join(project, cwd), encoding: "utf8", env, input: readFileSync(script, "utf8") })
+    : spawnSync("bash", [script, ...args], { cwd: join(project, cwd), encoding: "utf8", env, input: "" });
+  const lines = (f) => { try { return readFileSync(f, "utf8").trim().split("\n").filter(Boolean); } catch { return []; } };
+  const where = lines(whereLog).map((l) => { const [at, call] = l.split("\t"); return { at, call }; });
+  return { code: r.status, out: r.stdout, err: r.stderr, calls: lines(log), where, piped: lines(pipedLog), here };
 }
 const acted = (calls) => calls.filter((c) => /^plugin (install|update) /.test(c));
 const names = (calls) => acted(calls).map((c) => c.split(" ")[2].replace(/@cstack$/, ""));
@@ -175,4 +198,99 @@ test("when a project-only plugin fails, it is named and the exit code is 1", () 
   const { code, err } = run(["expo"], { fail: ["expo-picks"] });
   assert.equal(code, 1);
   assert.match(err, /didn't install or update: expo-picks/);
+});
+
+// Issue #11, item 1: the fallback readers and the protected input.
+test("without node, python3 reads the installed list the same way", { skip: !PYTHON3 && "python3 isn't on this machine" }, () => {
+  const { code, calls, err } = run(["expo"], { reader: "python3", list: [
+    { id: "cstack@cstack", scope: "user" },
+    { id: "expo-picks@cstack", scope: "local", projectPath: "HERE" },
+    { id: "rn-callstack-picks@cstack", scope: "local", projectPath: "/somewhere/else" },
+  ] });
+  assert.equal(code, 0, err);
+  assert.ok(calls.includes("plugin update cstack@cstack --scope user"), calls.join("\n"));
+  assert.ok(calls.includes("plugin update expo-picks@cstack --scope local"), calls.join("\n"));
+  assert.match(callFor(calls, "rn-callstack-picks"), /^plugin install rn-callstack-picks .*--scope local/);
+  assert.match(callFor(calls, "plain"), /^plugin install plain .*--scope user/);
+});
+
+test("every claude call gets empty input, so it can never wait on the keyboard or read the script", () => {
+  const { calls, piped } = run(["expo"], { list: [{ id: "cstack@cstack", scope: "user" }] });
+  for (const kind of ["plugin marketplace update", "plugin list", "plugin update", "plugin install"]) {
+    assert.ok(calls.some((c) => c.startsWith(kind)), `${kind} ran, so its input was checked`);
+  }
+  assert.deepEqual(piped, [], "these claude calls were handed a pipe as input");
+});
+
+// Issue #11, item 2: deliberate choices, pinned for both readers.
+for (const reader of ["node", "python3"]) {
+  const skip = reader === "python3" && !PYTHON3 && "python3 isn't on this machine";
+  test(`${reader}: a plugin installed for the whole project (project scope) counts as installed here`, { skip }, () => {
+    const { calls } = run(["expo"], { reader, list: [{ id: "expo-picks@cstack", scope: "project", projectPath: "HERE" }] });
+    assert.ok(calls.includes("plugin update expo-picks@cstack --scope project"), calls.join("\n"));
+  });
+
+  test(`${reader}: an install for the user everywhere wins over one for this folder`, { skip }, () => {
+    const { calls } = run([], { reader, list: [
+      { id: "cstack@cstack", scope: "local", projectPath: "HERE" },
+      { id: "cstack@cstack", scope: "user" },
+    ] });
+    assert.ok(calls.includes("plugin update cstack@cstack --scope user"), calls.join("\n"));
+    assert.ok(!calls.includes("plugin update cstack@cstack --scope local"), calls.join("\n"));
+  });
+}
+
+// Issue #11, item 3.
+test("react-dom or next outside the dependencies, such as a keyword, doesn't make it a web app", () => {
+  const n = names(run([], { pkgs: { "package.json": { keywords: ["react-dom", "next"], dependencies: { lodash: "4" } } } }).calls);
+  assert.ok(!n.includes("vercel-react-picks") && !n.includes("good-css-picks"), n.join(" "));
+});
+
+// Issue #11, item 4.
+test("a group plugin installed for the user everywhere is named with the command to remove it, and nothing is removed", () => {
+  const { code, out, calls } = run(["web"], { list: [
+    { id: "cstack@cstack", scope: "user" },
+    { id: "expo-picks@cstack", scope: "user" },
+    { id: "good-css-picks@cstack", scope: "user" },
+  ] });
+  assert.equal(code, 0);
+  assert.match(out, /^ *claude plugin uninstall expo-picks@cstack --scope user$/m);
+  assert.match(out, /^ *claude plugin uninstall good-css-picks@cstack --scope user$/m);
+  assert.doesNotMatch(out, /uninstall cstack@cstack/, "the everyday set belongs everywhere");
+  assert.ok(!calls.some((c) => /uninstall/.test(c)), calls.join("\n"));
+  assert.doesNotMatch(run(["web"]).out, /uninstall/, "no group plugin is installed everywhere, so nothing is said");
+});
+
+// Issue #11, item 5.
+test("with neither node nor python3, it warns that the installed list can't be read, then installs everything", () => {
+  const { code, err, calls } = run([], { reader: "none", list: [{ id: "cstack@cstack", scope: "user" }] });
+  assert.equal(code, 0, err);
+  assert.match(err, /Neither node nor python3/);
+  assert.match(err, /can't be read/);
+  assert.match(callFor(calls, "cstack"), /^plugin install cstack /);
+  assert.doesNotMatch(run().err, /can't be read/, "with node present there is no warning");
+});
+
+// Issue #11, item 6.
+test("run from a subfolder of a git project, the group plugins are handled from the project's top folder", () => {
+  const { code, out, where, here } = run([], {
+    repo: true, cwd: "apps/mobile",
+    pkgs: { "apps/mobile/package.json": { expo: "54" } },
+    list: [{ id: "expo-picks@cstack", scope: "local", projectPath: "HERE" }],
+  });
+  assert.equal(code, 0);
+  assert.ok(out.includes(`Working from the project's top folder: ${here}`), out);
+  assert.ok(where.some((w) => w.call === "plugin update expo-picks@cstack --scope local"), "the top folder's install was found");
+  for (const p of EXPO) {
+    const w = where.find((x) => / plugin (install|update) /.test(` ${x.call}`) && x.call.split(" ")[2].replace(/@cstack$/, "") === p);
+    assert.ok(w, `${p} ran`);
+    assert.equal(w.at, here, `${p} ran from the top folder`);
+  }
+});
+
+test("run from a subfolder outside any git project, it stays in the current folder", () => {
+  const { where, here } = run([], { cwd: "apps/mobile", pkgs: { "apps/mobile/package.json": { expo: "54" } } });
+  const w = where.find((x) => x.call.startsWith("plugin install expo-picks "));
+  assert.ok(w, "expo-picks ran");
+  assert.equal(w.at, join(here, "apps/mobile"));
 });
