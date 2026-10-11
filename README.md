@@ -49,6 +49,10 @@ Borrowed skills are pinned pointers, never copies. Install the ones a project ne
 
 Where each skill came from is in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
+## Using cstack
+
+You don't need to remember its commands. Ask Claude in plain words, such as "how do I use cstack to review this?", and it reads the `how-to-use-cstack` skill and suggests the right skill or command. It only suggests; nothing starts until you choose. The skill lists everything available now, and what's coming but not built yet.
+
 Skills invoke as `cstack:deslop`, `cstack:upkeep`, etc. A project-local `.claude/skills/deslop`
 always wins over the plugin version; both coexist (namespacing makes collisions impossible).
 The core plugin also ships the **claims-auditor** agent. Run it after any agent claims work is
