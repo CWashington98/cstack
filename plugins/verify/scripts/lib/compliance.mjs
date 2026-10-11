@@ -10,6 +10,7 @@ import { proseLines } from "./markdown.mjs";
 import { checkScenarios, gather, ITEM } from "./plan.mjs";
 import { walk } from "./app-skill.mjs";
 import { runBreaks } from "./breaks.mjs";
+import { checkExecutable } from "./executable.mjs";
 
 export const CHECKS = {
   trace: "every-scenario-is-traced",
@@ -457,18 +458,32 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
   warnings.push(...checkScope(root, base, change, traced.tasks, settings));
   holds.push(...checkApproval(root, change, settings));
   timeMs.trace += now() - t;
+  const executable = settings.executableSpecs;
+  const template = executable ? executable.command : settings.tests.byName;
+  if (executable) {
+    const acceptance = settings.tests.acceptance ?? [];
+    const files = trackedFiles(root).filter((f) => !/\.md$/i.test(f) && isTestFile(f, acceptance));
+    const checked = checkExecutable({ root, files, scenarios: readScenarios(root, change), settings, check: CHECKS.executable });
+    // The specs stand in for the named tests: drop the "no test" holds and use the bindings.
+    for (let i = holds.length - 1; i >= 0; i--) if (holds[i].missing === "test") holds.splice(i, 1);
+    holds.push(...checked.holds);
+    for (const entry of traced.scenarios) {
+      const used = checked.byScenario.get(entry.id) ?? [];
+      Object.assign(entry, { tests: used.map((b) => b.text), testFiles: [...new Set(used.map((b) => b.file))], tokens: [`[${entry.id}]`] });
+    }
+  }
   t = now();
   const runs = new Map();
   for (const entry of traced.scenarios) {
     if (!entry.tokens.length) continue;
-    const r = runScenario(root, settings.tests.byName, entry);
+    const r = runScenario(root, template, entry);
     runs.set(entry.id, r);
     entry.ran = r.passed + r.failed > 0 && r.skipped === 0;
     if (!entry.ran) holds.push(hold(CHECKS.ran, { scenario: entry.id, why: whyNotRun(entry, r) }));
   }
   const ran = traced.scenarios.filter((e) => e.ran);
   const first = ran.length ? withBaseTree(root, base, settings.tests.acceptance ?? [], (tree) =>
-    new Map(ran.map((e) => [e.id, runScenario(tree, settings.tests.byName, e)]))) : new Map();
+    new Map(ran.map((e) => [e.id, runScenario(tree, template, e)]))) : new Map();
   for (const entry of ran) {
     const now_ = runs.get(entry.id);
     entry.passesNow = now_.failed === 0 && now_.passed > 0 && now_.exits.every((x) => x === 0);
@@ -492,7 +507,7 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
       keep: (f) => !isTestFile(f, settings.tests.acceptance ?? []) && !/\.md$/i.test(f) && !f.startsWith("openspec/"),
       owners,
       withTree: (fn) => withBaseTree(root, "HEAD", [], fn),
-      runScenario: (tree, entry) => runScenario(tree, settings.tests.byName, entry),
+      runScenario: (tree, entry) => runScenario(tree, template, entry),
     } });
     holds.push(...r.holds);
     breaks = { skipped: false, tried: r.tried, entries: r.entries };

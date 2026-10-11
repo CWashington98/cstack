@@ -106,6 +106,9 @@ function testSettingsProblems(s) {
     else {
       if (!isCommand(e.tool)) out.push(`"executableSpecs.tool" must name the tool that runs the specs.`);
       if (!(isCommand(e.command) && e.command.includes("{name}"))) out.push(`"executableSpecs.command" must contain {name}, where the scenario's name goes.`);
+      if (e.assertion !== undefined) {
+        try { new RegExp(e.assertion); } catch { out.push(`"executableSpecs.assertion" must be a valid regular expression that matches your tool's assertions.`); }
+      }
     }
   }
   return out;

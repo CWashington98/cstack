@@ -103,3 +103,11 @@ The command from 2.2 already wrote `compliance.json`, printed the summary last, 
 ## 2026-10-11 · task 6.2 · commit 254b49c
 
 Ruling: no new test. The locked `[no-framework-names-in-the-code]` already searches `spec-compliance.mjs`, `compliance.mjs` and `breaks.mjs` for project, framework and language names, and passes. Why: a duplicate would only restate it. Cost if wrong: a source file outside those three (for example `app-skill.mjs`) is not scanned; none names a tool today.
+
+## 2026-10-11 · task 8.1 · commit aa892ef (amended; see git log)
+
+New `lib/executable.mjs`, used by `runCompliance` only when `executableSpecs` is set. It finds bindings in tracked files matching `tests.acceptance`, holds under `executable-specs-when-turned-on` for each step line with no binding and each THEN binding with no assertion, and runs the scenarios through `executableSpecs.command` in place of `tests.byName` (current commit, starting commit, and breaks). Green now: `[unbound-then-line]`, `[binding-without-an-assertion]`; `[setting-off-changes-nothing]` and both samples stay green. Unit tests added for binding parsing, assertion detection and THEN/AND marking.
+
+- Ruling: a binding is `Given|When|Then|And|But(` plus the step text in quotes and a comma, in a file matching `tests.acceptance`; the text must equal the spec line exactly, whatever the keyword. Why: phase 1's ruling 6 and the locked tests. Cost if wrong: a tool that binds steps another way (for example by regular expression) is seen as unbound and held; the hold says what to add.
+- Ruling: an assertion is a word starting `assert` or `expect`, or `should`, `throw(s)`, `raise`, `fail`, outside comment lines, plus an optional project pattern in `executableSpecs.assertion`. Why: framework-neutral, as the lead asked; recorded in design.md. Cost if wrong: a binding using only an unusual helper is held until the project adds `assertion`; a binding that merely mentions `should` in code passes.
+- Ruling: with the setting on, the scenario's tests in the report are its bound step texts, and the "scenario has no test" hold is dropped (the unbound-line holds name the missing steps instead). Cost if wrong: a scenario with no steps at all passes the trace.

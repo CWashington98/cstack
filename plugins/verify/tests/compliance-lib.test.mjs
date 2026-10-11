@@ -315,3 +315,25 @@ test("checkApproval holds a change with no approval record", () => {
   const dir = makeRepo({ "openspec/changes/c/specs/x/spec.md": "x\n" });
   assert.match(checkApproval(dir, "c", {})[0].why, /no approval\.json/);
 });
+
+// ---- executable specs ----
+import { bindingsIn, asserts, thenSteps } from "../scripts/lib/executable.mjs";
+
+test("bindingsIn finds step calls and the code up to the next one", () => {
+  const found = bindingsIn('Given("a", () => {});\nThen(\'it \\\'is\\\' b\', (w) => { expect(w).ok(); });\n');
+  assert.deepEqual(found.map((b) => [b.keyword, b.text, b.line]), [["given", "a", 1], ["then", "it 'is' b", 2]]);
+  assert.match(found[1].body, /expect/);
+  assert.doesNotMatch(found[0].body, /expect/);
+});
+
+test("asserts accepts assert, expect, should, throw and a project pattern, and ignores comments", () => {
+  for (const body of ["assert.ok(x)", "expect(x).toBe(1)", "x.should.equal(1)", "throw new Error('no')", "raise ValueError"]) assert.ok(asserts(body, {}), body);
+  assert.equal(asserts("// expect it later\nw.after;", {}), false);
+  assert.equal(asserts("w.after;", {}), false);
+  assert.ok(asserts("verifyThat(w)", { executableSpecs: { assertion: "verifyThat\\(" } }));
+});
+
+test("thenSteps treats an AND after a THEN as a THEN line", () => {
+  const steps = thenSteps({ steps: [{ kind: "GIVEN" }, { kind: "AND" }, { kind: "WHEN" }, { kind: "THEN" }, { kind: "AND" }] });
+  assert.deepEqual(steps.map((s) => s.isThen), [false, false, false, true, true]);
+});

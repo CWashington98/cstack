@@ -30,7 +30,14 @@ New: `spec-compliance.mjs`, a library behind it, its tests and two sample reposi
 | `tests.byName` | `"bun run test -t \"{name}\""` | Running one scenario's tests. `{name}` is replaced with the bracket text exactly as the test's name writes it: `[scenario-id]` for the short form, `[domain/capability:requirement/scenario-id]` for the long form. The check counts the bracketed names in the runner's output and never trusts its test total, because some runners list a file with no matching test as passing. |
 | `tests.acceptance` | `["**/acceptance/**"]` | Which files are the locked acceptance tests |
 | `tests.alwaysAllowed` | `["docs/**", "*.md"]` | Files the scope check never lists |
-| `executableSpecs` | `{ "tool": "cucumber-js", "command": "npx cucumber-js --name \"{name}\"" }` | Off when missing |
+| `executableSpecs` | `{ "tool": "cucumber-js", "command": "npx cucumber-js --name \"{name}\"", "assertion": "myCheck\\(" }` | Off when missing. `assertion` is optional. |
+
+### Executable specs: how bindings are found
+
+- A binding is a step call in a file matching `tests.acceptance`: `Given(`, `When(`, `Then(`, `And(` or `But(` (any case, an `@` before it allowed), then the step text in quotes, then a comma. The text must equal the spec line's text exactly. The keyword does not have to match the spec's: an AND line under a THEN may be bound with any of them.
+- A binding's code runs from its call to the next binding, or the end of the file.
+- A THEN line, or an AND line after a THEN, needs every binding for its text to hold an assertion. A binding holds one when, outside comment lines, it has a word starting `assert` or `expect`, or the words `should`, `throw`, `throws`, `raise` or `fail`. This stays neutral about frameworks because those words are what nearly all of them use. A project with its own assertion helper adds `executableSpecs.assertion`, a regular expression, which counts as well.
+- The scenario's tests are its bindings. `{name}` in `executableSpecs.command` becomes `[scenario-id]`, and the output is read the same way as for named tests, so every other check is unchanged.
 
 The check refuses to run when `tests.byName` is missing, and says which field to add.
 
