@@ -1,0 +1,6 @@
+{
+  "approvedBy": "owner",
+  "approvedOn": "2026-10-11",
+  "covers": "specs/**/*.md",
+  "fingerprint": "sha256:6542d082c74989d2bbfe297d20fc8c2f4cf953fddf14b69c8f198dd170b1bb21"
+}

@@ -2,8 +2,8 @@
 
 ## 1. Acceptance tests, written first and failing
 
-- [ ] 1.1 Add the TypeScript and Python sample repositories under `plugins/verify/tests/fixtures/compliance/`, each with a settings file, a spec with scenarios, a task list, and tests named with scenario IDs. Setup: no scenario. Touches: plugins/verify/tests/fixtures/compliance/**. Verify each sample's own tests run with its settings commands.
-- [ ] 1.2 Write one test per scenario in `specs/runner/spec-compliance/spec.md`, in `plugins/verify/tests/spec-compliance.test.mjs`, each named with its `[scenario-id]`. Verify every one fails on the current code by an assertion, not a crash, and commit them as locked acceptance tests. Covers: all. Touches: plugins/verify/tests/spec-compliance.test.mjs
+- [x] 1.1 Add the TypeScript and Python sample repositories under `plugins/verify/tests/fixtures/compliance/`, each with a settings file, a spec with scenarios, a task list, and tests named with scenario IDs. Setup: no scenario. Touches: plugins/verify/tests/fixtures/compliance/**. Verify each sample's own tests run with its settings commands.
+- [x] 1.2 Write one test per scenario in `specs/runner/spec-compliance/spec.md`, in `plugins/verify/tests/spec-compliance.test.mjs`, each named with its `[scenario-id]`. Verify every one fails on the current code by an assertion, not a crash, and commit them as locked acceptance tests. Covers: all. Touches: plugins/verify/tests/spec-compliance.test.mjs
 
 ## 2. Tracing scenarios to tasks and tests
 
