@@ -1007,12 +1007,12 @@ test("round 5: heredoc spellings that used to hide the commands after them", () 
     "cat <<'END TEXT'\nit's\nEND TEXT\nnpx convex deploy",
     "cat <<A; cat <<B\nfirst\nA\nit's\nB\nnpx convex deploy",
     "cat <<EOF\nEOF\nnpx convex deploy",
-    "true;# it's\necho 'a <<X'\nnpx convex deploy\nX",
+    "true;# it's\necho 'a <<X '\nnpx convex deploy\nX",
     "echo $'it\\'s'\nnpx convex deploy",
     "echo $'it\\'s' && git push origin main",
     "(( y = 1 << 2 ))\nnpx convex deploy\n2",
     "echo ${x#<<EOF}\nnpx convex deploy\nEOF",
-    "echo it\\'s '<<E'\nnpx convex deploy\nE",
+    "echo it\\'s '<<E '\nnpx convex deploy\nE",
   ]) refused(dir, c);
   for (const c of [
     "cat <<'END-TEXT'\nprod-backend-9 is production\nEND-TEXT",
