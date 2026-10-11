@@ -143,7 +143,7 @@ test("pushes to protected branches and force pushes are refused; feature branche
   refused(dir, "git push origin --delete main", /deletes the protected branch "main"/);
   refused(dir, "git push origin :main", /deletes/);
   refused(dir, "git push --all origin", /every branch/);
-  refused(dir, `git -C ${dir} push origin main`);
+  refused(mkdtempSync(join(tmpdir(), "guard-elsewhere-")), `git -C ${dir} push origin staging`, /"staging"/);
 });
 
 test("a bare git push is judged by the branch that is checked out", () => {
