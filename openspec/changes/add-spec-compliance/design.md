@@ -27,7 +27,7 @@ New: `spec-compliance.mjs`, a library behind it, its tests and two sample reposi
 | Field | Example | Used for |
 |---|---|---|
 | `tests.all` | `"bun run test"` | Running every test |
-| `tests.byName` | `"bun run test -t \"{name}\""` | Running one scenario's tests. `{name}` is replaced with `[scenario-id]` |
+| `tests.byName` | `"bun run test -t \"{name}\""` | Running one scenario's tests. `{name}` is replaced with the bracket text exactly as the test's name writes it: `[scenario-id]` for the short form, `[domain/capability:requirement/scenario-id]` for the long form. The check counts the bracketed names in the runner's output and never trusts its test total, because some runners list a file with no matching test as passing. |
 | `tests.acceptance` | `["**/acceptance/**"]` | Which files are the locked acceptance tests |
 | `tests.alwaysAllowed` | `["docs/**", "*.md"]` | Files the scope check never lists |
 | `executableSpecs` | `{ "tool": "cucumber-js", "command": "npx cucumber-js --name \"{name}\"" }` | Off when missing |

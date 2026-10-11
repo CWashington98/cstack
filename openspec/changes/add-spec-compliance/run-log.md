@@ -77,3 +77,9 @@ Runs each scenario's tests on the starting commit, in a temporary worktree (remo
 - Ruling: one spec file is fingerprinted as the sha256 hash of its bytes (as the samples and this change's own `approval.json` record). Several are fingerprinted as the sha256 hash of the sorted lines `<file hash>  <path relative to the change folder>`. Why: phase 1 left the multi-file form to this task; this keeps the single-file form unchanged. Cost if wrong: a change with several spec files needs its fingerprint recomputed once.
 - Ruling: a change with no `approval.json` is held. Why: without a record there is nothing to compare, and silence would pass an unapproved spec. Cost if wrong: a hand-run on a change not yet approved shows one hold.
 - Ruling: if the approved text is no longer in the last 200 commits touching the change's folder, the hold still fires and says the edited lines cannot be shown. Cost if wrong: less detail, same hold.
+
+## 2026-10-11 · lead's rulings on phase 1's late edits · commit @@L@@
+
+Committed phase 1's uncommitted edits (long-form names in the TypeScript sample, `[typescript-sample]` and `[python-sample]` checking both forms, the fixtures' readme) as `19c5469`. Both samples report every scenario proven with them, and the acceptance file loads and fails only on tasks 5.1, 7.1 and 8.1. `design.md`'s settings table now says `{name}` is the bracket text exactly as the test writes it, and that the check counts bracketed names in the output rather than trusting a runner's total (the code already does both).
+
+- Ruling: the lock check in task 9.1 will hold this commit; the lead rules it allowed, as a late fix by the acceptance-test author, not a builder edit. Phase 1 should have committed it before the lock. Why: the edit was requested before the lock and changes no spec. Cost if wrong: add a `Spec-Change:` line by amending the commit message before review.
