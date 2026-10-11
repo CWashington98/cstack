@@ -122,6 +122,8 @@ const OWN_RULES = new Set(["git", "gh", "vercel", "netlify", "eas", "firebase", 
 // nx commands that aren't the name of a target.
 const NX_COMMANDS = new Set(["run", "run-many", "affected", "graph", "dep-graph", "show", "g", "generate", "init", "list", "migrate", "report", "reset", "daemon", "format", "format:write", "format:check", "release", "connect", "view-logs", "exec", "watch", "sync", "sync:check", "repair", "add", "import", "help"]);
 const DEPLOY_TARGET = /(^|:)deploy(:|$)/;
+// Programs that run other scripts or commands and pass flags on to them.
+const RUNNERS = new Set(["npm", "pnpm", "yarn", "bun", "make", "just", "turbo", "run-s", "nx", "ng", "lerna", "npx", "bunx", "pnpx", "deno", "node", "python", "python3", "env", "xargs"]);
 // $( ) forms whose value the guard can work out: the checked-out branch, the
 // repository's top folder and the current folder.
 const CURRENT_BRANCH = /\$\(\s*git\s+(branch\s+--show-current|rev-parse\s+--abbrev-ref\s+HEAD|symbolic-ref\s+--short(\s+-q)?\s+HEAD)\s*\)/g;
@@ -588,8 +590,11 @@ class Checker {
       const body = this.written.get(file) ?? readText(file);
       if (body && (/\.(sh|bash|zsh)$/.test(file) || /^#!.*\b(ba|z|da|k)?sh\b/.test(body))) this.checkScriptFile(file, dir, depth, inner);
     }
-    // Help never changes anything.
-    if (w.includes("--help") || w.includes("-h") || w[1] === "help") return;
+    // A tool asked for its own help changes nothing. Script runners pass
+    // flags on to the script, which still runs, so they never count, and
+    // neither does `-h`, which some tools read as a host name.
+    const beforeDash = w.indexOf("--") === -1 ? w : w.slice(0, w.indexOf("--"));
+    if (!RUNNERS.has(prog) && (beforeDash.includes("--help") || w[1] === "help")) return;
     if (Object.hasOwn(RELEASE_TOOLS, prog)) {
       const words = RELEASE_TOOLS[prog];
       const args = w.slice(1).filter((x) => !x.startsWith("-"));

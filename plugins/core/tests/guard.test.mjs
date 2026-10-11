@@ -679,11 +679,13 @@ test("round 3: test, lint, format and read-only commands that name deploy are al
     "npx eslint deploy", "npx prettier --write deploy", "npx tsc -p deploy", "npx biome check deploy", "ruff check deploy", "black deploy", "yamllint deploy",
     "pytest deploy", "python -m pytest -k deploy", "cargo test deploy", "node --test deploy", "fd deploy", "realpath deploy", "watchexec -w deploy bun test",
     "kubectl get deploy", "kubectl describe deploy web", "docker build --target deploy -t app .",
-    "fly deploy --help", "gcloud run deploy --help", "supabase functions deploy -h", "vercel --prod --help",
+    "fly deploy --help", "gcloud run deploy --help", "supabase functions deploy --help", "vercel --prod --help", "gcloud help run deploy",
     "mytool one two three deploy",
   ]) allowed(dir, c);
   for (const c of ["gcloud run deploy api", "gcloud --project p run deploy api", "supabase functions deploy hello", "docker stack deploy -c x.yml app", "drizzle-kit push", "drizzle-kit migrate", "supabase migration up --linked", "az webapp deploy --name x"]) refused(dir, c, /changes a live system/);
   allowed(project(), "vercel --prod=false");
+  const runners = project({ "package.json": JSON.stringify({ scripts: { ship: "vercel --prod" } }) });
+  for (const c of ["bun run ship --help", "npm run ship -- --help", "bun run ship -h", "yarn ship help", "make deploy --help", "supabase functions deploy -h", "gcloud run deploy api -- --help"]) refused(runners, c, /changes a live system/);
 });
 
 test("round 3: Expo channel commands find the channel after flags, and eas deploy reads --prod=true", () => {
