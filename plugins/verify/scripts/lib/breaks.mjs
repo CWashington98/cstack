@@ -142,7 +142,7 @@ export function breakGuard({ tree, files, run, cap = GUARD_CAP, names = [] }) {
     const path = join(tree, w.file);
     const original = readFileSync(path);
     const lines = original.toString("utf8").split("\n");
-    lines[w.at] = lines[w.at].replace(w.line, w.b.text);
+    lines[w.at] = lines[w.at].replace(w.line, () => w.b.text);
     let failed;
     try {
       writeFileSync(path, lines.join("\n"));
