@@ -2,7 +2,7 @@
 
 ## 1. Acceptance tests, written first and failing
 
-- [ ] 1.1 Add one acceptance test per new scenario to a new locked file `plugins/verify/tests/guard-scenarios.test.mjs`, each named with its `[scenario-id]`, using small sample changes built in the test. Verify all five fail by an assertion on the current code, then commit them as locked. Covers: all. Touches: plugins/verify/tests/guard-scenarios.test.mjs
+- [x] 1.1 Add one acceptance test per new scenario to a new locked file `plugins/verify/tests/guard-scenarios.test.mjs`, each named with its `[scenario-id]`, using small sample changes built in the test. Verify all five fail by an assertion on the current code, then commit them as locked. Covers: all. Touches: plugins/verify/tests/guard-scenarios.test.mjs
 
 ## 2. Reading and proving guards
 
