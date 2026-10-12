@@ -6,6 +6,7 @@
     "acceptance": [
       "plugins/verify/tests/spec-compliance.test.mjs",
       "plugins/verify/tests/guard-scenarios.test.mjs",
+      "plugins/verify/tests/carried-over-scenarios.test.mjs",
       "plugins/verify/tests/fixtures/compliance/**"
     ],
     "exclude": [
