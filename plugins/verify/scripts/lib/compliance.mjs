@@ -23,6 +23,7 @@ export const CHECKS = {
   breaks: "tests-exercise-their-code",
   review: "spec-match-review",
   executable: "executable-specs-when-turned-on",
+  guards: "guards-protect-what-they-name",
 };
 
 export function git(root, ...args) {
@@ -352,6 +353,22 @@ export function judgeFirstRun(entry, r) {
   return { failsFirst: false, why: `On the starting commit the test for ${entry.id} did not fail by an assertion: it crashed, a file it needs was missing, or it never ran (exit ${r.exits.join(", ")}; last output: ${tail(r.out)}). Write a test that reaches an assertion on the old code, for example through a stub.` };
 }
 
+// A guard describes behavior that already exists: its tests must pass on the starting
+// commit and on the latest one. Nothing here asks it to fail first.
+export function judgeGuardRuns(entry, before, now, holds) {
+  entry.passesBefore = before.failed === 0 && before.passed > 0 && before.exits.every((x) => x === 0);
+  const files = entry.testFiles.join(", ");
+  if (!entry.passesBefore) {
+    const failing = before.tests.filter((x) => x.status === "failed").map((x) => x.name);
+    holds.push(hold(CHECKS.guards, { scenario: entry.id, tests: failing, files: entry.testFiles, why: `${entry.id} guards existing behavior, so a guard's test must pass before the change too. On the starting commit it did not pass: ${failing.join("; ") || tail(before.out)} (${files}). Fix the test so it describes what the old code really does, or take the guard marker off if the behavior is new.` }));
+  }
+  if (!entry.passesNow) {
+    const failing = now.tests.filter((x) => x.status === "failed").map((x) => x.name);
+    holds.push(hold(CHECKS.guards, { scenario: entry.id, tests: failing, files: entry.testFiles, why: `The change altered behavior the guard ${entry.id} protects: ${failing.join("; ") || tail(now.out)} fails on the latest commit (${files}).` }));
+  }
+  entry.status = entry.passesBefore && entry.passesNow ? "proven" : "held";
+}
+
 // ---- Locked tests ----
 
 const short = (sha) => sha.slice(0, 7);
@@ -561,6 +578,10 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
   for (const entry of ran) {
     const now_ = runs.get(entry.id);
     entry.passesNow = now_.failed === 0 && now_.passed > 0 && now_.exits.every((x) => x === 0);
+    if (entry.guard) {
+      judgeGuardRuns(entry, first.get(entry.id), now_, holds);
+      continue;
+    }
     const judged = judgeFirstRun(entry, first.get(entry.id));
     entry.failsFirst = judged.failsFirst;
     if (!judged.failsFirst) holds.push(hold(CHECKS.failFirst, { scenario: entry.id, why: judged.why }));

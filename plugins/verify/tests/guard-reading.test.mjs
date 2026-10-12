@@ -3,6 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { proseLines } from "../scripts/lib/markdown.mjs";
 import { checkScenarios } from "../scripts/lib/plan.mjs";
+import { judgeGuardRuns } from "../scripts/lib/compliance.mjs";
 
 const spec = (first) => [
   "### Requirement: r", "",
@@ -24,4 +25,15 @@ test("a GUARDS bullet that is not first marks nothing, and a scenario with no ma
   const { scenarios } = checkScenarios(proseLines(spec("- **GIVEN** a state")));
   assert.equal(scenarios[0].guards, null);
   assert.equal(scenarios[1].guards, null);
+});
+
+test("a guard whose test passes on both commits raises no hold, and one that fails on either raises one", () => {
+  const ok = { failed: 0, passed: 1, exits: [0], tests: [], out: "" };
+  const bad = { failed: 1, passed: 0, exits: [1], tests: [{ status: "failed", name: "[some-rule] x" }], out: "" };
+  const run = (before, now) => { const holds = []; const e = { id: "some-rule", testFiles: ["t.mjs"], passesNow: now === ok }; judgeGuardRuns(e, before, now, holds); return { e, holds }; };
+  assert.equal(run(ok, ok).holds.length, 0);
+  assert.equal(run(ok, ok).e.status, "proven");
+  assert.match(run(bad, ok).holds[0].why, /must pass before/);
+  assert.match(run(ok, bad).holds[0].why, /altered behavior/);
+  assert.equal(run(bad, bad).holds.length, 2);
 });
