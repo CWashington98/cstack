@@ -199,3 +199,15 @@ test("a command that prints other tests but not this one shows the exit code and
   assert.match(why, /was filtered/);
   assert.doesNotMatch(why, /unrelated-7/);
 });
+test("when no task declares Touches, one warning says the scope check could not run", () => {
+  const dir = makeRepo({ "src/a.txt": "1\n", "src/b.txt": "1\n" });
+  git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "start");
+  const base = git(dir, "rev-parse", "HEAD").trim();
+  for (const f of ["src/a.txt", "src/b.txt"]) writeFileSync(join(dir, f), "2\n");
+  git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "change");
+  const found = checkScope(dir, base, "c", [{ touches: [] }], { tests: {} });
+  assert.equal(found.length, 1);
+  assert.match(found[0].why, /no task declares/i);
+  assert.match(found[0].why, /Touches/);
+  assert.deepEqual(found[0].files, ["src/a.txt", "src/b.txt"]);
+});

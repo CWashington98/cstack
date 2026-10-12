@@ -448,8 +448,11 @@ export function checkScope(root, base, change, tasks, settings) {
   const allowed = settings.tests?.alwaysAllowed ?? [];
   const touches = tasks.flatMap((t) => t.touches);
   const changed = git(root, "diff", "--name-only", "--no-renames", "-z", base, "HEAD").split("\0").filter(Boolean);
-  return changed
-    .filter((f) => !isTestFile(f, settings.tests?.acceptance ?? []) && !f.startsWith(own) && !matchesAny(f, allowed) && !touches.some((x) => declares(x, f)))
+  const loose = changed.filter((f) => !isTestFile(f, settings.tests?.acceptance ?? []) && !f.startsWith(own) && !matchesAny(f, allowed) && !touches.some((x) => declares(x, f)));
+  if (!touches.length) {
+    return loose.length ? [hold(CHECKS.scope, { files: loose, why: `No task declares a Touches: line, so the scope check could not run. ${loose.length} changed file(s) are not checked; add Touches: to the tasks to turn it on.` })] : [];
+  }
+  return loose
     .map((file) => hold(CHECKS.scope, { file, why: `${file} changed, but no task says it touches it. Possible scope creep: add it to a task's Touches: line, or take it out.` }));
 }
 
