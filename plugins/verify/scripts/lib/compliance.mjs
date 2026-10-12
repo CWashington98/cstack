@@ -71,8 +71,10 @@ export function specFiles(root, change) {
   return walk(dir).filter((f) => f.endsWith(".md")).sort().map((f) => posix(relative(root, f)));
 }
 
-export function readScenarios(root, change) {
-  const living = livingScenarios(root);
+// With `base`, a scenario counts as carried over only if the project's specs held it at
+// that commit, so a change can't write its own scenario into the specs to skip fail-first.
+export function readScenarios(root, change, base = null) {
+  const living = base ? livingScenariosAt(root, base) : livingScenarios(root);
   return specFiles(root, change).flatMap((file) =>
     checkScenarios(proseLines(readText(join(root, file)))).scenarios.map((s) => ({ ...s, file, carried: isCarriedOver(s, living) })));
 }
@@ -82,6 +84,17 @@ function livingScenarios(root) {
   const byId = new Map();
   for (const f of walk(join(root, "openspec", "specs")).filter((x) => x.endsWith(".md"))) {
     for (const s of checkScenarios(proseLines(readText(f))).scenarios) byId.set(s.id, [...(byId.get(s.id) ?? []), s]);
+  }
+  return byId;
+}
+
+// The scenarios the project's own specs held at a commit, by ID.
+function livingScenariosAt(root, commit) {
+  const byId = new Map();
+  const files = (gitOk(root, "ls-tree", "-r", "--name-only", "-z", commit, "--", "openspec/specs") ?? "").split("\0").filter((f) => f.endsWith(".md"));
+  for (const f of files) {
+    const text = gitOk(root, "show", `${commit}:${f}`) ?? "";
+    for (const sc of checkScenarios(proseLines(text)).scenarios) byId.set(sc.id, [...(byId.get(sc.id) ?? []), sc]);
   }
   return byId;
 }
@@ -209,9 +222,9 @@ const hold = (check, fields) => ({ check, ...fields });
 // every missing or unknown link. When `changed` (the files the change touched) is given,
 // a test that cites an unknown scenario holds only if it sits in one of those files:
 // elsewhere it is a warning, since the bracket may be something else entirely.
-export function trace(root, change, settings, changed = null) {
+export function trace(root, change, settings, changed = null, base = null) {
   const acceptance = settings.tests?.acceptance ?? [];
-  const scenarios = readScenarios(root, change);
+  const scenarios = readScenarios(root, change, base);
   const tasks = parseTasks(root, change);
   const tests = findTests(root, acceptance, { exclude: settings.tests?.exclude, namePattern: settings.tests?.namePattern });
   const ids = new Set(scenarios.map((s) => s.id));
@@ -592,7 +605,7 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
   const timeMs = { trace: 0, run: 0, breaks: 0, guardBreaks: 0 };
   let t = now();
   const changedFiles = new Set(git(root, "diff", "--name-only", "--no-renames", "-z", base, "HEAD").split("\0").filter(Boolean));
-  const traced = trace(root, change, settings, changedFiles);
+  const traced = trace(root, change, settings, changedFiles, base);
   timeMs.trace = now() - t;
   const holds = [...traced.holds];
   const warnings = [...traced.warnings];
@@ -607,7 +620,7 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
   if (executable) {
     const acceptance = settings.tests.acceptance ?? [];
     const files = trackedFiles(root).filter((f) => !/\.md$/i.test(f) && isTestFile(f, acceptance) && !matchesAny(f, settings.tests.exclude ?? []));
-    const checked = checkExecutable({ root, files, scenarios: readScenarios(root, change), settings, check: CHECKS.executable });
+    const checked = checkExecutable({ root, files, scenarios: readScenarios(root, change, base), settings, check: CHECKS.executable });
     // The specs stand in for the named tests: drop the "no test" holds and use the bindings.
     for (let i = holds.length - 1; i >= 0; i--) if (holds[i].missing === "test") holds.splice(i, 1);
     holds.push(...checked.holds);
