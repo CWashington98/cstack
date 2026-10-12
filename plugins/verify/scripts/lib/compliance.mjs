@@ -9,7 +9,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { proseLines } from "./markdown.mjs";
 import { checkScenarios, gather, ITEM } from "./plan.mjs";
 import { walk } from "./app-skill.mjs";
-import { runBreaks } from "./breaks.mjs";
+import { runBreaks, breakGuard, GUARD_CAP } from "./breaks.mjs";
 import { checkExecutable } from "./executable.mjs";
 import { codeLines, testNames } from "./source-text.mjs";
 
@@ -534,7 +534,7 @@ const now = () => Number(process.hrtime.bigint() / 1000000n);
 
 export function runCompliance({ root, change, base, lane = "normal", settings }) {
   const commit = git(root, "rev-parse", "HEAD").trim();
-  const timeMs = { trace: 0, run: 0, breaks: 0 };
+  const timeMs = { trace: 0, run: 0, breaks: 0, guardBreaks: 0 };
   let t = now();
   const changedFiles = new Set(git(root, "diff", "--name-only", "--no-renames", "-z", base, "HEAD").split("\0").filter(Boolean));
   const traced = trace(root, change, settings, changedFiles);
@@ -592,6 +592,31 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
     entry.status = entry.failsFirst && entry.passesNow ? "proven" : "held";
   }
   timeMs.run = now() - t;
+  // Every lane: a guard that passed before and after is proven by breaking what it protects.
+  const guards = traced.scenarios.filter((e) => e.guard && e.status === "proven");
+  if (guards.length) {
+    t = now();
+    const all = trackedFiles(root);
+    const covering = (e) => traced.tasks.filter((k) => k.covers.includes(e.id));
+    const guarded = (e) => all.filter((f) => !isTestFile(f, settings.tests.acceptance ?? []) && !/\.md$/i.test(f) && !f.startsWith("openspec/")
+      && covering(e).some((k) => k.touches.some((p) => declares(p, f))));
+    withBaseTree(root, "HEAD", [], (tree) => {
+      for (const e of guards) {
+        const files = guarded(e);
+        const result = breakGuard({
+          tree, files,
+          run: (dir) => { const r = runScenario(dir, template, e); return r.failed > 0 || r.exits.some((x) => x !== 0); },
+        });
+        e.guardBreaks = { files, tried: result.tried, capped: result.capped, caught: result.caught };
+        if (result.caught) continue;
+        e.status = "held";
+        const n = `${result.tried} break${result.tried === 1 ? "" : "s"}`;
+        const where = files.length ? files.join(", ") : "no file: no task covering it names a file with code in it";
+        holds.push(hold(CHECKS.guards, { scenario: e.id, tried: result.tried, capped: result.capped, files, why: `The guard's test for ${e.id} doesn't protect the code its task names: ${n} ${result.tried === 1 ? "was" : "were"} tried in ${where} and every test of ${e.id} still passed${result.capped ? `. The cap of ${GUARD_CAP} was reached, so the rest of the code was left unbroken` : ""}. Add a test that fails when a condition or limit there changes.` }));
+      }
+    }, { shared: settings.tests.sharedFolders });
+    timeMs.guardBreaks = now() - t;
+  }
   let breaks = { skipped: true, reason: "the normal lane does not break changed lines", entries: [] };
   if (lane === "high-risk") {
     t = now();
@@ -660,6 +685,10 @@ export function summarize(report) {
   if (report.allowedEdits.length) {
     out.push(`${report.allowedEdits.length} edit(s) to locked tests, allowed by a Spec-Change: line:`);
     for (const e of report.allowedEdits) out.push(`  - ${e.why}`);
+  }
+  for (const e of report.scenarios.filter((x) => x.guardBreaks?.caught)) {
+    const c = e.guardBreaks.caught;
+    out.push(`Guard ${e.id}: proven as a guard. Break ${e.guardBreaks.tried} of the code it protects was noticed (line ${c.line} of ${c.file}: ${c.break}).`);
   }
   if (report.breaks.skipped) out.push(`Breaking changed lines: skipped (${report.breaks.reason}).`);
   else out.push(`Breaking changed lines: ${report.breaks.tried} break(s) tried, ${report.breaks.entries.filter((e) => e.status === "covered").length} noticed by a test.`);

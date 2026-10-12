@@ -8,7 +8,7 @@
 
 - [x] 2.1 Note a `**GUARDS**` first bullet when reading scenarios, and carry it into the report. Verify with the guard tests that need it. Covers: guard-passes-before-and-after. Touches: plugins/verify/scripts/lib/plan.mjs, plugins/verify/scripts/lib/compliance.mjs
 - [x] 2.2 Expect a guard's tests to pass on both commits, holding when they fail on either. Keep the fail-first rule for every other scenario: the existing acceptance tests must still pass. Verify the guard and existing tests. Covers: guard-fails-on-old-code, guard-fails-on-new-code, passes-on-old-code-too, fails-on-old-passes-on-new. Touches: plugins/verify/scripts/lib/compliance.mjs
-- [ ] 2.3 Break conditions and limits in the guard task's touched files, in a temporary copy, stopping at the first caught break or at 30. Restore exactly. Verify the break scenarios. Covers: guard-passes-before-and-after, guard-catches-no-break, guard-breaks-respect-the-cap. Touches: plugins/verify/scripts/lib/breaks.mjs, plugins/verify/scripts/lib/compliance.mjs
+- [x] 2.3 Break conditions and limits in the guard task's touched files, in a temporary copy, stopping at the first caught break or at 30. Restore exactly. Verify the break scenarios. Covers: guard-passes-before-and-after, guard-catches-no-break, guard-breaks-respect-the-cap. Touches: plugins/verify/scripts/lib/breaks.mjs, plugins/verify/scripts/lib/compliance.mjs
 
 ## 3. Docs and rules
 

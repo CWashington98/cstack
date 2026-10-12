@@ -110,3 +110,40 @@ export function runBreaks({ root, base, deps }) {
   });
   return { entries, holds, tried: entries.filter((e) => e.status === "covered" || e.status === "uncaught").length };
 }
+
+export const GUARD_CAP = 30;
+
+// Breaking what a guard protects. Every condition and limit in the given files, changed or
+// not, is altered in turn in the throwaway checkout `tree`, and the guard's own tests run.
+// It stops at the first break they notice, or after `cap` breaks. Each file is put back
+// byte for byte. run(tree) -> true when the guard's tests failed.
+// Returns { tried, available, capped, caught } where caught is null or { file, line, break }.
+export function breakGuard({ tree, files, run, cap = GUARD_CAP }) {
+  const work = [];
+  for (const file of files) {
+    let text;
+    try { text = readFileSync(join(tree, file), "utf8"); } catch { continue; }
+    text.split("\n").forEach((raw, i) => {
+      const line = raw.replace(/\r$/, "");
+      for (const b of candidateBreaks(line)) work.push({ file, at: i, line, b });
+    });
+  }
+  let tried = 0;
+  for (const w of work) {
+    if (tried >= cap) return { tried, available: work.length, capped: true, caught: null };
+    const path = join(tree, w.file);
+    const original = readFileSync(path);
+    const lines = original.toString("utf8").split("\n");
+    lines[w.at] = lines[w.at].replace(w.line, w.b.text);
+    let failed;
+    try {
+      writeFileSync(path, lines.join("\n"));
+      tried++;
+      failed = run(tree);
+    } finally {
+      writeFileSync(path, original);
+    }
+    if (failed) return { tried, available: work.length, capped: false, caught: { file: w.file, line: w.at + 1, break: w.b.what } };
+  }
+  return { tried, available: work.length, capped: false, caught: null };
+}
