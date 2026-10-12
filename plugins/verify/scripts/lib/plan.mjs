@@ -11,6 +11,7 @@ const SCENARIO = /^#{2,6}\s+Scenario:\s*(.*)$/;
 const ITEM = /^\s*[-*]\s+\[( |x|X)\]\s+(.*)$/;
 const PROVED = /^\s*(?:[-*]\s+)?Proved by:/i;
 const REQUIREMENT = /^#{2,6}\s+Requirement:\s*(.*)$/;
+const GUARDS = /^\s*[-*]\s+\*\*GUARDS\*\*\s*(.*)$/;
 const STEP = /^\s*[-*]\s+\*\*(GIVEN|WHEN|THEN|AND)\*\*\s*(.*)$/;
 
 export const hold = (line, message) => ({ line, level: "hold", message });
@@ -27,7 +28,8 @@ export function gather(lines, i) {
 }
 
 // Each scenario also comes back in `scenarios`: its ID (the first word of its
-// heading), the requirement it sits under, and its GIVEN, WHEN, THEN and AND lines.
+// heading), the requirement it sits under, its GIVEN, WHEN, THEN and AND lines, and
+// `guards`: what a **GUARDS** first bullet says must stay the same, or null.
 export function checkScenarios(lines) {
   const findings = [];
   const scenarios = [];
@@ -46,7 +48,10 @@ export function checkScenarios(lines) {
       const s = l.text.match(STEP);
       return s ? [{ kind: s[1], text: s[2].trim(), line: l.line }] : [];
     });
-    scenarios.push({ id: name.split(/\s+/)[0], name, requirement, line: lines[i].line, steps });
+    // A guard says so in its first bullet: what must stay the same.
+    const firstBullet = lines.slice(i + 1, end).find((l) => /^\s*[-*]\s/.test(l.text));
+    const guards = firstBullet?.text.match(GUARDS)?.[1].trim() || null;
+    scenarios.push({ id: name.split(/\s+/)[0], name, requirement, line: lines[i].line, steps, guards });
     const at = lines.slice(i + 1, end).findIndex((l) => PROVED.test(l.text));
     if (at === -1) {
       findings.push(hold(lines[i].line, `Scenario "${name}" has no "Proved by" line. Add one that names where it is checked, the evidence, and what passing looks like.`));

@@ -189,6 +189,7 @@ export function trace(root, change, settings, changed = null) {
       tests: mine.map((t) => t.name), testFiles: [...new Set(mine.map((t) => t.file))], tokens: [...new Set(mine.map((t) => t.token))],
       ran: false, failsFirst: false, passesNow: false, status: "held",
     };
+    if (s.guards) entry.guard = s.guards;
     if (!entry.tasks.length) holds.push(hold(CHECKS.trace, { scenario: s.id, missing: "task", why: `Scenario ${s.id} has no task. Add a task whose Covers: line names ${s.id}.` }));
     if (!entry.tests.length) holds.push(hold(CHECKS.trace, { scenario: s.id, missing: "test", why: `Scenario ${s.id} has no test. Add a test whose name contains [${s.id}].${s.id.includes("-") ? "" : " A test can cite only an ID written in kebab-case with at least one hyphen, so rename the scenario."}` }));
     return entry;
