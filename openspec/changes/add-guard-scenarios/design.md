@@ -27,3 +27,8 @@ The guard check runs on every lane. It's cheap, because it stops at the first ca
 - **2026-10-11, owner, at spec approval:**
   - Guard breaks are capped at **30 per scenario**.
   - Guard breaks run on **every lane**, including small.
+
+- **2026-10-12, owner, approved addition:** carried-over scenarios.
+  - The check run on this change itself held four scenarios that were not new. OpenSpec's MODIFIED format copies a requirement's whole block, unchanged scenarios included, so every change that modifies a requirement would hit this.
+  - A scenario in a MODIFIED requirement counts as carried over when its ID exists in the living spec under `openspec/specs/` and its GIVEN, WHEN, THEN and AND lines match after trimming whitespace.
+  - A carried-over scenario's tests must pass on the starting commit and on the latest. A failure on the latest is a regression and holds. It needs no task and no breaks. If its wording changed, it is new and gets the full fail-first rule.

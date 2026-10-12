@@ -39,3 +39,8 @@
 - Ruling: the spec fixes the cap of 30 but not the order, so the order is changed without editing specs/ — if wrong, the order needs a Spec-Change line.
 - Ruling: a definition is recognised by language-neutral patterns (`function name`, `def name`, `const name =`, `name:`, `name(...) {`) and runs to the line before the next line at the same or lower indentation — if wrong, a range is too short or too long, which only changes which breaks go first.
 - Ruling: every identifier of four or more characters in a test body counts as a name the test calls, so a common word can pull extra code to the front — if wrong, the first breaks are less targeted, and the cap and the evenly spread rest still apply.
+
+## Rulings (2026-10-12, carried-over scenarios)
+
+- Ruling: the owner approved the carry-over addition, so the spec, design, proposal and tasks gained it and the approval fingerprint was recomputed — if wrong, the fingerprint must be rolled back to the earlier approval.
+- Ruling: "same wording" compares each scenario's GIVEN, WHEN, THEN and AND lines by kind and trimmed text, in order — the owner's rule names those lines — if wrong, a reworded line could count as unchanged.

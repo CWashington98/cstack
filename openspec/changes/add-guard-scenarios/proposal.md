@@ -21,6 +21,7 @@ Anyone writing a spec whose change must leave some existing behavior alone, and 
 - For a guard scenario, the check requires its test to pass on the old code and the new. It also breaks the code in the files its task touches, and requires at least one break to make the test fail. That proves the test really protects something.
 - A guard whose test fails on the new code is held, because the change altered what it protects.
 - Scenarios without the marker keep the fail-first rule: their test must fail on the old code and pass on the new.
+- A scenario copied unchanged into a MODIFIED requirement from the project's living spec is carried over: its test must pass on the old code and the new, and it needs no task and no breaks. If its wording changed, it is new and gets the fail-first rule.
 
 ## Capabilities
 
