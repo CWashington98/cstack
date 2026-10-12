@@ -1,4 +1,4 @@
-Report: /Users/crishonwashington/Source/cstack-wt-guards/.verify/runs/spec-compliance/20261012T132410Z-fc33f20/compliance.json
+Report: /Users/crishonwashington/Source/cstack-wt-guards/.verify/runs/spec-compliance/20261012T133953Z-5448817/compliance.json
 12 of 12 scenario tests ran.
 Held: spec compliance for add-guard-scenarios found 1 problem(s) to fix.
   - The test for passes-on-old-code-too passes on the starting commit as well as the latest, so it doesn't depend on the change. Write a test that fails until the change is built.
