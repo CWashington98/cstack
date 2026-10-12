@@ -1,0 +1,47 @@
+Precordia dry run: seat-membership-integrity, guard check, 2026-10-12
+Run in a throwaway clone with --base 1b4249c (HEAD 89e67e1). Five scenarios marked **GUARDS** in the clone's working copy only; Covers/Touches added to its tasks.md for 2.1, 3.1, 3.3. Nothing was committed there.
+Result: 18 of 18 scenario tests ran. 17 proven (13 fail-first, 4 as guards). 1 guard held: platform-invite-unaffected (see the hold that names it below).
+Expected holds (missing Covers lines, no approval.json) are in the list too.
+
+===== FINAL RUN (after spreading capped breaks over all candidates) =====
+Report: /private/tmp/claude-501/-Users-crishonwashington-Source-precordia-mvp/b1cc44d5-2023-48e6-bb8e-235e945b3245/scratchpad/dry.M1xR/precordia/.verify/runs/spec-compliance/20261012T024416Z-89e67e1/compliance.json
+18 of 18 scenario tests ran.
+Held: spec compliance for seat-membership-integrity found 15 problem(s) to fix.
+  - 13 scenarios have no task: invite-refused-when-member-elsewhere, invite-refused-when-invited-elsewhere, legacy-invite-elsewhere-held-back and 10 more. compliance.json names each one.
+  - The change has no approval.json, so there is no record of which spec text was approved. Record the approval, then run the check again.
+  - The guard's test for platform-invite-unaffected doesn't protect the code its task names: 30 breaks were tried in packages/labeling-backend/admin/mutations.ts, packages/labeling-backend/corpus/panels.ts and every test of platform-invite-unaffected still passed. The cap of 30 was reached, so the rest of the code was left unbroken. Add a test that fails when a condition or limit there changes.
+15 warning(s), which do not hold the change:
+  - 1 test in 1 file the change did not touch cite a bracket that is no scenario's ID ([artful-swan-964] in tests/deployment-guard-attack-table.test.ts). They do not hold the change. If the brackets are not scenario IDs, add the files to tests.exclude.
+  - apps/labeling-app/src/app/admin/datasets/[key]/panels/[panelKey]/page.tsx changed, but no task says it touches it. Possible scope creep: add it to a task's Touches: line, or take it out.
+  - apps/labeling-app/src/app/admin/organizations/[slug]/page.tsx changed, but no task says it touches it. Possible scope creep: add it to a task's Touches: line, or take it out.
+  - apps/labeling-app/src/lib/admin-ui.tsx changed, but no task says it touches it. Possible scope creep: add it to a task's Touches: line, or take it out.
+  - docs/labeling/HANDOFF.md changed, but no task says it touches it. Possible scope creep: add it to a task's Touches: line, or take it out.
+  - docs/labeling/console-test-plan.md changed, but no task says it touches it. Possible scope creep: add it to a task's Touches: line, or take it out.
+  - packages/labeling-backend/admin/queries.ts changed, but no task says it touches it. Possible scope creep: add it to a task's Touches: line, or take it out.
+  - packages/labeling-backend/corpus/seating.ts changed, but no task says it touches it. Possible scope creep: add it to a task's Touches: line, or take it out.
+  - packages/labeling-backend/dev/e2e.ts changed, but no task says it touches it. Possible scope creep: add it to a task's Touches: line, or take it out.
+  - packages/labeling-backend/dev/purge.ts changed, but no task says it touches it. Possible scope creep: add it to a task's Touches: line, or take it out.
+  - packages/labeling-backend/lib/invitee.ts changed, but no task says it touches it. Possible scope creep: add it to a task's Touches: line, or take it out.
+  - packages/labeling-backend/lib/panelLimits.ts changed, but no task says it touches it. Possible scope creep: add it to a task's Touches: line, or take it out.
+  - packages/labeling-backend/lib/seatWork.ts changed, but no task says it touches it. Possible scope creep: add it to a task's Touches: line, or take it out.
+  - packages/labeling-backend/schema.ts changed, but no task says it touches it. Possible scope creep: add it to a task's Touches: line, or take it out.
+  - scripts/isolation-checks.sh changed, but no task says it touches it. Possible scope creep: add it to a task's Touches: line, or take it out.
+Guard invite-allowed-after-elsewhere-invite-expires: proven as a guard. Break 1 of the code it protects was noticed (line 75 of packages/labeling-backend/provisioning/mutations.ts: flipped "!==" to "===").
+Guard invite-same-org-unaffected: proven as a guard. Break 1 of the code it protects was noticed (line 75 of packages/labeling-backend/provisioning/mutations.ts: flipped "!==" to "===").
+Guard same-org-invites-still-claimed: proven as a guard. Break 2 of the code it protects was noticed (line 99 of packages/labeling-backend/lib/provisioning.ts: flipped "===" to "!==").
+Guard remove-refusal-changes-nothing: proven as a guard. Break 2 of the code it protects was noticed (line 119 of packages/labeling-backend/admin/mutations.ts: flipped "===" to "!==").
+Breaking changed lines: skipped (the normal lane does not break changed lines).
+
+===== EARLIER RUN 2 (first 30 breaks in file order; platform guard's task touched admin/mutations.ts and corpus/panels.ts) =====
+  - The guard's test for platform-invite-unaffected doesn't protect the code its task names: 30 breaks were tried in packages/labeling-backend/admin/mutations.ts, packages/labeling-backend/corpus/panels.ts and every test of platform-invite-unaffected still passed. The cap of 30 was reached, so the rest of the code was left unbroken. Add a test that fails when a condition or limit there changes.
+Guard invite-allowed-after-elsewhere-invite-expires: proven as a guard. Break 1 of the code it protects was noticed (line 75 of packages/labeling-backend/provisioning/mutations.ts: flipped "!==" to "===").
+Guard invite-same-org-unaffected: proven as a guard. Break 1 of the code it protects was noticed (line 75 of packages/labeling-backend/provisioning/mutations.ts: flipped "!==" to "===").
+Guard same-org-invites-still-claimed: proven as a guard. Break 3 of the code it protects was noticed (line 99 of packages/labeling-backend/lib/provisioning.ts: flipped "===" to "!==").
+Guard remove-refusal-changes-nothing: proven as a guard. Break 5 of the code it protects was noticed (line 119 of packages/labeling-backend/admin/mutations.ts: flipped "===" to "!==").
+
+===== EARLIER RUN 1 (platform guard wrongly assigned to the invite file, provisioning/mutations.ts) =====
+  - The guard's test for platform-invite-unaffected doesn't protect the code its task names: 28 breaks were tried in packages/labeling-backend/provisioning/mutations.ts and every test of platform-invite-unaffected still passed. Add a test that fails when a condition or limit there changes.
+Guard invite-allowed-after-elsewhere-invite-expires: proven as a guard. Break 1 of the code it protects was noticed (line 75 of packages/labeling-backend/provisioning/mutations.ts: flipped "!==" to "===").
+Guard invite-same-org-unaffected: proven as a guard. Break 1 of the code it protects was noticed (line 75 of packages/labeling-backend/provisioning/mutations.ts: flipped "!==" to "===").
+Guard same-org-invites-still-claimed: proven as a guard. Break 3 of the code it protects was noticed (line 99 of packages/labeling-backend/lib/provisioning.ts: flipped "===" to "!==").
+Guard remove-refusal-changes-nothing: proven as a guard. Break 5 of the code it protects was noticed (line 119 of packages/labeling-backend/admin/mutations.ts: flipped "===" to "!==").
