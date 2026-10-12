@@ -508,11 +508,13 @@ class Checker {
   check(command, dir, depth, ctx) {
     if (depth > MAX_DEPTH) return this.refuse("complex", `It runs scripts nested more than ${MAX_DEPTH} levels deep, which the guard doesn't check. Run the inner command directly.`);
     if (++this.steps > MAX_STEPS) return this.refuse("complex", "It runs more scripts than the guard can check in time. Run the parts separately.");
-    const { text, heredocs, live } = extractHeredocs(command);
+    const { text, heredocs, live, incomplete, unterminated } = extractHeredocs(command);
+    // The body of a heredoc in a $( ) pair is in the text around the pair, so only a whole command must end its heredocs.
+    if (incomplete || (unterminated && !ctx.fragment)) return this.refuse("complex", "It is too complex to read safely: a quote, a $( ) pair or a heredoc in it never closes, so the guard can't tell where the commands after it start. Run the parts separately.");
     for (const [k, v] of heredocs) this.heredocs.set(k, v);
     // The shell runs the $( ) and backtick commands in a heredoc whose tag has no quotes.
-    for (const k of live) for (const inner of substitutions(heredocs.get(k), { quotes: false })) this.check(inner, dir, depth + 1, { ...ctx, here: undefined });
-    for (const inner of substitutions(text)) this.check(inner, dir, depth + 1, { ...ctx, here: undefined });
+    for (const k of live) for (const inner of substitutions(heredocs.get(k), { quotes: false })) this.check(inner, dir, depth + 1, { ...ctx, here: undefined, fragment: true });
+    for (const inner of substitutions(text)) this.check(inner, dir, depth + 1, { ...ctx, here: undefined, fragment: true });
     const vars = new Map(ctx.vars);
     const loops = new Map(ctx.loops ?? []);
     let local = ctx.context;
@@ -1139,11 +1141,13 @@ function convexSelectors(input) {
   const found = [];
   const walk = (v) => {
     if (v && typeof v === "object") for (const x of Object.values(v)) walk(x);
-    const m = typeof v === "string" && v.match(/^[A-Za-z]+:([A-Za-z0-9+/]+={0,2})$/);
-    if (!m) return;
+    if (typeof v !== "string" || !v.includes(":")) return;
+    // Convex takes the part after the first colon, ignores whitespace, and
+    // decodes without caring about padding or URL-safe characters.
+    const [prefix, body] = v.split(":");
     try {
-      const payload = JSON.parse(Buffer.from(m[1], "base64").toString("utf8"));
-      if (typeof payload?.deployment?.kind === "string") found.push(payload);
+      const payload = JSON.parse(Buffer.from(body.replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/").replace(/=+$/, ""), "base64").toString("utf8"));
+      if (typeof payload?.deployment?.kind === "string") found.push({ ...payload, prefix: prefix.trim().toLowerCase() });
     } catch {}
   };
   walk(input);
@@ -1153,7 +1157,7 @@ function convexSelectors(input) {
 // True when a decoded selector points at production: the kinds prod and
 // implicitProd, or a --deployment selector whose last part is prod, such as
 // "prod" or "team:project:prod".
-const convexProduction = ({ deployment: d }) => d.kind === "prod" || d.kind === "implicitProd" || (d.kind === "deploymentSelector" && String(d.selector).split(":").pop() === "prod");
+const convexProduction = ({ deployment: d, prefix }) => prefix === "prod" || d.kind === "prod" || d.kind === "implicitProd" || (d.kind === "deploymentSelector" && String(d.selector).split(":").pop() === "prod");
 
 // The input of a call to a tool server, as text: its JSON, and each name and
 // text value in it as written, for the input and for each Convex selector in

@@ -1043,3 +1043,54 @@ test("round 5: $'...' quoting is read the way bash reads it everywhere a command
   allowed(dir, "rm -rf $'dist\\'s' build");
   refused(dir, "x=$(python3 - <<'EOF'\nimport urllib.request\nurllib.request.urlopen('https://app.example.com/admin')\nEOF\n)", /app\.example\.com/);
 });
+
+test("review round 1: heredoc shapes that hid a later push or deploy are refused", () => {
+  const dir = project();
+  const shapes = [
+    "cat <<$'EOF'\nDon't\nEOF\n",
+    "cat <<EOF\nDon't\n  EOF\nEOF\n",
+    "echo '${' ; cat <<EOF '}'\nDon't\nEOF\n",
+    "cat<<EOF\nDon't\nEOF\n",
+    "cat >f<<EOF\nDon't\nEOF\n",
+    "cat 0<<EOF\nDon't\nEOF\n",
+    "x=$(cat<<'EOF'\nDon't\nEOF\n)\n",
+    "x=$(cat <<'EOF'\nDon't\nEOF)\n",
+  ];
+  for (const shape of shapes) {
+    for (const bad of ["git push origin main", "npx convex deploy"]) refused(dir, shape + bad);
+  }
+  // Ends inside a quote, a $( ) pair or a heredoc.
+  for (const c of ["echo 'a", 'echo "a', "echo $(ls", "cat <<EOF\nabc", "cat <<EOF"]) refused(dir, c, /too complex/);
+});
+
+test("review round 1: valid commands with heredocs, ${ }, and arithmetic are still read and allowed", () => {
+  const dir = project();
+  for (const c of [
+    "cat <<-EOF\n\tbody\n\tEOF\n",
+    "cat<<'EOF'\nDon't prod-backend-9\nEOF",
+    "cat <<$'EOF'\nDon't prod-backend-9\nEOF",
+    "echo $((1<<2)) ${x:-it} && (( y = 1 << 2 ))",
+    "cat <<<'a b' && git status",
+    'gh pr create --body "$(cat <<\'EOF\'\nDon\'t run `npx convex deploy`\nEOF\n)"',
+    'git commit -m "$(cat <<\'EOF\'\nDon\'t run `git push origin main`\nEOF\n)"',
+  ]) allowed(dir, c);
+  refused(dir, "cat <<-EOF\n\tbody\n\tEOF\nnpx convex deploy", /convex deploy/);
+});
+
+test("review round 1: Convex selectors are read the way Convex reads them", () => {
+  const dir = project();
+  const call = (v) => decide({ tool_name: "mcp__plugin_convex_convex__run", tool_input: { deploymentSelector: v }, cwd: dir });
+  const b64 = (d) => Buffer.from(JSON.stringify({ projectDir: "/w", deployment: d })).toString("base64");
+  const prod = b64({ kind: "prod" });
+  const spellings = [
+    `prod:${prod}:x`, `:${prod}`, `own-dev1:${prod}`, ` prod:${prod}`, `prod:${prod}\n`,
+    `prod:${prod.slice(0, 8)} ${prod.slice(8)}`, `prod:${prod.slice(0, 8)}\n${prod.slice(8)}`,
+    `prod:${prod.replace(/=+$/, "")}`, `prod:${prod.replace(/\+/g, "-").replace(/\//g, "_")}`,
+  ];
+  for (const s of spellings) assert.equal(call(s).allow, false, JSON.stringify(s));
+  assert.equal(call(`prod:${b64({ kind: "ownDev" })}`).allow, false);
+  for (const d of [{ kind: "ownDev" }, { kind: "previewName", previewName: "pr-1" }, { kind: "unspecified" }, { kind: "deploymentName", deploymentName: "staging-backend-1" }]) {
+    assert.equal(call(`${d.kind}:${b64(d)}`).allow, true, d.kind);
+    assert.equal(call(` ${d.kind}:${b64(d)}\n`).allow, true, d.kind);
+  }
+});

@@ -13,12 +13,13 @@
 // runs the lines after it as commands, so they stay in the text.
 let heredocCount = 0;
 export function extractHeredocs(cmd) {
-  // A << in arithmetic, (( )) or $(( )), or in a ${ } pattern is a shift or
-  // text, not a heredoc.
-  cmd = cmd.replace(/\$?\(\([^\n]*?\)\)|\$\{[^}\n]*\}/g, (m) => m.replace(/<</g, "««"));
   const heredocs = new Map();
   const live = new Set();
+  // A << in arithmetic, (( )) or $(( )), or in a ${ } pattern is a shift or
+  // text, not a heredoc, so those get a frame of their own.
   const stack = [{ quote: null, depth: 0, tick: false }];
+  let incomplete = false;
+  let unterminated = false;
   // Moves past the character at i, keeping track of quotes (including $'...'),
   // comments, $( ) pairs and backtick pairs.
   const step = (i) => {
@@ -33,8 +34,16 @@ export function extractHeredocs(cmd) {
       if (c === "'") top.quote = null;
       return i + 1;
     }
+    if (c === "$" && cmd[i + 1] === "(" && cmd[i + 2] === "(") {
+      stack.push({ quote: null, depth: 2, tick: false, arith: true });
+      return i + 3;
+    }
     if (c === "$" && cmd[i + 1] === "(") {
       stack.push({ quote: null, depth: 1, tick: false });
+      return i + 2;
+    }
+    if (c === "$" && cmd[i + 1] === "{") {
+      stack.push({ quote: null, depth: 0, tick: false, brace: true });
       return i + 2;
     }
     if (c === "`") {
@@ -54,11 +63,18 @@ export function extractHeredocs(cmd) {
     else if (c === "#" && (i === 0 || /[\s;&|()]/.test(cmd[i - 1]))) {
       const end = cmd.indexOf("\n", i);
       return end === -1 ? cmd.length : end;
-    } else if (stack.length > 1 && !top.tick && c === "(") top.depth++;
-    else if (stack.length > 1 && !top.tick && c === ")" && --top.depth === 0) stack.pop();
+    } else if (c === "(" && cmd[i + 1] === "(" && !top.brace) {
+      stack.push({ quote: null, depth: 2, tick: false, arith: true });
+      return i + 2;
+    } else if (top.brace && c === "}") stack.pop();
+    else if (stack.length > 1 && !top.tick && !top.brace && c === "(") top.depth++;
+    else if (stack.length > 1 && !top.tick && !top.brace && c === ")" && --top.depth === 0) stack.pop();
     return i + 1;
   };
-  const tagAt = (j) => (stack[stack.length - 1].quote ? null : heredocTag(cmd, j));
+  const tagAt = (j) => {
+    const top = stack[stack.length - 1];
+    return top.quote || top.brace || top.arith ? null : heredocTag(cmd, j);
+  };
   let text = "";
   let from = 0;
   let i = 0;
@@ -95,13 +111,15 @@ export function extractHeredocs(cmd) {
           while (k <= cmd.length) {
             const nl = cmd.indexOf("\n", k);
             const stop = nl === -1 ? cmd.length : nl;
-            if (cmd.slice(k, stop).trim() === t.tag) {
+            const row = cmd.slice(k, stop);
+            if ((t.dash ? row.replace(/^\t+/, "") : row) === t.tag) {
               end = k;
               break;
             }
             if (nl === -1) break;
             k = nl + 1;
           }
+          if (end === -1) unterminated = true;
           heredocs.set(t.key, end === -1 ? cmd.slice(pos) : cmd.slice(pos, Math.max(pos, end - 1)));
           if (!t.quoted) live.add(t.key);
           pos = end === -1 ? cmd.length + 1 : (cmd.indexOf("\n", end) === -1 ? cmd.length : cmd.indexOf("\n", end)) + 1;
@@ -110,25 +128,44 @@ export function extractHeredocs(cmd) {
         from = i = Math.min(pos - 1, cmd.length);
         continue;
       }
+      // A << with no body after it: the shell would wait for one.
+      if (!closed) unterminated = true;
       stack.splice(0, stack.length, ...saved);
     }
     i = step(i);
   }
-  return { text: text + cmd.slice(from), heredocs, live };
+  // A valid command never ends inside a quote, a $( ) pair or a heredoc.
+  if (stack.length > 1 || stack[0].quote) incomplete = true;
+  return { text: text + cmd.slice(from), heredocs, live, incomplete, unterminated };
 }
 
 // The tag after a << at i: its text, whether any of it was quoted (which makes
 // the body plain text), and where it ends. Null when i starts no heredoc.
 function heredocTag(cmd, i) {
-  if (!cmd.startsWith("<<", i) || cmd[i + 2] === "<" || /[<\w)]/.test(cmd[i - 1] ?? "") || cmd.startsWith("<<HEREDOC __HEREDOC_", i)) return null;
+  if (!cmd.startsWith("<<", i) || cmd[i + 2] === "<" || /[<)]/.test(cmd[i - 1] ?? "") || cmd.startsWith("<<HEREDOC __HEREDOC_", i)) return null;
   let j = i + 2;
-  if (cmd[j] === "-") j++;
+  const dash = cmd[j] === "-";
+  if (dash) j++;
   while (cmd[j] === " " || cmd[j] === "\t") j++;
   let tag = "";
   let quoted = false;
   while (j < cmd.length && !/[\s<>|;&()`]/.test(cmd[j])) {
     const c = cmd[j];
-    if (c === "'" || c === '"') {
+    if (c === "$" && cmd[j + 1] === "'") {
+      let k = j + 2;
+      let text = "";
+      while (k < cmd.length && cmd[k] !== "'") {
+        if (cmd[k] === "\\") k++;
+        text += cmd[k] ?? "";
+        k++;
+      }
+      if (k >= cmd.length || text.includes("\n")) return null;
+      tag += text;
+      quoted = true;
+      j = k + 1;
+    } else if (c === "$" && cmd[j + 1] === '"') {
+      j++;
+    } else if (c === "'" || c === '"') {
       const close = cmd.indexOf(c, j + 1);
       if (close === -1 || cmd.slice(j + 1, close).includes("\n")) return null;
       tag += cmd.slice(j + 1, close);
@@ -140,7 +177,7 @@ function heredocTag(cmd, i) {
       j += 2;
     } else tag += cmd[j++];
   }
-  return tag ? { tag, quoted, end: j } : null;
+  return tag ? { tag, quoted, dash, end: j } : null;
 }
 
 // The index just past the ) that closes the $( starting at i.
