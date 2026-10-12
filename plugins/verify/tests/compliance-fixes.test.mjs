@@ -165,8 +165,10 @@ test("a test in a file the change did not touch, with an ID-looking bracket, is 
   const report = check(r);
   assert.deepEqual(report.holds.map((h) => h.why), []);
   const warned = report.warnings.filter((w) => /unknown|no scenario/.test(w.why));
-  assert.equal(warned.length, 2);
-  for (const w of warned) assert.match(w.why, /tests\.exclude/);
+  assert.equal(warned.length, 1);
+  assert.match(warned[0].why, /2 tests/);
+  assert.match(warned[0].why, /tests\.exclude/);
+  assert.equal(warned[0].files.length, 2);
 });
 
 test("a test in a file the change touched that cites an unknown scenario still holds", () => {

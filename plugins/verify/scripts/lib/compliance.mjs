@@ -206,14 +206,20 @@ export function trace(root, change, settings, changed = null) {
     }
   }
   const seen = new Set();
+  const untouched = [];
   for (const t of tests) {
     if (known.has(t.id)) continue;
     const key = `${t.file}\0${t.name}`;
     if (seen.has(key)) continue;
     seen.add(key);
     const why = `The test "${t.name}" in ${t.file} cites ${t.token}, but no scenario in this change or the project's specs has that ID.`;
-    if (changed && !changed.has(t.file)) warnings.push(hold(CHECKS.trace, { id: t.id, test: t.name, file: t.file, why: `${why} The change did not touch ${t.file}, so this does not hold it. If the bracket is not a scenario ID, add the file to tests.exclude.` }));
+    if (changed && !changed.has(t.file)) untouched.push({ id: t.id, test: t.name, file: t.file, token: t.token });
     else holds.push(hold(CHECKS.trace, { id: t.id, test: t.name, file: t.file, why }));
+  }
+  if (untouched.length) {
+    const files = [...new Set(untouched.map((u) => u.file))];
+    const shown = untouched.slice(0, 3).map((u) => `${u.token} in ${u.file}`).join("; ");
+    warnings.push(hold(CHECKS.trace, { tests: untouched, files, why: `${untouched.length} test${untouched.length === 1 ? "" : "s"} in ${files.length} file${files.length === 1 ? "" : "s"} the change did not touch cite a bracket that is no scenario's ID (${shown}${untouched.length > 3 ? `; ${untouched.length - 3} more` : ""}). They do not hold the change. If the brackets are not scenario IDs, add the files to tests.exclude.` }));
   }
   return { scenarios: entries, tasks, tests, holds, warnings };
 }
