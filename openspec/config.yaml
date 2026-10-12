@@ -16,6 +16,7 @@ rules:
     - "Write every scenario as GIVEN / WHEN / THEN / AND bullets. Every scenario has WHEN and THEN."
     - "Give every scenario a short kebab-case ID as its heading; tests carry it as [scenario-id] in their names."
     - "Cover refusals and edge cases, not only the happy path."
+    - "A scenario that describes behavior the change must leave alone starts with a '- **GUARDS** <what must stay the same>' bullet. Its covering task lists the files it protects after 'Touches:'. Every other scenario must fail before the change and pass after."
     - "No TBD, TODO or '?' placeholders."
   design:
     - "Include '## Reuse': for each new piece, what already exists and whether it is extended or created."

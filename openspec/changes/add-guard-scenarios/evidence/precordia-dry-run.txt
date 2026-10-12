@@ -1,0 +1,18 @@
+Precordia dry run: seat-membership-integrity, guard check, 2026-10-12 (after trying breaks in the code the guard's test calls first)
+Run in a throwaway clone with --base 1b4249c (HEAD 89e67e1), from the clone's root: node plugins/verify/scripts/spec-compliance.mjs seat-membership-integrity --base 1b4249c. Five scenarios marked **GUARDS** in the clone's working copy only; Covers/Touches added to its tasks.md for 2.1, 3.1, 3.3. Nothing was committed there.
+Result: 18 of 18 scenario tests ran. All 18 proven: 13 fail-first, 5 as guards. The 14 problems listed are the expected holds (missing Covers lines for the other 13 scenarios, no approval.json), none about a guard.
+Before this change, platform-invite-unaffected was held after 30 evenly spread breaks that never reached line 471 of admin/mutations.ts; flipping that line by hand made the test fail, so the test was good and the check's sample was wrong.
+
+Report: /private/tmp/claude-501/-Users-crishonwashington-Source-precordia-mvp/b1cc44d5-2023-48e6-bb8e-235e945b3245/scratchpad/dry.M1xR/precordia/.verify/runs/spec-compliance/20261012T025103Z-89e67e1/compliance.json
+18 of 18 scenario tests ran.
+Held: spec compliance for seat-membership-integrity found 14 problem(s) to fix.
+  - 13 scenarios have no task: invite-refused-when-member-elsewhere, invite-refused-when-invited-elsewhere, legacy-invite-elsewhere-held-back and 10 more. compliance.json names each one.
+  - The change has no approval.json, so there is no record of which spec text was approved. Record the approval, then run the check again.
+15 warning(s), which do not hold the change:
+  - 1 test in 1 file the change did not touch cite a bracket that is no scenario's ID ([artful-swan-964] in tests/deployment-guard-attack-table.test.ts). They do not hold the change. If the brackets are not scenario IDs, add the files to tests.exclude.
+Guard invite-allowed-after-elsewhere-invite-expires: proven as a guard. Break 1 of the code it protects was noticed (line 75 of packages/labeling-backend/provisioning/mutations.ts: flipped "!==" to "===").
+Guard invite-same-org-unaffected: proven as a guard. Break 1 of the code it protects was noticed, in code the test calls (line 75 of packages/labeling-backend/provisioning/mutations.ts: flipped "!==" to "===").
+Guard platform-invite-unaffected: proven as a guard. Break 2 of the code it protects was noticed, in code the test calls (line 471 of packages/labeling-backend/admin/mutations.ts: flipped "&&" to "||").
+Guard same-org-invites-still-claimed: proven as a guard. Break 2 of the code it protects was noticed (line 99 of packages/labeling-backend/lib/provisioning.ts: flipped "===" to "!==").
+Guard remove-refusal-changes-nothing: proven as a guard. Break 1 of the code it protects was noticed, in code the test calls (line 119 of packages/labeling-backend/admin/mutations.ts: flipped "===" to "!==").
+Breaking changed lines: skipped (the normal lane does not break changed lines).

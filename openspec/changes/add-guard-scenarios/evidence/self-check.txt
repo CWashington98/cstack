@@ -1,0 +1,8 @@
+Report: /Users/crishonwashington/Source/cstack-wt-guards/.verify/runs/spec-compliance/20261012T133953Z-5448817/compliance.json
+12 of 12 scenario tests ran.
+Held: spec compliance for add-guard-scenarios found 1 problem(s) to fix.
+  - The test for passes-on-old-code-too passes on the starting commit as well as the latest, so it doesn't depend on the change. Write a test that fails until the change is built.
+Scenario fails-on-old-passes-on-new: proven as carried over. It is unchanged from the project's specs, and its test passes on the starting commit and the latest.
+Scenario crash-is-not-a-real-failure: proven as carried over. It is unchanged from the project's specs, and its test passes on the starting commit and the latest.
+Scenario fails-on-new-code: proven as carried over. It is unchanged from the project's specs, and its test passes on the starting commit and the latest.
+Breaking changed lines: skipped (the normal lane does not break changed lines).

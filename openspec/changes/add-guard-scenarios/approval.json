@@ -1,0 +1,7 @@
+{
+  "approvedBy": "owner",
+  "approvedOn": "2026-10-12",
+  "covers": "specs/**/*.md",
+  "fingerprint": "sha256:30f07f73dfec8a1883819401f989796dfa692564269f9f08636d75a9a09f8e44",
+  "note": "Approved at gate 1 with both recommended decisions, recorded in design.md. On 2026-10-12 the owner approved one addition: carried-over scenarios (requirement carried-over-scenarios-must-still-pass), and the fingerprint was recomputed."
+}

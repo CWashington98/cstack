@@ -9,7 +9,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { proseLines } from "./markdown.mjs";
 import { checkScenarios, gather, ITEM } from "./plan.mjs";
 import { walk } from "./app-skill.mjs";
-import { runBreaks } from "./breaks.mjs";
+import { runBreaks, breakGuard, identifiersIn, GUARD_CAP } from "./breaks.mjs";
 import { checkExecutable } from "./executable.mjs";
 import { codeLines, testNames } from "./source-text.mjs";
 
@@ -23,6 +23,8 @@ export const CHECKS = {
   breaks: "tests-exercise-their-code",
   review: "spec-match-review",
   executable: "executable-specs-when-turned-on",
+  guards: "guards-protect-what-they-name",
+  carried: "carried-over-scenarios-still-pass",
 };
 
 export function git(root, ...args) {
@@ -69,9 +71,41 @@ export function specFiles(root, change) {
   return walk(dir).filter((f) => f.endsWith(".md")).sort().map((f) => posix(relative(root, f)));
 }
 
-export function readScenarios(root, change) {
+// With `base`, a scenario counts as carried over only if the project's specs held it at
+// that commit, so a change can't write its own scenario into the specs to skip fail-first.
+export function readScenarios(root, change, base = null) {
+  const living = base ? livingScenariosAt(root, base) : livingScenarios(root);
   return specFiles(root, change).flatMap((file) =>
-    checkScenarios(proseLines(readText(join(root, file)))).scenarios.map((s) => ({ ...s, file })));
+    checkScenarios(proseLines(readText(join(root, file)))).scenarios.map((s) => ({ ...s, file, carried: isCarriedOver(s, living) })));
+}
+
+// The scenarios of the project's own specs, by ID.
+function livingScenarios(root) {
+  const byId = new Map();
+  for (const f of walk(join(root, "openspec", "specs")).filter((x) => x.endsWith(".md"))) {
+    for (const s of checkScenarios(proseLines(readText(f))).scenarios) byId.set(s.id, [...(byId.get(s.id) ?? []), s]);
+  }
+  return byId;
+}
+
+// The scenarios the project's own specs held at a commit, by ID.
+function livingScenariosAt(root, commit) {
+  const byId = new Map();
+  const files = (gitOk(root, "ls-tree", "-r", "--name-only", "-z", commit, "--", "openspec/specs") ?? "").split("\0").filter((f) => f.endsWith(".md"));
+  for (const f of files) {
+    const text = gitOk(root, "show", `${commit}:${f}`) ?? "";
+    for (const sc of checkScenarios(proseLines(text)).scenarios) byId.set(sc.id, [...(byId.get(sc.id) ?? []), sc]);
+  }
+  return byId;
+}
+
+// Every bold-keyword bullet in full, wrapped lines included. Only runs of whitespace are normalized.
+const stepsOf = (s) => (s.bullets ?? []).join("\n");
+
+// A scenario in a MODIFIED requirement is carried over when the project's specs hold its
+// ID with the same lines. Reworded, it counts as new.
+function isCarriedOver(s, living) {
+  return s.section === "MODIFIED" && !s.guards && s.steps.length > 0 && (living.get(s.id) ?? []).some((l) => stepsOf(l) === stepsOf(s));
 }
 
 // Scenario IDs in the project's own specs, so a test may cite them too.
@@ -142,6 +176,23 @@ export function testsInText(text, namePattern) {
   return found;
 }
 
+// The identifiers used in the bodies of a scenario's tests: from each test declaration that carries its bracket
+// up to the next test declaration in the same file.
+export function calledNames(root, entry, settings) {
+  const mine = findTests(root, settings.tests?.acceptance ?? [], { exclude: settings.tests?.exclude, namePattern: settings.tests?.namePattern }).filter((t) => t.id === entry.id);
+  const out = new Set();
+  for (const file of new Set(mine.map((t) => t.file))) {
+    let lines;
+    try { lines = readText(join(root, file)).split("\n"); } catch { continue; }
+    const starts = testNames(lines.join("\n")).map((t) => t.line).sort((a, b) => a - b);
+    for (const t of mine.filter((x) => x.file === file)) {
+      const next = starts.find((l) => l > t.line) ?? lines.length + 1;
+      for (const id of identifiersIn(lines.slice(t.line - 1, next - 1).join("\n"))) out.add(id);
+    }
+  }
+  return [...out];
+}
+
 // Tracked files, minus folders that are their own project: they hold their own
 // .claude/verify.json or openspec/ folder, so they belong to that project's check.
 export function trackedFiles(root) {
@@ -171,9 +222,9 @@ const hold = (check, fields) => ({ check, ...fields });
 // every missing or unknown link. When `changed` (the files the change touched) is given,
 // a test that cites an unknown scenario holds only if it sits in one of those files:
 // elsewhere it is a warning, since the bracket may be something else entirely.
-export function trace(root, change, settings, changed = null) {
+export function trace(root, change, settings, changed = null, base = null) {
   const acceptance = settings.tests?.acceptance ?? [];
-  const scenarios = readScenarios(root, change);
+  const scenarios = readScenarios(root, change, base);
   const tasks = parseTasks(root, change);
   const tests = findTests(root, acceptance, { exclude: settings.tests?.exclude, namePattern: settings.tests?.namePattern });
   const ids = new Set(scenarios.map((s) => s.id));
@@ -189,7 +240,9 @@ export function trace(root, change, settings, changed = null) {
       tests: mine.map((t) => t.name), testFiles: [...new Set(mine.map((t) => t.file))], tokens: [...new Set(mine.map((t) => t.token))],
       ran: false, failsFirst: false, passesNow: false, status: "held",
     };
-    if (!entry.tasks.length) holds.push(hold(CHECKS.trace, { scenario: s.id, missing: "task", why: `Scenario ${s.id} has no task. Add a task whose Covers: line names ${s.id}.` }));
+    if (s.guards) entry.guard = s.guards;
+    if (s.carried) entry.carried = true;
+    if (!entry.tasks.length && !s.carried) holds.push(hold(CHECKS.trace, { scenario: s.id, missing: "task", why: `Scenario ${s.id} has no task. Add a task whose Covers: line names ${s.id}.` }));
     if (!entry.tests.length) holds.push(hold(CHECKS.trace, { scenario: s.id, missing: "test", why: `Scenario ${s.id} has no test. Add a test whose name contains [${s.id}].${s.id.includes("-") ? "" : " A test can cite only an ID written in kebab-case with at least one hyphen, so rename the scenario."}` }));
     return entry;
   });
@@ -243,18 +296,25 @@ const RANK = { passed: 0, skipped: 1, failed: 2 };
 // print a failing test twice (live, then in a summary), so the same name is one test.
 export function readRun(out) {
   const tests = new Map();
-  for (const line of stripAnsi(out).split(/\r?\n/)) {
+  const lines = stripAnsi(out).split(/\r?\n/);
+  const isResult = (line) => SKIPPED.test(line) || FAILED.test(line) || PASSED.test(line);
+  lines.forEach((line, at) => {
     const ids = [...line.matchAll(OUTPUT_TOKEN)].map((m) => m[1].split("/").pop());
-    if (!ids.length) continue;
+    if (!ids.length) return;
     const status = SKIPPED.test(line) ? "skipped" : FAILED.test(line) ? "failed" : PASSED.test(line) ? "passed" : null;
-    if (!status) continue;
+    if (!status) return;
     const name = line.replace(/^\s*(?:\S{1,2}\s+|(?:not )?ok\s+\d*\s*-?\s*)/, "").replace(/\s*\(\d[\d.]*m?s\)\s*$/, "").replace(/\s*(?:#|\.\.\.).*$/, "").trim() || line.trim();
+    // A failed test's own block: its line and what follows, up to the next test's result line.
+    let end = at + 1;
+    while (status === "failed" && end < lines.length && !isResult(lines[end])) end++;
+    const block = status === "failed" ? lines.slice(at, end).join("\n") : "";
     for (const id of new Set(ids)) {
       const key = `${id}\0${name}`;
       const before = tests.get(key);
-      if (!before || RANK[status] > RANK[before.status]) tests.set(key, { id, name, status });
+      if (!before || RANK[status] > RANK[before.status]) tests.set(key, { id, name, status, block });
+      else if (status === "failed" && before.status === "failed") before.block += `\n${block}`;
     }
-  }
+  });
   return [...tests.values()];
 }
 
@@ -344,11 +404,53 @@ const withoutNames = (out, entry) => {
   return text;
 };
 
+// A guard break is caught only when a guard test failed by an assertion; a crash is not a catch.
+export const brokeByAssertion = (entry, r) =>
+  r.failed > 0 && r.exits.some((x) => x !== 0) && ASSERTION.test(withoutNames(failureText(r), entry));
+
+// The output of the failing tests' own blocks.
+function failureText(r) {
+  return r.tests.filter((t) => t.status === "failed").map((t) => t.block).join("\n");
+}
+
 export function judgeFirstRun(entry, r) {
   const passedAll = r.failed === 0 && r.passed > 0 && r.exits.every((x) => x === 0);
   if (passedAll) return { failsFirst: false, why: `The test for ${entry.id} passes on the starting commit as well as the latest, so it doesn't depend on the change. Write a test that fails until the change is built.` };
   if (r.failed > 0 && r.exits.some((x) => x !== 0) && ASSERTION.test(withoutNames(r.out, entry))) return { failsFirst: true };
   return { failsFirst: false, why: `On the starting commit the test for ${entry.id} did not fail by an assertion: it crashed, a file it needs was missing, or it never ran (exit ${r.exits.join(", ")}; last output: ${tail(r.out)}). Write a test that reaches an assertion on the old code, for example through a stub.` };
+}
+
+// A guard describes behavior that already exists: its tests must pass on the starting
+// commit and on the latest one. Nothing here asks it to fail first.
+export function judgeGuardRuns(entry, before, now, holds) {
+  if (entry.carried) return judgeCarriedRuns(entry, before, now, holds);
+  entry.passesBefore = before.failed === 0 && before.passed > 0 && before.exits.every((x) => x === 0);
+  const files = entry.testFiles.join(", ");
+  if (!entry.passesBefore) {
+    const failing = before.tests.filter((x) => x.status === "failed").map((x) => x.name);
+    holds.push(hold(CHECKS.guards, { scenario: entry.id, tests: failing, files: entry.testFiles, why: `${entry.id} guards existing behavior, so a guard's test must pass before the change too. On the starting commit it did not pass: ${failing.join("; ") || tail(before.out)} (${files}). Fix the test so it describes what the old code really does, or take the guard marker off if the behavior is new.` }));
+  }
+  if (!entry.passesNow) {
+    const failing = now.tests.filter((x) => x.status === "failed").map((x) => x.name);
+    holds.push(hold(CHECKS.guards, { scenario: entry.id, tests: failing, files: entry.testFiles, why: `The change altered behavior the guard ${entry.id} protects: ${failing.join("; ") || tail(now.out)} fails on the latest commit (${files}).` }));
+  }
+  entry.status = entry.passesBefore && entry.passesNow ? "proven" : "held";
+}
+
+// A carried-over scenario was written before this change: its tests must pass on the
+// starting commit and on the latest one. A failure on the latest commit is a regression.
+function judgeCarriedRuns(entry, before, now, holds) {
+  entry.passesBefore = before.failed === 0 && before.passed > 0 && before.exits.every((x) => x === 0);
+  const files = entry.testFiles.join(", ");
+  if (!entry.passesBefore) {
+    const failing = before.tests.filter((x) => x.status === "failed").map((x) => x.name);
+    holds.push(hold(CHECKS.carried, { scenario: entry.id, tests: failing, files: entry.testFiles, why: `${entry.id} is carried over from the project's specs, so its test must pass on the starting commit too. On the starting commit it did not pass: ${failing.join("; ") || tail(before.out)} (${files}). If its wording changed on purpose, it is a new scenario.` }));
+  }
+  if (!entry.passesNow) {
+    const failing = now.tests.filter((x) => x.status === "failed").map((x) => x.name);
+    holds.push(hold(CHECKS.carried, { scenario: entry.id, tests: failing, files: entry.testFiles, why: `The change broke ${entry.id}, a scenario it carried over unchanged: ${failing.join("; ") || tail(now.out)} fails on the latest commit (${files}).` }));
+  }
+  entry.status = entry.passesBefore && entry.passesNow ? "proven" : "held";
 }
 
 // ---- Locked tests ----
@@ -516,10 +618,10 @@ const now = () => Number(process.hrtime.bigint() / 1000000n);
 
 export function runCompliance({ root, change, base, lane = "normal", settings }) {
   const commit = git(root, "rev-parse", "HEAD").trim();
-  const timeMs = { trace: 0, run: 0, breaks: 0 };
+  const timeMs = { trace: 0, run: 0, breaks: 0, guardBreaks: 0 };
   let t = now();
   const changedFiles = new Set(git(root, "diff", "--name-only", "--no-renames", "-z", base, "HEAD").split("\0").filter(Boolean));
-  const traced = trace(root, change, settings, changedFiles);
+  const traced = trace(root, change, settings, changedFiles, base);
   timeMs.trace = now() - t;
   const holds = [...traced.holds];
   const warnings = [...traced.warnings];
@@ -534,7 +636,7 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
   if (executable) {
     const acceptance = settings.tests.acceptance ?? [];
     const files = trackedFiles(root).filter((f) => !/\.md$/i.test(f) && isTestFile(f, acceptance) && !matchesAny(f, settings.tests.exclude ?? []));
-    const checked = checkExecutable({ root, files, scenarios: readScenarios(root, change), settings, check: CHECKS.executable });
+    const checked = checkExecutable({ root, files, scenarios: readScenarios(root, change, base), settings, check: CHECKS.executable });
     // The specs stand in for the named tests: drop the "no test" holds and use the bindings.
     for (let i = holds.length - 1; i >= 0; i--) if (holds[i].missing === "test") holds.splice(i, 1);
     holds.push(...checked.holds);
@@ -560,6 +662,10 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
   for (const entry of ran) {
     const now_ = runs.get(entry.id);
     entry.passesNow = now_.failed === 0 && now_.passed > 0 && now_.exits.every((x) => x === 0);
+    if (entry.guard || entry.carried) {
+      judgeGuardRuns(entry, first.get(entry.id), now_, holds);
+      continue;
+    }
     const judged = judgeFirstRun(entry, first.get(entry.id));
     entry.failsFirst = judged.failsFirst;
     if (!judged.failsFirst) holds.push(hold(CHECKS.failFirst, { scenario: entry.id, why: judged.why }));
@@ -570,6 +676,31 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
     entry.status = entry.failsFirst && entry.passesNow ? "proven" : "held";
   }
   timeMs.run = now() - t;
+  // Every lane: a guard that passed before and after is proven by breaking what it protects.
+  const guards = traced.scenarios.filter((e) => e.guard && e.status === "proven");
+  if (guards.length) {
+    t = now();
+    const all = trackedFiles(root);
+    const covering = (e) => traced.tasks.filter((k) => k.covers.includes(e.id));
+    const guarded = (e) => all.filter((f) => !isTestFile(f, settings.tests.acceptance ?? []) && !/\.md$/i.test(f) && !f.startsWith("openspec/")
+      && covering(e).some((k) => k.touches.some((p) => declares(p, f))));
+    withBaseTree(root, "HEAD", [], (tree) => {
+      for (const e of guards) {
+        const files = guarded(e);
+        const result = breakGuard({
+          tree, files, names: calledNames(root, e, settings),
+          run: (dir) => brokeByAssertion(e, runScenario(dir, template, e)),
+        });
+        e.guardBreaks = { files, tried: result.tried, calledTried: result.calledTried, capped: result.capped, caught: result.caught };
+        if (result.caught) continue;
+        e.status = "held";
+        const n = `${result.tried} break${result.tried === 1 ? "" : "s"}`;
+        const where = files.length ? files.join(", ") : "no file: no task covering it names a file with code in it";
+        holds.push(hold(CHECKS.guards, { scenario: e.id, tried: result.tried, capped: result.capped, files, why: `The guard's test for ${e.id} doesn't protect the code its task names: ${n} ${result.tried === 1 ? "was" : "were"} tried in ${where} and every test of ${e.id} still passed${result.calledTried ? ` (${result.calledTried} of them in code the test calls)` : ""}${result.capped ? `. The cap of ${GUARD_CAP} was reached, so the rest of the code was left unbroken` : ""}. Add a test that fails when a condition or limit there changes.` }));
+      }
+    }, { shared: settings.tests.sharedFolders });
+    timeMs.guardBreaks = now() - t;
+  }
   let breaks = { skipped: true, reason: "the normal lane does not break changed lines", entries: [] };
   if (lane === "high-risk") {
     t = now();
@@ -638,6 +769,13 @@ export function summarize(report) {
   if (report.allowedEdits.length) {
     out.push(`${report.allowedEdits.length} edit(s) to locked tests, allowed by a Spec-Change: line:`);
     for (const e of report.allowedEdits) out.push(`  - ${e.why}`);
+  }
+  for (const e of report.scenarios.filter((x) => x.guardBreaks?.caught)) {
+    const c = e.guardBreaks.caught;
+    out.push(`Guard ${e.id}: proven as a guard. Break ${e.guardBreaks.tried} of the code it protects was noticed${c.called ? ", in code the test calls" : ""} (line ${c.line} of ${c.file}: ${c.break}).`);
+  }
+  for (const e of report.scenarios.filter((x) => x.carried && x.status === "proven")) {
+    out.push(`Scenario ${e.id}: proven as carried over. It is unchanged from the project's specs, and its test passes on the starting commit and the latest.`);
   }
   if (report.breaks.skipped) out.push(`Breaking changed lines: skipped (${report.breaks.reason}).`);
   else out.push(`Breaking changed lines: ${report.breaks.tried} break(s) tried, ${report.breaks.entries.filter((e) => e.status === "covered").length} noticed by a test.`);

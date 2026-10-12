@@ -110,3 +110,79 @@ export function runBreaks({ root, base, deps }) {
   });
   return { entries, holds, tried: entries.filter((e) => e.status === "covered" || e.status === "uncaught").length };
 }
+
+export const GUARD_CAP = 30;
+
+// Breaking what a guard protects. Every condition and limit in the given files, changed or
+// not, is altered in turn in the throwaway checkout `tree`, and the guard's own tests run.
+// It stops at the first break they notice, or after `cap` breaks (spread over all the candidates). Each file is put back
+// byte for byte. run(tree) -> true when the guard's tests failed.
+// Returns { tried, available, capped, caught } where caught is null or { file, line, break }.
+export function breakGuard({ tree, files, run, cap = GUARD_CAP, names = [] }) {
+  const work = [];
+  for (const file of files) {
+    let text;
+    try { text = readFileSync(join(tree, file), "utf8"); } catch { continue; }
+    const lines = text.split("\n").map((raw) => raw.replace(/\r$/, ""));
+    const ranges = definitionRanges(lines, names);
+    lines.forEach((line, i) => {
+      const called = ranges.some(([a, b]) => i >= a && i <= b);
+      for (const b of candidateBreaks(line)) work.push({ file, at: i, line, b, called });
+    });
+  }
+  // Breaks inside the code the guard's test calls come first; the rest follow. Past the cap, each group is spread evenly over
+  // all of its breaks, so the end of a big file is not left out.
+  const spread = (list, n) => list.length > n ? Array.from({ length: n }, (_, i) => list[Math.floor((i * list.length) / n)]) : list;
+  const first = spread(work.filter((w) => w.called), cap);
+  const picked = [...first, ...spread(work.filter((w) => !w.called), cap - first.length)];
+  const capped = work.length > cap;
+  let tried = 0;
+  let calledTried = 0;
+  for (const w of picked) {
+    const path = join(tree, w.file);
+    const original = readFileSync(path);
+    const lines = original.toString("utf8").split("\n");
+    lines[w.at] = lines[w.at].replace(w.line, () => w.b.text);
+    let failed;
+    try {
+      writeFileSync(path, lines.join("\n"));
+      tried++;
+      if (w.called) calledTried++;
+      failed = run(tree);
+    } finally {
+      writeFileSync(path, original);
+    }
+    if (failed) return { tried, calledTried, available: work.length, capped: false, caught: { file: w.file, line: w.at + 1, break: w.b.what, called: w.called } };
+  }
+  return { tried, calledTried, available: work.length, capped, caught: null };
+}
+
+// The names a test body uses: every identifier of four characters or more.
+export function identifiersIn(text) {
+  return [...new Set(text.match(/[A-Za-z_$][A-Za-z0-9_$]{3,}/g) ?? [])];
+}
+
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const CLOSER = /^\s*(?:[})\]]|end\b)/;
+
+// The line ranges (0-based, inclusive) where a function with one of `names` is defined: from its definition up to the line
+// before the next line that starts again at the same indentation or less. Patterns are language-neutral:
+// `function name`, `def name`, `const name =`, `name:` and `name(...) {`.
+export function definitionRanges(lines, names) {
+  if (!names.length) return [];
+  const alt = names.map(escapeRe).join("|");
+  const isDef = new RegExp(`^\\s*(?:(?:export|default|public|private|protected|static|async|pub|final|override)\\s+)*(?:(?:function\\*?|def|fn|func|fun|const|let|var|val)\\s+(?:${alt})\\b|(?:${alt})\\s*(?:=(?!=)|:(?!:)|\\([^;]*[{:]\\s*$))`);
+  const ranges = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!isDef.test(lines[i])) continue;
+    const indent = lines[i].match(/^\s*/)[0].length;
+    let end = i;
+    for (let j = i + 1; j < lines.length; j++) {
+      if (!lines[j].trim()) continue;
+      if (lines[j].match(/^\s*/)[0].length <= indent && !CLOSER.test(lines[j])) break;
+      end = j;
+    }
+    ranges.push([i, end]);
+  }
+  return ranges;
+}
