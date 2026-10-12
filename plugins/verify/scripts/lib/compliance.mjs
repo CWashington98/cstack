@@ -282,7 +282,13 @@ export function whyNotRun(entry, r) {
   if (r.skipped && !r.passed && !r.failed) return `The test for ${entry.id} was skipped, so it did not run.`;
   if (r.skipped) return `Some of the tests for ${entry.id} were skipped, so they did not run.`;
   if (r.runs.some((x) => x.error)) return `The command that runs ${entry.id}'s tests could not start: ${r.runs.find((x) => x.error).error.message}.`;
-  return `The test command found no test for ${entry.id}: no test named [${entry.id}] ran (the command ended with code ${r.exits.join(", ")}; last output: ${tail(r.out)}). Check the test is picked up by the command in tests.byName.`;
+  const lines = stripAnsi(r.out).split(/\r?\n/);
+  const code = `the command ended with code ${r.exits.join(", ")}`;
+  if (r.exits.every((x) => x === 0) && !lines.some((l) => SKIPPED.test(l) || FAILED.test(l) || PASSED.test(l))) {
+    return `The test command ended with code ${r.exits.join(", ")} but printed no test names, so no test named [${entry.id}] could be seen to run. The command in tests.byName must print each test's name; some runners need a verbose reporter for that.`;
+  }
+  const mentions = lines.filter((l) => l.includes(entry.id)).map((l) => l.trim()).slice(0, 3).join(" / ").slice(0, 400);
+  return `The test command found no test for ${entry.id}: no test named [${entry.id}] ran (${code}${mentions ? `; lines naming it: ${mentions}` : "; no output line names it"}). Check the test is picked up by the command in tests.byName.`;
 }
 
 // ---- The starting commit, in a temporary worktree ----

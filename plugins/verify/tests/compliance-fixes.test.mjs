@@ -182,3 +182,18 @@ test("colour codes in the runner's output do not hide the tests that ran", () =>
   assert.deepEqual(readRun(r.out).map((t) => [t.id, t.status]), [["export-csv-downloads", "passed"]]);
   assert.deepEqual(readRun("\x1b[32m\u2714\x1b[39m [a-b] ok").map((t) => t.status), ["passed"]);
 });
+
+const entry = { id: "export-csv-downloads" };
+const run = (out, exits = [0]) => ({ skipped: 0, passed: 0, failed: 0, runs: [{}], exits, out });
+test("a command that exits 0 but prints no test names says it must print each test's name", () => {
+  const why = whyNotRun(entry, run("Test Files 1 passed (1)\nTests 3 passed (3)\n"));
+  assert.match(why, /print each test's name/);
+  assert.match(why, /verbose/);
+});
+test("a command that prints other tests but not this one shows the exit code and the lines naming the scenario, not the last lines", () => {
+  const out = ["noise one", "[export-csv-downloads] was filtered", ...Array.from({ length: 8 }, (_, i) => `\u2714 unrelated-${i}`)].join("\n");
+  const why = whyNotRun(entry, run(out));
+  assert.match(why, /code 0/);
+  assert.match(why, /was filtered/);
+  assert.doesNotMatch(why, /unrelated-7/);
+});
