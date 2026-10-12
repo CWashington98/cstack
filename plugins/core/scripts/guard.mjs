@@ -27,6 +27,8 @@
 //                      or a sandbox profile
 //   protectedBranches  branches agents never push to (default main and master),
 //                      plus integrationBranch
+//   agentsMayReadProduction  true (the default) lets agents read from the Convex
+//                      production deployment; false refuses those reads too
 //
 // Each deploy is judged on its own: the target has to be named in the same
 // command, in a variable or env file that feeds it, or in the command that ran
@@ -228,6 +230,8 @@ function projectFor(dir, cache) {
         const v = project.settings[field];
         if (v !== undefined && !(Array.isArray(v) && v.every((x) => typeof x === "string"))) throw new Error(`"${field}" must be a list of text entries`);
       }
+      const reads = project.settings.agentsMayReadProduction;
+      if (reads !== undefined && typeof reads !== "boolean") throw new Error('"agentsMayReadProduction" must be true or false');
     } catch (e) {
       project.problem = `${project.settingsFile} can't be read: ${e.message}`;
       project.settings = {};
@@ -241,6 +245,9 @@ function projectFor(dir, cache) {
 const lower = (s) => s.toLowerCase();
 const settingsReason = (problem) => `${problem}. The guard refuses shell commands and tool-server calls until the file is fixed, because it can't see the "never" list. Fix the file with an editor, not a shell command.`;
 const neverReason = (entry, file) => `It uses "${entry}", which ${file} lists under "agentsNeverTouch".`;
+// Whether agents may read from a production Convex deployment. A missing
+// setting means yes; only an explicit false turns reads off.
+const mayReadProduction = (settings) => settings.agentsMayReadProduction !== false;
 const listed = (list = []) => list.map((s) => s.trim()).filter(Boolean);
 
 function protectedBranches(settings) {
@@ -651,7 +658,16 @@ class Checker {
       case "convex": {
         const sub = subcommand(w, ["--url", "--admin-key", "--env-file", "--deployment-name", "--deployment", "--preview-name", "--cmd"]);
         if (sub === "deploy") this.deploy("`convex deploy`", ctx);
-        if (w.includes("--prod") && sub !== "dashboard") this.refuse("production", "It uses `--prod`, which points a Convex command at the production deployment. Only `convex dashboard --prod` is allowed, because it only prints an address.");
+        if (w.includes("--prod")) {
+          // Only these subcommands read. Anything else with --prod, including a
+          // subcommand this list doesn't know, is refused: run may call a
+          // mutation, env prints or changes secrets, and export copies the
+          // whole database to disk.
+          const reads = sub === "dashboard" || (CONVEX_PROD_READS.has(sub) && mayReadProduction(projectFor(dir, this.cache).settings));
+          if (!reads) this.refuse("production", CONVEX_PROD_READS.has(sub)
+            ? `\`convex ${sub} --prod\` reads the production deployment, and this project's settings turn production reads off ("agentsMayReadProduction" is false). Only \`convex dashboard --prod\` is allowed, because it only prints an address.`
+            : `\`convex ${sub ?? ""} --prod\` is a write, or may be one: it could change production data or settings, print secrets, or copy the database. Only reads are allowed on production (${[...CONVEX_PROD_READS].join(", ")}), when the project permits them.`);
+        }
         return;
       }
       case "eas":
@@ -1174,6 +1190,21 @@ function toolText(input) {
   return [...parts.map((part) => JSON.stringify(part) ?? ""), ...strings].join("\n");
 }
 
+// The Convex shell subcommands that only read, which --prod may point at
+// production when the project permits production reads.
+const CONVEX_PROD_READS = new Set(["data", "logs", "function-spec", "dashboard", "insights"]);
+// The Convex tool-server tools that only read.
+const CONVEX_TOOL_READS = new Set(["status", "tables", "data", "functionSpec", "logs", "insights", "runOneoffQuery"]);
+
+// The refusal for a tool call aimed at production, or null when it is a read
+// and the project permits reads. Unknown tools count as writes.
+const productionRefusal = (tool, mayRead) => {
+  const name = String(tool).split("__").pop();
+  if (!CONVEX_TOOL_READS.has(name)) return { rule: "production", reason: `${PRODUCTION_SELECTOR} The tool \`${name}\` is a write, or may be one, so it is refused on production. Reads are allowed when the project permits them.` };
+  if (!mayRead) return { rule: "production", reason: `${PRODUCTION_SELECTOR} The tool \`${name}\` only reads, but this project's settings turn production reads off ("agentsMayReadProduction" is false).` };
+  return null;
+};
+
 const PRODUCTION_SELECTOR = "Its deployment selector points a Convex tool at the production Convex deployment. Agents use development and preview deployments only, as with `--prod` on a Convex command.";
 
 const isToolServer = (name) => typeof name === "string" && name.startsWith("mcp__");
@@ -1188,7 +1219,10 @@ export function decide({ tool_name, tool_input = {}, cwd = process.cwd() }) {
     const refusals = project.problem ? [{ rule: "settings", reason: settingsReason(project.problem) }] : [];
     const text = lower(toolText(tool_input));
     for (const entry of listed(project.settings.agentsNeverTouch)) if (text.includes(lower(entry))) refusals.push({ rule: "never", reason: neverReason(entry, project.settingsFile) });
-    if (convexSelectors(tool_input).some(convexProduction)) refusals.push({ rule: "production", reason: PRODUCTION_SELECTOR });
+    if (convexSelectors(tool_input).some(convexProduction)) {
+      const refusal = productionRefusal(tool_name, mayReadProduction(project.settings));
+      if (refusal) refusals.push(refusal);
+    }
     return { allow: refusals.length === 0, refusals };
   }
   if (tool_name !== "Bash" || typeof tool_input.command !== "string") return { allow: true, refusals: [] };

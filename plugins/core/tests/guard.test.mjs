@@ -216,12 +216,68 @@ test("infrastructure tools are caught wherever their flags put the subcommand", 
   for (const c of ["helm template ./chart", "heroku logs --tail", "terraform plan", "pulumi preview", "cdk diff", "aws s3 ls", "make build", "netlify deploy", "aws cloudformation describe-stacks"]) allowed(dir, c);
 });
 
-test("--prod on a Convex command is refused, except the dashboard address", () => {
-  const dir = project();
-  refused(dir, "npx convex run users:list --prod", /--prod/);
-  refused(dir, "npx convex env set KEY v --prod", /--prod/);
-  refused(dir, "npx convex logs --prod", /--prod/);
-  allowed(dir, "npx convex dashboard --prod --no-open");
+// Owner decision 2026-10-12: Convex production reads can be OK. Writes and
+// deploys stay refused. "agentsMayReadProduction" in .claude/verify.json turns
+// reads off; a missing setting means reads are allowed.
+const READ_SHELL = ["data users --prod", "logs --prod", "function-spec --prod", "dashboard --prod --no-open", "insights --prod", "logs --history 50 --prod"];
+const WRITE_SHELL = ["run users:list --prod", "env set KEY v --prod", "env remove KEY --prod", "env list --prod", "env get KEY --prod", "deploy --prod", "import data.zip --prod", "export --path out.zip --prod", "codegen --prod", "somethingnew --prod", "--prod"];
+const MODES = [["missing", {}], ["true", { agentsMayReadProduction: true }], ["false", { agentsMayReadProduction: false }]];
+const projectWith = (extra) => project({}, { ...SETTINGS, ...extra });
+
+test("convex --prod: reads are allowed and writes refused with the setting missing or true; false allows only the dashboard", () => {
+  for (const [mode, extra] of MODES) {
+    const dir = projectWith(extra);
+    for (const c of READ_SHELL) {
+      if (mode === "false" && !c.startsWith("dashboard")) refused(dir, `npx convex ${c}`, /"agentsMayReadProduction" is false/);
+      else allowed(dir, `npx convex ${c}`);
+    }
+    for (const c of WRITE_SHELL) refused(dir, `npx convex ${c}`, /--prod/);
+    refused(dir, "npx convex run users:list --prod", /is a write.*Only reads are allowed on production.*when the project permits them/);
+  }
+});
+
+test("convex --prod: a read that names a never entry is still refused", () => {
+  for (const [, extra] of MODES) {
+    const dir = projectWith(extra);
+    refused(dir, "npx convex data users --prod --deployment-name prod-backend-9", /agentsNeverTouch/);
+    refused(dir, "npx convex logs --prod --deployment-name PROD-backend-9", /agentsNeverTouch/);
+  }
+});
+
+test("agentsMayReadProduction must be true or false", () => {
+  refused(projectWith({ agentsMayReadProduction: "no" }), "ls", /agentsMayReadProduction/);
+});
+
+const TOOL_READS = ["status", "tables", "data", "functionSpec", "logs", "insights", "runOneoffQuery"];
+const TOOL_WRITES = ["run", "envGet", "envList", "envSet", "envRemove", "somethingNew"];
+
+test("convex tool server on production: reads allowed, writes refused, with the setting missing, true and false", () => {
+  for (const [mode, extra] of MODES) {
+    const dir = projectWith(extra);
+    for (const kind of [{ kind: "prod" }, { kind: "implicitProd" }, { kind: "deploymentSelector", selector: "acme:app:prod" }]) {
+      const call = (tool, prefix = "mcp__plugin_convex_convex__") => decide({ tool_name: prefix + tool, tool_input: { deploymentSelector: selector(kind) }, cwd: dir });
+      for (const tool of TOOL_READS) for (const prefix of ["mcp__plugin_convex_convex__", "mcp__convex__"]) {
+        const r = call(tool, prefix);
+        assert.equal(r.allow, mode !== "false", `${prefix}${tool} ${mode}`);
+        if (mode === "false") assert.match(reasons(r), /"agentsMayReadProduction" is false/);
+      }
+      for (const tool of TOOL_WRITES) for (const prefix of ["mcp__plugin_convex_convex__", "mcp__convex__"]) {
+        const r = call(tool, prefix);
+        assert.equal(r.allow, false, `${prefix}${tool} ${mode}`);
+        if (mode !== "false") assert.match(reasons(r), /is a write.*Reads are allowed when the project permits them/);
+      }
+    }
+  }
+});
+
+test("convex tool server: a production read that names a never entry is still refused; non-production calls are untouched", () => {
+  for (const [, extra] of MODES) {
+    const dir = projectWith(extra);
+    const r = decide({ tool_name: "mcp__plugin_convex_convex__data", tool_input: { deploymentSelector: selector({ kind: "prod" }, "/work/prod-backend-9"), tableName: "users" }, cwd: dir });
+    assert.equal(r.allow, false);
+    assert.match(reasons(r), /agentsNeverTouch/);
+    assert.equal(decide({ tool_name: "mcp__plugin_convex_convex__run", tool_input: { deploymentSelector: selector({ kind: "ownDev" }) }, cwd: dir }).allow, true);
+  }
 });
 
 test("commands that use a never entry are refused; commands that only mention it are not", () => {
@@ -971,8 +1027,9 @@ test("round 5: a Convex tool-server call aimed at production is refused; develop
 
 test("round 5: the hook refuses a production Convex selector end to end, and fails closed on it", () => {
   const dir = project();
-  const hook = (input, cwd = dir) => spawnSync("node", [script], { cwd: dir, input: JSON.stringify({ tool_name: "mcp__plugin_convex_convex__data", tool_input: input, cwd }), encoding: "utf8", env: { ...process.env, CSTACK_GUARD_LOG: join(mkdtempSync(join(tmpdir(), "guard-log-")), "log.jsonl") } });
-  const no = hook({ deploymentSelector: selector({ kind: "prod" }), tableName: "users" });
+  const hook = (input, cwd = dir, tool = "data") => spawnSync("node", [script], { cwd: dir, input: JSON.stringify({ tool_name: `mcp__plugin_convex_convex__${tool}`, tool_input: input, cwd }), encoding: "utf8", env: { ...process.env, CSTACK_GUARD_LOG: join(mkdtempSync(join(tmpdir(), "guard-log-")), "log.jsonl") } });
+  assert.equal(hook({ deploymentSelector: selector({ kind: "prod" }), tableName: "users" }).status, 0);
+  const no = hook({ deploymentSelector: selector({ kind: "prod" }), tableName: "users" }, dir, "envSet");
   assert.equal(no.status, 2);
   assert.match(no.stderr, /production Convex deployment/);
   assert.equal(hook({ deploymentSelector: selector({ kind: "ownDev" }), tableName: "users" }).status, 0);

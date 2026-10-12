@@ -132,6 +132,14 @@ input. It refuses one that points at production: the kinds `prod` and
 for your own development deployment, a preview or a named deployment are
 allowed, and the decoded details are also checked against `agentsNeverTouch`.
 
+On production, the guard allows only the Convex tools that read: `status`,
+`tables`, `data`, `functionSpec`, `logs`, `insights` and `runOneoffQuery`. It
+refuses every other tool, including `run`, the `env` tools and any tool it
+doesn't know. In the shell, `convex data`, `logs`, `function-spec`, `dashboard`
+and `insights` may use `--prod`; `run`, `env`, `deploy`, `import`, `export` and
+anything unknown may not. Set `agentsMayReadProduction` to `false` to refuse
+the reads as well. The `agentsNeverTouch` list still applies to reads.
+
 The tools that read and edit files are not checked, so an agent can still write
 a file that mentions a production name.
 
