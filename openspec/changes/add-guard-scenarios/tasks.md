@@ -16,4 +16,4 @@
 
 ## 4. Prove it on a real change
 
-- [ ] 4.1 Re-run the precordia dry run on `seat-membership-integrity` in a throwaway clone, with its five unaffected scenarios marked as guards in that clone only. Verify all 18 scenarios are proven, and save the output as evidence. Setup: real-project proof. Touches: openspec/changes/add-guard-scenarios/evidence/**
+- [x] 4.1 Re-run the precordia dry run on `seat-membership-integrity` in a throwaway clone, with its five unaffected scenarios marked as guards in that clone only. Verify all 18 scenarios are proven, and save the output as evidence. Setup: real-project proof. Touches: openspec/changes/add-guard-scenarios/evidence/**

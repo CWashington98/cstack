@@ -27,3 +27,15 @@
 - Ruling: a guard that fails on the starting or latest commit raises its hold under a new check name, guards-protect-what-they-name, and skips the fail-first judgment — a guard has no fail-first — if wrong, a reader grouping holds by check name sees a new name.
 - Ruling: in the precordia clone, platform-invite-unaffected is covered by task 2.1, the only task touching admin/mutations.ts where invitePlatformAdmin lives — the clone's tasks have no Covers lines to follow — if wrong, the guard is proven against the wrong files.
 - Ruling: the cap leaves platform-invite-unaffected held on precordia, and I did not tune the order until it passed — the test only checks that a row exists, and a break at line 471 of admin/mutations.ts (&& to ||) looks like one it would catch, but the cap's sample skipped it — if wrong, the owner reads a weak guard as a cap problem, or the reverse.
+
+## 2026-10-12, guard break order and the finished dry run (4.1)
+
+- Guard breaks now start with the code the guard's test calls: the identifiers in the test bodies (from the declaration carrying the scenario bracket to the next declaration) are matched to definitions in the guard's files, and breaks inside those definitions are tried first. The rest follow, spread evenly, at most 30 in all. The report says which caught break was in code the test calls.
+- Precordia result: 18 of 18 scenario tests ran and 18 proven, 5 of them as guards. platform-invite-unaffected is caught at its second break (line 471 of admin/mutations.ts, `&&` to `||`). Task 4.1 is ticked.
+
+## Rulings (2026-10-12, break order)
+
+- Ruling: the earlier hold of platform-invite-unaffected was a false hold of the check, not a weak test — the lead flipped `existingUsers.length > 0 &&` to `||` at line 471 of admin/mutations.ts by hand and the guard's test failed, while the 30 evenly spread breaks had never tried that line — if wrong, the guard was proven by luck of the order.
+- Ruling: the spec fixes the cap of 30 but not the order, so the order is changed without editing specs/ — if wrong, the order needs a Spec-Change line.
+- Ruling: a definition is recognised by language-neutral patterns (`function name`, `def name`, `const name =`, `name:`, `name(...) {`) and runs to the line before the next line at the same or lower indentation — if wrong, a range is too short or too long, which only changes which breaks go first.
+- Ruling: every identifier of four or more characters in a test body counts as a name the test calls, so a common word can pull extra code to the front — if wrong, the first breaks are less targeted, and the cap and the evenly spread rest still apply.
