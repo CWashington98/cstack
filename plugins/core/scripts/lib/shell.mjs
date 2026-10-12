@@ -5,16 +5,23 @@
 
 // Pulls heredoc bodies out of the text so their lines aren't read as commands
 // of the outer shell. Each body is replaced by a marker the caller can look up.
-// A << inside quotes is text, not a heredoc, unless it sits in a $( ) that
-// starts inside double quotes, as in git commit -m "$(cat <<'EOF' ... )".
+// A heredoc whose tag has no quotes is "live": the shell runs the $( ) and
+// backtick commands in its body, so the caller checks them; those keys are in
+// `live`. A << inside quotes is text, not a heredoc, unless it sits in a $( )
+// or backtick pair, as in git commit -m "$(cat <<'EOF' ... )". A heredoc whose
+// $( ) or backtick pair closes on its own first line has no body: the shell
+// runs the lines after it as commands, so they stay in the text.
 let heredocCount = 0;
-const HEREDOC = /(?<![<\w)])<<-?(?!<)\s*(['"]?)(\w+)\1([^\n]*)\n([\s\S]*?)(?:\n[ \t]*\2[ \t]*(?=\n|$)|$)/y;
 export function extractHeredocs(cmd) {
-  cmd = cmd.replace(/\$\(\([\s\S]*?\)\)/g, (m) => m.replace(/<</g, "\u00ab\u00ab"));
   const heredocs = new Map();
-  const stack = [{ quote: null, depth: 0 }];
-  // Moves past the character at i, keeping track of quotes, comments and the
-  // $( ) pairs that start inside double quotes.
+  const live = new Set();
+  // A << in arithmetic, (( )) or $(( )), or in a ${ } pattern is a shift or
+  // text, not a heredoc, so those get a frame of their own.
+  const stack = [{ quote: null, depth: 0, tick: false }];
+  let incomplete = false;
+  let unterminated = false;
+  // Moves past the character at i, keeping track of quotes (including $'...'),
+  // comments, $( ) pairs and backtick pairs.
   const step = (i) => {
     const top = stack[stack.length - 1];
     const c = cmd[i];
@@ -23,40 +30,154 @@ export function extractHeredocs(cmd) {
       return i + 1;
     }
     if (c === "\\") return i + 2;
-    if (top.quote === '"') {
-      if (c === '"') top.quote = null;
-      else if (c === "$" && cmd[i + 1] === "(") {
-        stack.push({ quote: null, depth: 1 });
-        return i + 2;
-      }
+    if (top.quote === "$'") {
+      if (c === "'") top.quote = null;
       return i + 1;
     }
+    if (c === "$" && cmd[i + 1] === "(" && cmd[i + 2] === "(") {
+      stack.push({ quote: null, depth: 2, tick: false, arith: true });
+      return i + 3;
+    }
+    if (c === "$" && cmd[i + 1] === "(") {
+      stack.push({ quote: null, depth: 1, tick: false });
+      return i + 2;
+    }
+    if (c === "$" && cmd[i + 1] === "{") {
+      stack.push({ quote: null, depth: 0, tick: false, brace: true });
+      return i + 2;
+    }
+    if (c === "`") {
+      if (top.tick && !top.quote) stack.pop();
+      else stack.push({ quote: null, depth: 0, tick: true });
+      return i + 1;
+    }
+    if (top.quote === '"') {
+      if (c === '"') top.quote = null;
+      return i + 1;
+    }
+    if (c === "$" && cmd[i + 1] === "'") {
+      top.quote = "$'";
+      return i + 2;
+    }
     if (c === "'" || c === '"') top.quote = c;
-    else if (c === "#" && (i === 0 || /\s/.test(cmd[i - 1]))) {
+    else if (c === "#" && (i === 0 || /[\s;&|()]/.test(cmd[i - 1]))) {
       const end = cmd.indexOf("\n", i);
       return end === -1 ? cmd.length : end;
-    } else if (stack.length > 1 && c === "(") top.depth++;
-    else if (stack.length > 1 && c === ")" && --top.depth === 0) stack.pop();
+    } else if (c === "(" && cmd[i + 1] === "(" && !top.brace) {
+      stack.push({ quote: null, depth: 2, tick: false, arith: true });
+      return i + 2;
+    } else if (top.brace && c === "}") stack.pop();
+    else if (stack.length > 1 && !top.tick && !top.brace && c === "(") top.depth++;
+    else if (stack.length > 1 && !top.tick && !top.brace && c === ")" && --top.depth === 0) stack.pop();
     return i + 1;
+  };
+  const tagAt = (j) => {
+    const top = stack[stack.length - 1];
+    return top.quote || top.brace || top.arith ? null : heredocTag(cmd, j);
   };
   let text = "";
   let from = 0;
   let i = 0;
   while (i < cmd.length) {
-    if (!stack[stack.length - 1].quote && cmd.startsWith("<<", i)) {
-      HEREDOC.lastIndex = i;
-      const m = HEREDOC.exec(cmd);
-      if (m) {
-        const key = `__HEREDOC_${heredocCount++}__`;
-        heredocs.set(key, m[4]);
-        text += `${cmd.slice(from, i)} <<HEREDOC ${key}${m[3]}`;
-        from = i = m.index + m[0].length;
+    let op = tagAt(i);
+    if (op) {
+      // Read the rest of the line. It can hold more heredocs, whose bodies
+      // follow one after another, and quotes or pairs it opens or closes.
+      const saved = stack.map((x) => ({ ...x }));
+      const level = stack.length;
+      const tags = [];
+      let line = "";
+      let closed = false;
+      let j = i;
+      while (op || (j < cmd.length && cmd[j] !== "\n")) {
+        if (op) {
+          const key = `__HEREDOC_${heredocCount++}__`;
+          tags.push({ ...op, key });
+          line += ` <<HEREDOC ${key}`;
+          j = op.end;
+        } else {
+          const next = step(j);
+          line += cmd.slice(j, next);
+          j = next;
+          if (stack.length < level) closed = true;
+        }
+        op = j < cmd.length && cmd[j] !== "\n" ? tagAt(j) : null;
+      }
+      if (!closed && j < cmd.length) {
+        let pos = j + 1;
+        for (const t of tags) {
+          let end = -1;
+          let k = pos;
+          while (k <= cmd.length) {
+            const nl = cmd.indexOf("\n", k);
+            const stop = nl === -1 ? cmd.length : nl;
+            const row = cmd.slice(k, stop);
+            if ((t.dash ? row.replace(/^\t+/, "") : row) === t.tag) {
+              end = k;
+              break;
+            }
+            if (nl === -1) break;
+            k = nl + 1;
+          }
+          if (end === -1) unterminated = true;
+          heredocs.set(t.key, end === -1 ? cmd.slice(pos) : cmd.slice(pos, Math.max(pos, end - 1)));
+          if (!t.quoted) live.add(t.key);
+          pos = end === -1 ? cmd.length + 1 : (cmd.indexOf("\n", end) === -1 ? cmd.length : cmd.indexOf("\n", end)) + 1;
+        }
+        text += cmd.slice(from, i) + line;
+        from = i = Math.min(pos - 1, cmd.length);
         continue;
       }
+      // A << with no body after it: the shell would wait for one.
+      if (!closed) unterminated = true;
+      stack.splice(0, stack.length, ...saved);
     }
     i = step(i);
   }
-  return { text: text + cmd.slice(from), heredocs };
+  // A valid command never ends inside a quote, a $( ) pair or a heredoc.
+  if (stack.length > 1 || stack[0].quote) incomplete = true;
+  return { text: text + cmd.slice(from), heredocs, live, incomplete, unterminated };
+}
+
+// The tag after a << at i: its text, whether any of it was quoted (which makes
+// the body plain text), and where it ends. Null when i starts no heredoc.
+function heredocTag(cmd, i) {
+  if (!cmd.startsWith("<<", i) || cmd[i + 2] === "<" || /[<)]/.test(cmd[i - 1] ?? "") || cmd.startsWith("<<HEREDOC __HEREDOC_", i)) return null;
+  let j = i + 2;
+  const dash = cmd[j] === "-";
+  if (dash) j++;
+  while (cmd[j] === " " || cmd[j] === "\t") j++;
+  let tag = "";
+  let quoted = false;
+  while (j < cmd.length && !/[\s<>|;&()`]/.test(cmd[j])) {
+    const c = cmd[j];
+    if (c === "$" && cmd[j + 1] === "'") {
+      let k = j + 2;
+      let text = "";
+      while (k < cmd.length && cmd[k] !== "'") {
+        if (cmd[k] === "\\") k++;
+        text += cmd[k] ?? "";
+        k++;
+      }
+      if (k >= cmd.length || text.includes("\n")) return null;
+      tag += text;
+      quoted = true;
+      j = k + 1;
+    } else if (c === "$" && cmd[j + 1] === '"') {
+      j++;
+    } else if (c === "'" || c === '"') {
+      const close = cmd.indexOf(c, j + 1);
+      if (close === -1 || cmd.slice(j + 1, close).includes("\n")) return null;
+      tag += cmd.slice(j + 1, close);
+      quoted = true;
+      j = close + 1;
+    } else if (c === "\\") {
+      tag += cmd[j + 1] ?? "";
+      quoted = true;
+      j += 2;
+    } else tag += cmd[j++];
+  }
+  return tag ? { tag, quoted, dash, end: j } : null;
 }
 
 // The index just past the ) that closes the $( starting at i.
@@ -66,11 +187,12 @@ function closeSubst(s, i) {
   for (let j = i; j < s.length; j++) {
     const c = s[j];
     if (quote) {
-      if (c === "\\" && quote === '"') j++;
-      else if (c === quote) quote = null;
+      if (c === "\\" && quote !== "'") j++;
+      else if (c === quote.at(-1)) quote = null;
       continue;
     }
     if (c === "\\") j++;
+    else if (c === "$" && s[j + 1] === "'") quote = "$'", j++;
     else if (c === "'" || c === '"') quote = c;
     else if (c === "(") depth++;
     else if (c === ")" && --depth === 0) return j + 1;
@@ -79,23 +201,30 @@ function closeSubst(s, i) {
 }
 
 // The text inside every $( ) and backtick pair outside single quotes. These run
-// as commands of their own, even inside double quotes.
-export function substitutions(cmd) {
+// as commands of their own, even inside double quotes. In a heredoc's body,
+// quotes are plain text, so pass { quotes: false }.
+export function substitutions(cmd, { quotes = true } = {}) {
   const out = [];
   let quote = null;
   for (let i = 0; i < cmd.length; i++) {
     const c = cmd[i];
-    if (quote === "'") {
-      if (c === "'") quote = null;
+    if (quote === "'" || quote === "$'") {
+      if (c === "\\" && quote === "$'") i++;
+      else if (c === "'") quote = null;
       continue;
     }
     if (c === "\\") {
       i++;
       continue;
     }
-    if (c === "'" && !quote) quote = "'";
+    if (!quotes) {
+      // Quotes don't start or end anything here.
+    } else if (c === "$" && cmd[i + 1] === "'" && !quote) {
+      quote = "$'";
+      i++;
+    } else if (c === "'" && !quote) quote = "'";
     else if (c === '"') quote = quote === '"' ? null : '"';
-    else if (c === "$" && cmd[i + 1] === "(" && cmd[i + 2] !== "(") {
+    if (c === "$" && cmd[i + 1] === "(" && cmd[i + 2] !== "(") {
       const end = closeSubst(cmd, i + 1);
       out.push(cmd.slice(i + 2, end - 1));
       i = end - 1;
@@ -122,13 +251,13 @@ export function segments(cmd) {
   };
   for (let i = 0; i < cmd.length; i++) {
     const c = cmd[i];
-    if (c === "$" && cmd[i + 1] === "(" && quote !== "'") {
+    if (c === "$" && cmd[i + 1] === "(" && quote !== "'" && quote !== "$'") {
       const end = closeSubst(cmd, i + 1);
       cur += cmd.slice(i, end);
       i = end - 1;
       continue;
     }
-    if (c === "`" && quote !== "'") {
+    if (c === "`" && quote !== "'" && quote !== "$'") {
       const end = cmd.indexOf("`", i + 1);
       const stop = end === -1 ? cmd.length : end + 1;
       cur += cmd.slice(i, stop);
@@ -137,13 +266,18 @@ export function segments(cmd) {
     }
     if (quote) {
       cur += c;
-      if (c === "\\" && quote === '"' && i + 1 < cmd.length) cur += cmd[++i];
-      else if (c === quote) quote = null;
+      if (c === "\\" && quote !== "'" && i + 1 < cmd.length) cur += cmd[++i];
+      else if (c === quote.at(-1)) quote = null;
       continue;
     }
     if (c === "\\" && i + 1 < cmd.length) {
       if (cmd[i + 1] === "\n") i++;
       else cur += c + cmd[++i];
+      continue;
+    }
+    if (c === "$" && cmd[i + 1] === "'") {
+      quote = "$'";
+      cur += cmd[i] + cmd[++i];
       continue;
     }
     if (c === "'" || c === '"') {
@@ -178,7 +312,7 @@ export function tokenize(segment) {
   let started = false;
   for (let i = 0; i < segment.length; i++) {
     const c = segment[i];
-    if (c === "$" && segment[i + 1] === "(" && quote !== "'") {
+    if (c === "$" && segment[i + 1] === "(" && quote !== "'" && quote !== "$'") {
       const end = closeSubst(segment, i + 1);
       cur += segment.slice(i, end);
       started = true;
@@ -186,14 +320,20 @@ export function tokenize(segment) {
       continue;
     }
     if (quote) {
-      if (c === quote) quote = null;
-      else if (c === "\\" && quote === '"' && i + 1 < segment.length) cur += segment[++i];
+      if (c === "\\" && quote !== "'" && i + 1 < segment.length) cur += segment[++i];
+      else if (c === quote.at(-1)) quote = null;
       else cur += c;
       continue;
     }
     if (c === "\\" && i + 1 < segment.length) {
       cur += segment[++i];
       started = true;
+      continue;
+    }
+    if (c === "$" && segment[i + 1] === "'") {
+      quote = "$'";
+      started = true;
+      i++;
       continue;
     }
     if (c === "'" || c === '"') {

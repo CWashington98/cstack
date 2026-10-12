@@ -1,5 +1,5 @@
 {
-  "description": "cstack guard: refuses production deploys, store submissions, pushes to protected branches, force pushes, GitHub settings changes, deletes outside the repository, and anything on the project's never list, in shell commands and tool-server calls",
+  "description": "cstack guard: refuses production deploys, store submissions, pushes to protected branches, force pushes, GitHub settings changes, deletes outside the repository, and anything on the project's never list, in shell commands and tool-server calls, and Convex tool calls aimed at production",
   "hooks": {
     "PreToolUse": [
       {
