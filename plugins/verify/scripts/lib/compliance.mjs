@@ -206,19 +206,28 @@ export function trace(root, change, settings, changed = null) {
     }
   }
   const seen = new Set();
+  const untouched = [];
   for (const t of tests) {
     if (known.has(t.id)) continue;
     const key = `${t.file}\0${t.name}`;
     if (seen.has(key)) continue;
     seen.add(key);
     const why = `The test "${t.name}" in ${t.file} cites ${t.token}, but no scenario in this change or the project's specs has that ID.`;
-    if (changed && !changed.has(t.file)) warnings.push(hold(CHECKS.trace, { id: t.id, test: t.name, file: t.file, why: `${why} The change did not touch ${t.file}, so this does not hold it. If the bracket is not a scenario ID, add the file to tests.exclude.` }));
+    if (changed && !changed.has(t.file)) untouched.push({ id: t.id, test: t.name, file: t.file, token: t.token });
     else holds.push(hold(CHECKS.trace, { id: t.id, test: t.name, file: t.file, why }));
+  }
+  if (untouched.length) {
+    const files = [...new Set(untouched.map((u) => u.file))];
+    const shown = untouched.slice(0, 3).map((u) => `${u.token} in ${u.file}`).join("; ");
+    warnings.push(hold(CHECKS.trace, { tests: untouched, files, why: `${untouched.length} test${untouched.length === 1 ? "" : "s"} in ${files.length} file${files.length === 1 ? "" : "s"} the change did not touch cite a bracket that is no scenario's ID (${shown}${untouched.length > 3 ? `; ${untouched.length - 3} more` : ""}). They do not hold the change. If the brackets are not scenario IDs, add the files to tests.exclude.` }));
   }
   return { scenarios: entries, tasks, tests, holds, warnings };
 }
 
 // ---- Running tests by name ----
+
+// Colour codes a runner adds to its output make every line unreadable to the patterns below.
+export const stripAnsi = (text) => text.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "");
 
 // A bracketed scenario token anywhere on a line of test output.
 const OUTPUT_TOKEN = new RegExp(TOKEN.source, "g");
@@ -234,7 +243,7 @@ const RANK = { passed: 0, skipped: 1, failed: 2 };
 // print a failing test twice (live, then in a summary), so the same name is one test.
 export function readRun(out) {
   const tests = new Map();
-  for (const line of out.split(/\r?\n/)) {
+  for (const line of stripAnsi(out).split(/\r?\n/)) {
     const ids = [...line.matchAll(OUTPUT_TOKEN)].map((m) => m[1].split("/").pop());
     if (!ids.length) continue;
     const status = SKIPPED.test(line) ? "skipped" : FAILED.test(line) ? "failed" : PASSED.test(line) ? "passed" : null;
@@ -259,7 +268,7 @@ const cleanEnv = () => {
 export function runCommand(cwd, template, name) {
   const command = template.replaceAll("{name}", name);
   const r = spawnSync(command, { cwd, shell: true, encoding: "utf8", env: cleanEnv(), timeout: 10 * 60 * 1000, maxBuffer: 256 * 1024 * 1024 });
-  return { command, status: r.status ?? (r.signal ? -1 : 1), out: `${r.stdout ?? ""}${r.stderr ?? ""}`, error: r.error ?? null };
+  return { command, status: r.status ?? (r.signal ? -1 : 1), out: stripAnsi(`${r.stdout ?? ""}${r.stderr ?? ""}`), error: r.error ?? null };
 }
 
 // Runs a scenario's tests by name, once for each bracket form its tests use, and adds up what ran.
@@ -279,7 +288,13 @@ export function whyNotRun(entry, r) {
   if (r.skipped && !r.passed && !r.failed) return `The test for ${entry.id} was skipped, so it did not run.`;
   if (r.skipped) return `Some of the tests for ${entry.id} were skipped, so they did not run.`;
   if (r.runs.some((x) => x.error)) return `The command that runs ${entry.id}'s tests could not start: ${r.runs.find((x) => x.error).error.message}.`;
-  return `The test command found no test for ${entry.id}: no test named [${entry.id}] ran (the command ended with code ${r.exits.join(", ")}; last output: ${tail(r.out)}). Check the test is picked up by the command in tests.byName.`;
+  const lines = stripAnsi(r.out).split(/\r?\n/);
+  const code = `the command ended with code ${r.exits.join(", ")}`;
+  if (r.exits.every((x) => x === 0) && !lines.some((l) => SKIPPED.test(l) || FAILED.test(l) || PASSED.test(l))) {
+    return `The test command ended with code ${r.exits.join(", ")} but printed no test names, so no test named [${entry.id}] could be seen to run. The command in tests.byName must print each test's name; some runners need a verbose reporter for that.`;
+  }
+  const mentions = lines.filter((l) => l.includes(entry.id)).map((l) => l.trim()).slice(0, 3).join(" / ").slice(0, 400);
+  return `The test command found no test for ${entry.id}: no test named [${entry.id}] ran (${code}${mentions ? `; lines naming it: ${mentions}` : "; no output line names it"}). Check the test is picked up by the command in tests.byName.`;
 }
 
 // ---- The starting commit, in a temporary worktree ----
@@ -433,8 +448,11 @@ export function checkScope(root, base, change, tasks, settings) {
   const allowed = settings.tests?.alwaysAllowed ?? [];
   const touches = tasks.flatMap((t) => t.touches);
   const changed = git(root, "diff", "--name-only", "--no-renames", "-z", base, "HEAD").split("\0").filter(Boolean);
-  return changed
-    .filter((f) => !isTestFile(f, settings.tests?.acceptance ?? []) && !f.startsWith(own) && !matchesAny(f, allowed) && !touches.some((x) => declares(x, f)))
+  const loose = changed.filter((f) => !isTestFile(f, settings.tests?.acceptance ?? []) && !f.startsWith(own) && !matchesAny(f, allowed) && !touches.some((x) => declares(x, f)));
+  if (!touches.length) {
+    return loose.length ? [hold(CHECKS.scope, { files: loose, why: `No task declares a Touches: line, so the scope check could not run. ${loose.length} changed file(s) are not checked; add Touches: to the tasks to turn it on.` })] : [];
+  }
+  return loose
     .map((file) => hold(CHECKS.scope, { file, why: `${file} changed, but no task says it touches it. Possible scope creep: add it to a task's Touches: line, or take it out.` }));
 }
 
@@ -581,6 +599,29 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
   return report;
 }
 
+// Holds of one repeated kind, printed as one line with the first few named. The report keeps every hold.
+const GROUPS = [
+  { match: (h) => h.check === CHECKS.trace && h.missing === "task", label: "scenarios have no task", name: (h) => h.scenario },
+  { match: (h) => h.check === CHECKS.trace && h.missing === "test", label: "scenarios have no test", name: (h) => h.scenario },
+  { match: (h) => h.check === CHECKS.ran, label: "scenarios have tests that did not run", name: (h) => h.scenario },
+];
+const SHOWN = 3;
+
+export function groupedHolds(holds) {
+  const lines = [];
+  const done = new Set();
+  holds.forEach((h, i) => {
+    if (done.has(i)) return;
+    const g = GROUPS.find((x) => x.match(h));
+    const same = g ? holds.map((x, j) => (g.match(x) ? j : -1)).filter((j) => j >= 0) : [];
+    if (!g || same.length <= SHOWN) { lines.push(h.why); return; }
+    same.forEach((j) => done.add(j));
+    const names = same.map((j) => g.name(holds[j]));
+    lines.push(`${same.length} ${g.label}: ${names.slice(0, SHOWN).join(", ")} and ${names.length - SHOWN} more. compliance.json names each one.`);
+  });
+  return lines;
+}
+
 // What a person reads at the end of the command's output.
 export function summarize(report) {
   const out = [];
@@ -589,7 +630,7 @@ export function summarize(report) {
   out.push(report.held
     ? `Held: spec compliance for ${report.change} found ${report.holds.length} problem(s) to fix.`
     : `Proven: every one of the ${n} scenario(s) in ${report.change} is traced, tested and passing.`);
-  for (const h of report.holds) out.push(`  - ${h.why}`);
+  for (const line of groupedHolds(report.holds)) out.push(`  - ${line}`);
   if (report.warnings.length) {
     out.push(`${report.warnings.length} warning(s), which do not hold the change:`);
     for (const w of report.warnings) out.push(`  - ${w.why}`);
