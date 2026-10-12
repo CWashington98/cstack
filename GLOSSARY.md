@@ -36,3 +36,9 @@ Used in SHALL NOT, meaning "must not".
 
 **ADDED**:
 In an OpenSpec change, the heading for requirements this change adds.
+
+**MODIFIED**:
+In an OpenSpec change, the heading for requirements this change rewrites. The full new text replaces the old one when the change is archived.
+
+**GUARDS**:
+In a spec scenario, a first line marking behavior the change must not alter. The check proves such a scenario by requiring its test to pass before and after the change, and by breaking the code it protects.
