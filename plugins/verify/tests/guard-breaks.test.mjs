@@ -37,3 +37,12 @@ test("breakGuard on a file with nothing to break tries none and is not capped", 
   const r = breakGuard({ tree: dir, files: ["src/a.mjs"], run: () => false });
   assert.deepEqual([r.tried, r.capped, r.caught], [0, false, null]);
 });
+
+test("past the cap, breaks are spread over the whole file, not only its start", () => {
+  const text = Array.from({ length: 100 }, (_, i) => `export const c${i} = (n) => n >= ${i + 1};`).join("\n") + "\n";
+  const dir = tree({ "src/a.mjs": text });
+  const hit = new Set();
+  breakGuard({ tree: dir, files: ["src/a.mjs"], cap: 10, run: (d) => { const l = readFileSync(join(d, "src/a.mjs"), "utf8").split("\n"); l.forEach((x, i) => { if (x !== text.split("\n")[i]) hit.add(i); }); return false; } });
+  assert.equal(hit.size, 10);
+  assert.ok(Math.max(...hit) >= 80, `the late lines are tried too: ${[...hit]}`);
+});
