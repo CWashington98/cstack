@@ -53,10 +53,13 @@ export function checkScenarios(lines) {
       const s = l.text.match(STEP);
       return s ? [{ kind: s[1], text: s[2].trim(), line: l.line }] : [];
     });
+    // Every bold-keyword bullet in full, wrapped lines included, so a reworded second line or an extra bullet shows.
+    const body = lines.slice(i + 1, end);
+    const bullets = body.flatMap((l, k) => /^\s*[-*]\s+\*\*/.test(l.text) ? [gather(body, k).replace(/\s+/g, " ").trim()] : []);
     // A guard says so in its first bullet: what must stay the same.
     const firstBullet = lines.slice(i + 1, end).find((l) => /^\s*[-*]\s/.test(l.text));
     const guards = firstBullet?.text.match(GUARDS)?.[1].trim() || null;
-    scenarios.push({ id: name.split(/\s+/)[0], name, requirement, section, line: lines[i].line, steps, guards });
+    scenarios.push({ id: name.split(/\s+/)[0], name, requirement, section, line: lines[i].line, steps, bullets, guards });
     const at = lines.slice(i + 1, end).findIndex((l) => PROVED.test(l.text));
     if (at === -1) {
       findings.push(hold(lines[i].line, `Scenario "${name}" has no "Proved by" line. Add one that names where it is checked, the evidence, and what passing looks like.`));

@@ -99,13 +99,13 @@ function livingScenariosAt(root, commit) {
   return byId;
 }
 
-// The GIVEN, WHEN, THEN and AND lines, as kind and trimmed text.
-const stepsOf = (s) => s.steps.map((x) => `${x.kind} ${x.text.trim()}`).join("\n");
+// Every bold-keyword bullet in full, wrapped lines included. Only runs of whitespace are normalized.
+const stepsOf = (s) => (s.bullets ?? []).join("\n");
 
 // A scenario in a MODIFIED requirement is carried over when the project's specs hold its
 // ID with the same lines. Reworded, it counts as new.
 function isCarriedOver(s, living) {
-  return s.section === "MODIFIED" && !s.guards && (living.get(s.id) ?? []).some((l) => stepsOf(l) === stepsOf(s));
+  return s.section === "MODIFIED" && !s.guards && s.steps.length > 0 && (living.get(s.id) ?? []).some((l) => stepsOf(l) === stepsOf(s));
 }
 
 // Scenario IDs in the project's own specs, so a test may cite them too.
@@ -296,18 +296,25 @@ const RANK = { passed: 0, skipped: 1, failed: 2 };
 // print a failing test twice (live, then in a summary), so the same name is one test.
 export function readRun(out) {
   const tests = new Map();
-  for (const line of stripAnsi(out).split(/\r?\n/)) {
+  const lines = stripAnsi(out).split(/\r?\n/);
+  const isResult = (line) => SKIPPED.test(line) || FAILED.test(line) || PASSED.test(line);
+  lines.forEach((line, at) => {
     const ids = [...line.matchAll(OUTPUT_TOKEN)].map((m) => m[1].split("/").pop());
-    if (!ids.length) continue;
+    if (!ids.length) return;
     const status = SKIPPED.test(line) ? "skipped" : FAILED.test(line) ? "failed" : PASSED.test(line) ? "passed" : null;
-    if (!status) continue;
+    if (!status) return;
     const name = line.replace(/^\s*(?:\S{1,2}\s+|(?:not )?ok\s+\d*\s*-?\s*)/, "").replace(/\s*\(\d[\d.]*m?s\)\s*$/, "").replace(/\s*(?:#|\.\.\.).*$/, "").trim() || line.trim();
+    // A failed test's own block: its line and what follows, up to the next test's result line.
+    let end = at + 1;
+    while (status === "failed" && end < lines.length && !isResult(lines[end])) end++;
+    const block = status === "failed" ? lines.slice(at, end).join("\n") : "";
     for (const id of new Set(ids)) {
       const key = `${id}\0${name}`;
       const before = tests.get(key);
-      if (!before || RANK[status] > RANK[before.status]) tests.set(key, { id, name, status });
+      if (!before || RANK[status] > RANK[before.status]) tests.set(key, { id, name, status, block });
+      else if (status === "failed" && before.status === "failed") before.block += `\n${block}`;
     }
-  }
+  });
   return [...tests.values()];
 }
 
@@ -396,6 +403,15 @@ const withoutNames = (out, entry) => {
   for (const name of names) text = text.split(name).join("");
   return text;
 };
+
+// A guard break is caught only when a guard test failed by an assertion; a crash is not a catch.
+export const brokeByAssertion = (entry, r) =>
+  r.failed > 0 && r.exits.some((x) => x !== 0) && ASSERTION.test(withoutNames(failureText(r), entry));
+
+// The output of the failing tests' own blocks.
+function failureText(r) {
+  return r.tests.filter((t) => t.status === "failed").map((t) => t.block).join("\n");
+}
 
 export function judgeFirstRun(entry, r) {
   const passedAll = r.failed === 0 && r.passed > 0 && r.exits.every((x) => x === 0);
@@ -673,7 +689,7 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
         const files = guarded(e);
         const result = breakGuard({
           tree, files, names: calledNames(root, e, settings),
-          run: (dir) => { const r = runScenario(dir, template, e); return r.failed > 0 || r.exits.some((x) => x !== 0); },
+          run: (dir) => brokeByAssertion(e, runScenario(dir, template, e)),
         });
         e.guardBreaks = { files, tried: result.tried, calledTried: result.calledTried, capped: result.capped, caught: result.caught };
         if (result.caught) continue;
