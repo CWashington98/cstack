@@ -30,7 +30,7 @@ The spec compliance check in `verify` proves a change does what its approved Ope
 
 | Field | What it holds |
 |---|---|
-| `tests.byName` | The command that runs one scenario's tests by name. `{name}` is replaced with the bracket text the test's name carries, such as `[scenario-id]` or `[area/feature:requirement/scenario-id]`. If your test tool reads the name as a pattern, escape the opening bracket: `\{name}`. |
+| `tests.byName` | The command that runs one scenario's tests by name. `{name}` is replaced with the bracket text the test's name carries, such as `[scenario-id]` or `[area/feature:requirement/scenario-id]`. If your test tool reads the name as a pattern, escape the opening bracket: `\{name}`. The command must print each test's name; some runners need a verbose reporter for that (for example vitest's `--reporter=verbose`). |
 | `tests.all` | The command that runs every test. |
 | `tests.acceptance` | Path patterns for the locked acceptance tests. |
 | `tests.alwaysAllowed` | Path patterns the scope check never lists, such as documentation. |
