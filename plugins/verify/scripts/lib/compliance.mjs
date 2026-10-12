@@ -599,6 +599,29 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
   return report;
 }
 
+// Holds of one repeated kind, printed as one line with the first few named. The report keeps every hold.
+const GROUPS = [
+  { match: (h) => h.check === CHECKS.trace && h.missing === "task", label: "scenarios have no task", name: (h) => h.scenario },
+  { match: (h) => h.check === CHECKS.trace && h.missing === "test", label: "scenarios have no test", name: (h) => h.scenario },
+  { match: (h) => h.check === CHECKS.ran, label: "scenarios have tests that did not run", name: (h) => h.scenario },
+];
+const SHOWN = 3;
+
+export function groupedHolds(holds) {
+  const lines = [];
+  const done = new Set();
+  holds.forEach((h, i) => {
+    if (done.has(i)) return;
+    const g = GROUPS.find((x) => x.match(h));
+    const same = g ? holds.map((x, j) => (g.match(x) ? j : -1)).filter((j) => j >= 0) : [];
+    if (!g || same.length <= SHOWN) { lines.push(h.why); return; }
+    same.forEach((j) => done.add(j));
+    const names = same.map((j) => g.name(holds[j]));
+    lines.push(`${same.length} ${g.label}: ${names.slice(0, SHOWN).join(", ")} and ${names.length - SHOWN} more. compliance.json names each one.`);
+  });
+  return lines;
+}
+
 // What a person reads at the end of the command's output.
 export function summarize(report) {
   const out = [];
@@ -607,7 +630,7 @@ export function summarize(report) {
   out.push(report.held
     ? `Held: spec compliance for ${report.change} found ${report.holds.length} problem(s) to fix.`
     : `Proven: every one of the ${n} scenario(s) in ${report.change} is traced, tested and passing.`);
-  for (const h of report.holds) out.push(`  - ${h.why}`);
+  for (const line of groupedHolds(report.holds)) out.push(`  - ${line}`);
   if (report.warnings.length) {
     out.push(`${report.warnings.length} warning(s), which do not hold the change:`);
     for (const w of report.warnings) out.push(`  - ${w.why}`);

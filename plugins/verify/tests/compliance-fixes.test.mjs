@@ -177,8 +177,8 @@ test("a test in a file the change touched that cites an unknown scenario still h
   assert.ok(report.holds.some((h) => /no-such-scenario/.test(h.why)));
 });
 
-
 // ---- 8. Fixes from the first real dry run ----
+
 test("colour codes in the runner's output do not hide the tests that ran", () => {
   const r = runCommand(process.cwd(), `node -e 'console.log("\\x1b[32m\\u2714\\x1b[39m \\x1b[2m[export-csv-downloads] works\\x1b[22m")' #{name}`.replace("#{name}", "{name}"), "x");
   assert.deepEqual(readRun(r.out).map((t) => [t.id, t.status]), [["export-csv-downloads", "passed"]]);
@@ -187,11 +187,13 @@ test("colour codes in the runner's output do not hide the tests that ran", () =>
 
 const entry = { id: "export-csv-downloads" };
 const run = (out, exits = [0]) => ({ skipped: 0, passed: 0, failed: 0, runs: [{}], exits, out });
+
 test("a command that exits 0 but prints no test names says it must print each test's name", () => {
   const why = whyNotRun(entry, run("Test Files 1 passed (1)\nTests 3 passed (3)\n"));
   assert.match(why, /print each test's name/);
   assert.match(why, /verbose/);
 });
+
 test("a command that prints other tests but not this one shows the exit code and the lines naming the scenario, not the last lines", () => {
   const out = ["noise one", "[export-csv-downloads] was filtered", ...Array.from({ length: 8 }, (_, i) => `\u2714 unrelated-${i}`)].join("\n");
   const why = whyNotRun(entry, run(out));
@@ -199,6 +201,7 @@ test("a command that prints other tests but not this one shows the exit code and
   assert.match(why, /was filtered/);
   assert.doesNotMatch(why, /unrelated-7/);
 });
+
 test("when no task declares Touches, one warning says the scope check could not run", () => {
   const dir = makeRepo({ "src/a.txt": "1\n", "src/b.txt": "1\n" });
   git(dir, "add", "-A"); git(dir, "commit", "-q", "-m", "start");
@@ -210,4 +213,14 @@ test("when no task declares Touches, one warning says the scope check could not 
   assert.match(found[0].why, /no task declares/i);
   assert.match(found[0].why, /Touches/);
   assert.deepEqual(found[0].files, ["src/a.txt", "src/b.txt"]);
+});
+
+test("the printed summary groups repeated holds, and the report keeps every hold", () => {
+  const holds = Array.from({ length: 18 }, (_, i) => ({ check: "every-scenario-is-traced", scenario: `scenario-${i}`, missing: "task", why: `Scenario scenario-${i} has no task. Add one.` }));
+  const text = summarize({ scenarios: [], counts: { ran: 0, expected: 18 }, held: true, change: "c", holds, warnings: [], allowedEdits: [], breaks: { skipped: true, reason: "r" } });
+  assert.match(text, /18 scenarios have no task/);
+  assert.match(text, /scenario-0/);
+  assert.doesNotMatch(text, /scenario-17/);
+  assert.match(text, /15 more/);
+  assert.equal(holds.length, 18);
 });
