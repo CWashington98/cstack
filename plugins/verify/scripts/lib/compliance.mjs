@@ -9,7 +9,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { proseLines } from "./markdown.mjs";
 import { checkScenarios, gather, ITEM } from "./plan.mjs";
 import { walk } from "./app-skill.mjs";
-import { runBreaks, breakGuard, GUARD_CAP } from "./breaks.mjs";
+import { runBreaks, breakGuard, identifiersIn, GUARD_CAP } from "./breaks.mjs";
 import { checkExecutable } from "./executable.mjs";
 import { codeLines, testNames } from "./source-text.mjs";
 
@@ -141,6 +141,23 @@ export function testsInText(text, namePattern) {
     for (const m of name.matchAll(TOKEN)) found.push({ id: m[1].split("/").pop(), token: `[${m[1]}]`, name, line });
   }
   return found;
+}
+
+// The identifiers used in the bodies of a scenario's tests: from each test declaration that carries its bracket
+// up to the next test declaration in the same file.
+export function calledNames(root, entry, settings) {
+  const mine = findTests(root, settings.tests?.acceptance ?? [], { exclude: settings.tests?.exclude, namePattern: settings.tests?.namePattern }).filter((t) => t.id === entry.id);
+  const out = new Set();
+  for (const file of new Set(mine.map((t) => t.file))) {
+    let lines;
+    try { lines = readText(join(root, file)).split("\n"); } catch { continue; }
+    const starts = testNames(lines.join("\n")).map((t) => t.line).sort((a, b) => a - b);
+    for (const t of mine.filter((x) => x.file === file)) {
+      const next = starts.find((l) => l > t.line) ?? lines.length + 1;
+      for (const id of identifiersIn(lines.slice(t.line - 1, next - 1).join("\n"))) out.add(id);
+    }
+  }
+  return [...out];
 }
 
 // Tracked files, minus folders that are their own project: they hold their own
@@ -604,15 +621,15 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
       for (const e of guards) {
         const files = guarded(e);
         const result = breakGuard({
-          tree, files,
+          tree, files, names: calledNames(root, e, settings),
           run: (dir) => { const r = runScenario(dir, template, e); return r.failed > 0 || r.exits.some((x) => x !== 0); },
         });
-        e.guardBreaks = { files, tried: result.tried, capped: result.capped, caught: result.caught };
+        e.guardBreaks = { files, tried: result.tried, calledTried: result.calledTried, capped: result.capped, caught: result.caught };
         if (result.caught) continue;
         e.status = "held";
         const n = `${result.tried} break${result.tried === 1 ? "" : "s"}`;
         const where = files.length ? files.join(", ") : "no file: no task covering it names a file with code in it";
-        holds.push(hold(CHECKS.guards, { scenario: e.id, tried: result.tried, capped: result.capped, files, why: `The guard's test for ${e.id} doesn't protect the code its task names: ${n} ${result.tried === 1 ? "was" : "were"} tried in ${where} and every test of ${e.id} still passed${result.capped ? `. The cap of ${GUARD_CAP} was reached, so the rest of the code was left unbroken` : ""}. Add a test that fails when a condition or limit there changes.` }));
+        holds.push(hold(CHECKS.guards, { scenario: e.id, tried: result.tried, capped: result.capped, files, why: `The guard's test for ${e.id} doesn't protect the code its task names: ${n} ${result.tried === 1 ? "was" : "were"} tried in ${where} and every test of ${e.id} still passed${result.calledTried ? ` (${result.calledTried} of them in code the test calls)` : ""}${result.capped ? `. The cap of ${GUARD_CAP} was reached, so the rest of the code was left unbroken` : ""}. Add a test that fails when a condition or limit there changes.` }));
       }
     }, { shared: settings.tests.sharedFolders });
     timeMs.guardBreaks = now() - t;
@@ -688,7 +705,7 @@ export function summarize(report) {
   }
   for (const e of report.scenarios.filter((x) => x.guardBreaks?.caught)) {
     const c = e.guardBreaks.caught;
-    out.push(`Guard ${e.id}: proven as a guard. Break ${e.guardBreaks.tried} of the code it protects was noticed (line ${c.line} of ${c.file}: ${c.break}).`);
+    out.push(`Guard ${e.id}: proven as a guard. Break ${e.guardBreaks.tried} of the code it protects was noticed${c.called ? ", in code the test calls" : ""} (line ${c.line} of ${c.file}: ${c.break}).`);
   }
   if (report.breaks.skipped) out.push(`Breaking changed lines: skipped (${report.breaks.reason}).`);
   else out.push(`Breaking changed lines: ${report.breaks.tried} break(s) tried, ${report.breaks.entries.filter((e) => e.status === "covered").length} noticed by a test.`);
