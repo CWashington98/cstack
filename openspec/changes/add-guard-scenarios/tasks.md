@@ -12,7 +12,7 @@
 
 ## 3. Docs and rules
 
-- [ ] 3.1 Document guard scenarios in `docs/project-settings.md` and add the marker to cstack's OpenSpec rules in `openspec/config.yaml`. Verify both pass the plain-English check. Setup: documentation for the new marker. Touches: docs/project-settings.md, openspec/config.yaml
+- [x] 3.1 Document guard scenarios in `docs/project-settings.md` and add the marker to cstack's OpenSpec rules in `openspec/config.yaml`. Verify both pass the plain-English check. Setup: documentation for the new marker. Touches: docs/project-settings.md, openspec/config.yaml
 
 ## 4. Prove it on a real change
 

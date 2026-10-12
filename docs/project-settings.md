@@ -41,6 +41,26 @@ The spec compliance check in `verify` proves a change does what its approved Ope
 
 Scenario IDs need at least one hyphen, such as `seat-added-under-limit`, so the check can tell them apart from other bracketed text.
 
+### Guard scenarios
+
+Some scenarios describe behavior that already works, which the change must leave alone. Such a test passes before the change, so the usual fail-first rule would hold it. Mark these scenarios as guards: make the first bullet of the scenario a line that starts with `**GUARDS**` and says what must stay the same.
+
+```
+#### Scenario: invite-same-org-unaffected
+
+- **GUARDS** an invite to the same organization still works as before
+- **WHEN** ...
+- **THEN** ...
+```
+
+For a guard, the check asks for three things:
+
+1. Its tests pass on the commit the change started from.
+2. Its tests still pass on the latest commit. If they fail, the report says the change altered behavior the guard protects, and names the test.
+3. Its tests notice a break. The check copies the code to a temporary folder. It takes the files that the scenario's covering task lists after `Touches:`. It changes one condition or limit at a time, such as `>=` to `<` or `18` to `19`, and stops at the first change that makes the guard's tests fail. It tries at most 30. If none is noticed, the report says how many were tried, and the change is held. If it stopped at 30, the report says the cap was reached.
+
+The check never changes your working folder, and it puts every file back exactly. It runs on every lane, because it stops early. A guard's covering task must list the files it protects after `Touches:`, or there is nothing to break. Scenarios without the marker still have to fail first.
+
 ## The guard
 
 The cstack plugin runs `plugins/core/scripts/guard.mjs` before every shell
