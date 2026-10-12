@@ -220,6 +220,9 @@ export function trace(root, change, settings, changed = null) {
 
 // ---- Running tests by name ----
 
+// Colour codes a runner adds to its output make every line unreadable to the patterns below.
+export const stripAnsi = (text) => text.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, "");
+
 // A bracketed scenario token anywhere on a line of test output.
 const OUTPUT_TOKEN = new RegExp(TOKEN.source, "g");
 // A skip is a marker the runner adds around the name ("# SKIP", a leading skip mark,
@@ -234,7 +237,7 @@ const RANK = { passed: 0, skipped: 1, failed: 2 };
 // print a failing test twice (live, then in a summary), so the same name is one test.
 export function readRun(out) {
   const tests = new Map();
-  for (const line of out.split(/\r?\n/)) {
+  for (const line of stripAnsi(out).split(/\r?\n/)) {
     const ids = [...line.matchAll(OUTPUT_TOKEN)].map((m) => m[1].split("/").pop());
     if (!ids.length) continue;
     const status = SKIPPED.test(line) ? "skipped" : FAILED.test(line) ? "failed" : PASSED.test(line) ? "passed" : null;
@@ -259,7 +262,7 @@ const cleanEnv = () => {
 export function runCommand(cwd, template, name) {
   const command = template.replaceAll("{name}", name);
   const r = spawnSync(command, { cwd, shell: true, encoding: "utf8", env: cleanEnv(), timeout: 10 * 60 * 1000, maxBuffer: 256 * 1024 * 1024 });
-  return { command, status: r.status ?? (r.signal ? -1 : 1), out: `${r.stdout ?? ""}${r.stderr ?? ""}`, error: r.error ?? null };
+  return { command, status: r.status ?? (r.signal ? -1 : 1), out: stripAnsi(`${r.stdout ?? ""}${r.stderr ?? ""}`), error: r.error ?? null };
 }
 
 // Runs a scenario's tests by name, once for each bracket form its tests use, and adds up what ran.

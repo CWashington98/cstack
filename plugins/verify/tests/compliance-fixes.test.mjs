@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { makeRepo, git } from "../../../tests/helpers.mjs";
-import { runCompliance, withBaseTree } from "../scripts/lib/compliance.mjs";
+import { runCompliance, withBaseTree, runCommand, readRun, whyNotRun, checkScope, summarize } from "../scripts/lib/compliance.mjs";
 
 const CH = "add-export";
 const SPEC = `openspec/changes/${CH}/specs/export/spec.md`;
@@ -173,4 +173,12 @@ test("a test in a file the change touched that cites an unknown scenario still h
   const r = exportRepo({ test: { "test/acceptance/export.test.mjs": [...head, 'test("[export-csv-downloads] checks it", () => {', '  assert.equal(String(exportCsv()), "name,total");', "});", 'test("[no-such-scenario] cites a stranger", () => {});', ""].join("\n") }, extra: { "src/export.mjs": 'export const exportCsv = () => "name,total";\n' } });
   const report = check(r);
   assert.ok(report.holds.some((h) => /no-such-scenario/.test(h.why)));
+});
+
+
+// ---- 8. Fixes from the first real dry run ----
+test("colour codes in the runner's output do not hide the tests that ran", () => {
+  const r = runCommand(process.cwd(), `node -e 'console.log("\\x1b[32m\\u2714\\x1b[39m \\x1b[2m[export-csv-downloads] works\\x1b[22m")' #{name}`.replace("#{name}", "{name}"), "x");
+  assert.deepEqual(readRun(r.out).map((t) => [t.id, t.status]), [["export-csv-downloads", "passed"]]);
+  assert.deepEqual(readRun("\x1b[32m\u2714\x1b[39m [a-b] ok").map((t) => t.status), ["passed"]);
 });
