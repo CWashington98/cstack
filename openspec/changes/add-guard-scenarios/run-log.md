@@ -44,3 +44,5 @@
 
 - Ruling: the owner approved the carry-over addition, so the spec, design, proposal and tasks gained it and the approval fingerprint was recomputed — if wrong, the fingerprint must be rolled back to the earlier approval.
 - Ruling: "same wording" compares each scenario's GIVEN, WHEN, THEN and AND lines by kind and trimmed text, in order — the owner's rule names those lines — if wrong, a reworded line could count as unchanged.
+- Ruling: the self-check holds one scenario, passes-on-old-code-too, and I left the hold in place — this change reworded it ("not marked as a guard"), so by the approved rule it is new, and its test passes on the old code because it describes behavior that already existed — if wrong, the owner either restores the old wording (making it carried over) or marks the scenario as a guard.
+- Ruling: the living specs are read from the working folder, not from the starting commit — the check already reads the project's specs that way for scenario IDs — if wrong, a change that edits openspec/specs itself could mark its own scenarios as carried over.
