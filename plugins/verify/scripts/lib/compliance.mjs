@@ -24,6 +24,7 @@ export const CHECKS = {
   review: "spec-match-review",
   executable: "executable-specs-when-turned-on",
   guards: "guards-protect-what-they-name",
+  carried: "carried-over-scenarios-still-pass",
 };
 
 export function git(root, ...args) {
@@ -71,8 +72,27 @@ export function specFiles(root, change) {
 }
 
 export function readScenarios(root, change) {
+  const living = livingScenarios(root);
   return specFiles(root, change).flatMap((file) =>
-    checkScenarios(proseLines(readText(join(root, file)))).scenarios.map((s) => ({ ...s, file })));
+    checkScenarios(proseLines(readText(join(root, file)))).scenarios.map((s) => ({ ...s, file, carried: isCarriedOver(s, living) })));
+}
+
+// The scenarios of the project's own specs, by ID.
+function livingScenarios(root) {
+  const byId = new Map();
+  for (const f of walk(join(root, "openspec", "specs")).filter((x) => x.endsWith(".md"))) {
+    for (const s of checkScenarios(proseLines(readText(f))).scenarios) byId.set(s.id, [...(byId.get(s.id) ?? []), s]);
+  }
+  return byId;
+}
+
+// The GIVEN, WHEN, THEN and AND lines, as kind and trimmed text.
+const stepsOf = (s) => s.steps.map((x) => `${x.kind} ${x.text.trim()}`).join("\n");
+
+// A scenario in a MODIFIED requirement is carried over when the project's specs hold its
+// ID with the same lines. Reworded, it counts as new.
+function isCarriedOver(s, living) {
+  return s.section === "MODIFIED" && !s.guards && (living.get(s.id) ?? []).some((l) => stepsOf(l) === stepsOf(s));
 }
 
 // Scenario IDs in the project's own specs, so a test may cite them too.
@@ -208,7 +228,8 @@ export function trace(root, change, settings, changed = null) {
       ran: false, failsFirst: false, passesNow: false, status: "held",
     };
     if (s.guards) entry.guard = s.guards;
-    if (!entry.tasks.length) holds.push(hold(CHECKS.trace, { scenario: s.id, missing: "task", why: `Scenario ${s.id} has no task. Add a task whose Covers: line names ${s.id}.` }));
+    if (s.carried) entry.carried = true;
+    if (!entry.tasks.length && !s.carried) holds.push(hold(CHECKS.trace, { scenario: s.id, missing: "task", why: `Scenario ${s.id} has no task. Add a task whose Covers: line names ${s.id}.` }));
     if (!entry.tests.length) holds.push(hold(CHECKS.trace, { scenario: s.id, missing: "test", why: `Scenario ${s.id} has no test. Add a test whose name contains [${s.id}].${s.id.includes("-") ? "" : " A test can cite only an ID written in kebab-case with at least one hyphen, so rename the scenario."}` }));
     return entry;
   });
@@ -373,6 +394,7 @@ export function judgeFirstRun(entry, r) {
 // A guard describes behavior that already exists: its tests must pass on the starting
 // commit and on the latest one. Nothing here asks it to fail first.
 export function judgeGuardRuns(entry, before, now, holds) {
+  if (entry.carried) return judgeCarriedRuns(entry, before, now, holds);
   entry.passesBefore = before.failed === 0 && before.passed > 0 && before.exits.every((x) => x === 0);
   const files = entry.testFiles.join(", ");
   if (!entry.passesBefore) {
@@ -382,6 +404,22 @@ export function judgeGuardRuns(entry, before, now, holds) {
   if (!entry.passesNow) {
     const failing = now.tests.filter((x) => x.status === "failed").map((x) => x.name);
     holds.push(hold(CHECKS.guards, { scenario: entry.id, tests: failing, files: entry.testFiles, why: `The change altered behavior the guard ${entry.id} protects: ${failing.join("; ") || tail(now.out)} fails on the latest commit (${files}).` }));
+  }
+  entry.status = entry.passesBefore && entry.passesNow ? "proven" : "held";
+}
+
+// A carried-over scenario was written before this change: its tests must pass on the
+// starting commit and on the latest one. A failure on the latest commit is a regression.
+function judgeCarriedRuns(entry, before, now, holds) {
+  entry.passesBefore = before.failed === 0 && before.passed > 0 && before.exits.every((x) => x === 0);
+  const files = entry.testFiles.join(", ");
+  if (!entry.passesBefore) {
+    const failing = before.tests.filter((x) => x.status === "failed").map((x) => x.name);
+    holds.push(hold(CHECKS.carried, { scenario: entry.id, tests: failing, files: entry.testFiles, why: `${entry.id} is carried over from the project's specs, so its test must pass on the starting commit too. On the starting commit it did not pass: ${failing.join("; ") || tail(before.out)} (${files}). If its wording changed on purpose, it is a new scenario.` }));
+  }
+  if (!entry.passesNow) {
+    const failing = now.tests.filter((x) => x.status === "failed").map((x) => x.name);
+    holds.push(hold(CHECKS.carried, { scenario: entry.id, tests: failing, files: entry.testFiles, why: `The change broke ${entry.id}, a scenario it carried over unchanged: ${failing.join("; ") || tail(now.out)} fails on the latest commit (${files}).` }));
   }
   entry.status = entry.passesBefore && entry.passesNow ? "proven" : "held";
 }
@@ -595,7 +633,7 @@ export function runCompliance({ root, change, base, lane = "normal", settings })
   for (const entry of ran) {
     const now_ = runs.get(entry.id);
     entry.passesNow = now_.failed === 0 && now_.passed > 0 && now_.exits.every((x) => x === 0);
-    if (entry.guard) {
+    if (entry.guard || entry.carried) {
       judgeGuardRuns(entry, first.get(entry.id), now_, holds);
       continue;
     }
@@ -706,6 +744,9 @@ export function summarize(report) {
   for (const e of report.scenarios.filter((x) => x.guardBreaks?.caught)) {
     const c = e.guardBreaks.caught;
     out.push(`Guard ${e.id}: proven as a guard. Break ${e.guardBreaks.tried} of the code it protects was noticed${c.called ? ", in code the test calls" : ""} (line ${c.line} of ${c.file}: ${c.break}).`);
+  }
+  for (const e of report.scenarios.filter((x) => x.carried && x.status === "proven")) {
+    out.push(`Scenario ${e.id}: proven as carried over. It is unchanged from the project's specs, and its test passes on the starting commit and the latest.`);
   }
   if (report.breaks.skipped) out.push(`Breaking changed lines: skipped (${report.breaks.reason}).`);
   else out.push(`Breaking changed lines: ${report.breaks.tried} break(s) tried, ${report.breaks.entries.filter((e) => e.status === "covered").length} noticed by a test.`);

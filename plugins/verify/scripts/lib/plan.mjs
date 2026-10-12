@@ -12,6 +12,7 @@ const ITEM = /^\s*[-*]\s+\[( |x|X)\]\s+(.*)$/;
 const PROVED = /^\s*(?:[-*]\s+)?Proved by:/i;
 const REQUIREMENT = /^#{2,6}\s+Requirement:\s*(.*)$/;
 const GUARDS = /^\s*[-*]\s+\*\*GUARDS\*\*\s*(.*)$/;
+const SECTION = /^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements\b/i;
 const STEP = /^\s*[-*]\s+\*\*(GIVEN|WHEN|THEN|AND)\*\*\s*(.*)$/;
 
 export const hold = (line, message) => ({ line, level: "hold", message });
@@ -29,13 +30,17 @@ export function gather(lines, i) {
 
 // Each scenario also comes back in `scenarios`: its ID (the first word of its
 // heading), the requirement it sits under, its GIVEN, WHEN, THEN and AND lines, and
-// `guards`: what a **GUARDS** first bullet says must stay the same, or null.
+// `guards`: what a **GUARDS** first bullet says must stay the same, or null, and
+// `section`: ADDED, MODIFIED and so on, the kind of requirements block it sits in.
 export function checkScenarios(lines) {
   const findings = [];
   const scenarios = [];
   let count = 0;
   let requirement = null;
+  let section = null;
   for (let i = 0; i < lines.length; i++) {
+    const sec = lines[i].text.match(SECTION);
+    if (sec) { section = sec[1].toUpperCase(); requirement = null; continue; }
     const req = lines[i].text.match(REQUIREMENT);
     if (req) { requirement = req[1].trim().split(/\s+/)[0] || null; continue; }
     const m = lines[i].text.match(SCENARIO);
@@ -51,7 +56,7 @@ export function checkScenarios(lines) {
     // A guard says so in its first bullet: what must stay the same.
     const firstBullet = lines.slice(i + 1, end).find((l) => /^\s*[-*]\s/.test(l.text));
     const guards = firstBullet?.text.match(GUARDS)?.[1].trim() || null;
-    scenarios.push({ id: name.split(/\s+/)[0], name, requirement, line: lines[i].line, steps, guards });
+    scenarios.push({ id: name.split(/\s+/)[0], name, requirement, section, line: lines[i].line, steps, guards });
     const at = lines.slice(i + 1, end).findIndex((l) => PROVED.test(l.text));
     if (at === -1) {
       findings.push(hold(lines[i].line, `Scenario "${name}" has no "Proved by" line. Add one that names where it is checked, the evidence, and what passing looks like.`));
