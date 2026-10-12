@@ -24,7 +24,6 @@ The guard check runs on every lane. It's cheap, because it stops at the first ca
 
 - **2026-10-11, owner:** guard scenarios are marked and proven by breaking what they protect (option 1 of two offered after the precordia dry run).
 
-## Open questions (for the owner at approval)
-
-1. **The cap of 30 breaks per guard scenario.** Recommended: keep 30. In the precordia dry run, each guard file had fewer than 30 conditions, and the check stops at the first caught break anyway.
-2. **Run the guard breaks on every lane, including small?** Recommended: yes. Without the breaks, a guard is unproven, and the cost is small.
+- **2026-10-11, owner, at spec approval:**
+  - Guard breaks are capped at **30 per scenario**.
+  - Guard breaks run on **every lane**, including small.
