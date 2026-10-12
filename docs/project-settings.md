@@ -24,6 +24,23 @@ commands, ignoring capital letters. Use full names: an entry like `prod` would
 refuse every command that contains those four letters. `verify` refuses entries
 shorter than 3 characters there. `protectedBranches` holds exact branch names.
 
+## Settings for the spec compliance check
+
+The spec compliance check in `verify` proves a change does what its approved OpenSpec spec says. `verify:pr-review` runs it whenever a change has a folder under `openspec/changes/`. It needs only `tests.byName`; the rest are optional.
+
+| Field | What it holds |
+|---|---|
+| `tests.byName` | The command that runs one scenario's tests by name. `{name}` is replaced with the bracket text the test's name carries, such as `[scenario-id]` or `[area/feature:requirement/scenario-id]`. If your test tool reads the name as a pattern, escape the opening bracket: `\{name}`. |
+| `tests.all` | The command that runs every test. |
+| `tests.acceptance` | Path patterns for the locked acceptance tests. |
+| `tests.alwaysAllowed` | Path patterns the scope check never lists, such as documentation. |
+| `tests.exclude` | Path patterns never read for test names, such as sample projects kept as test data. |
+| `tests.namePattern` | A regular expression with one capture group, for a test tool that declares test names in an unusual way. |
+| `tests.sharedFolders` | Folders the temporary copies of your code may use, such as installed dependencies. Nothing else is shared, so folders your build writes to stay untouched. |
+| `executableSpecs` | Turns on executable specs: `tool`, `command` (with `{name}`) and an optional `assertion` pattern. |
+
+Scenario IDs need at least one hyphen, such as `seat-added-under-limit`, so the check can tell them apart from other bracketed text.
+
 ## The guard
 
 The cstack plugin runs `plugins/core/scripts/guard.mjs` before every shell
