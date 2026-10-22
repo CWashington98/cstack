@@ -227,6 +227,20 @@
       ]
     },
     {
+      "name": "software-factory-picks",
+      "description": "Pinned pointer to Matt Pocock's software-factory skill (mattpocock/skills, MIT): the shared words for designing a software factory (task, trigger, run, runner, ticket tracker, ticket source, git host, orchestrator, observability platform), the three brakes, five questions per task, example tasks and surveys of products for each slot. You call it yourself with /software-factory, next to a grilling session. Pinned to the head of his open pull request #1316, because the skill is still in his in-progress folder, which his own plugin leaves out.",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/mattpocock/skills.git",
+        "path": "skills/in-progress",
+        "sha": "b59cab42bf1206e1363eafc37f71b21c3bcaa12f"
+      },
+      "strict": false,
+      "skills": [
+        "./software-factory"
+      ]
+    },
+    {
       "name": "caveman-picks",
       "description": "Pinned pointer to caveman (Julius Brussee, Apache 2.0): a terse reply mode that cuts tokens while keeping every technical fact, with its two stronger modes (ultra and wenyan). cstack used to carry an older copy of it.",
       "source": {
