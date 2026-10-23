@@ -30,6 +30,11 @@ After step 3, come back and fill in the three lists the cstack guard reads befor
 - `agentsMayDeployTo`: the targets agents may deploy to, such as a staging backend or a cloud sandbox profile. Leave it empty if agents never deploy.
 - `protectedBranches`: branches agents never push to directly. Leave it out to use `main` and `master`. The `integrationBranch` is always protected.
 
+Then, for an app people look at, fill in the two lists `pr-review` reads to ask for screenshots:
+
+- `userVisible`: path patterns for files that change what users see: screens, components, styles, translations. Start a pattern with `!` to leave files out, such as `!**/*.test.*`. Propose them from the app's layout in step 3 and let the owner confirm.
+- `screenshotsRequiredFor`: the accounts whose pull requests must carry screenshots, such as the owner's own account and the one agents open pull requests with, on a machine that can run the app. Everyone else gets a note instead. Ask the owner; leave it empty to only recommend screenshots.
+
 The full format is in `docs/project-settings.md` in cstack.
 
 Add `.verify/` to `.gitignore` if it is not there. Evidence runs go in that folder and must never be committed.
