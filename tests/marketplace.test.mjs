@@ -82,6 +82,13 @@ function pointer(name) {
   return p;
 }
 
+test("the software-factory pointer picks only that skill, from Matt Pocock's in-progress folder", () => {
+  const p = pointer("software-factory-picks");
+  assert.equal(p.source.url, "https://github.com/mattpocock/skills.git");
+  assert.equal(p.source.path, "skills/in-progress");
+  assert.deepEqual(p.skills, ["./software-factory"]);
+});
+
 test("the ponytail pointer picks all six of its skills, without its always-on hooks", () => {
   const p = pointer("ponytail-picks");
   assert.equal(p.source.url, "https://github.com/DietrichGebert/ponytail.git");
