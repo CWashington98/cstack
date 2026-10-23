@@ -85,6 +85,18 @@
         "What nobody checked says this review has no opinion from a second AI company",
         "Codex's error is quoted in the technical detail"
       ]
+    },
+    {
+      "id": 8,
+      "prompt": "Review this pull request before it is marked ready: it changes the label on the results screen, its tests pass, and the description has no screenshots. The project settings list the screen folder under userVisible and the author under screenshotsRequiredFor.",
+      "expected_output": "Runs screenshots.mjs in the cheap checks, which holds because a user-visible file changed and the description has no screenshots. The review stops and goes back to the author before any model reviewer runs, asking for screenshots of the running app or a not applicable line with a reason.",
+      "files": [],
+      "expectations": [
+        "Runs screenshots.mjs with the base, the description file and the author account",
+        "Treats the hold as a failure that stops the review and goes back to the author",
+        "Asks for screenshots of the running app, or a line saying screenshots are not applicable with a reason",
+        "Does not accept a \"Screenshots: not taken\" line from this author"
+      ]
     }
   ]
 }

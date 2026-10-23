@@ -3,5 +3,7 @@
   "highRisk": [],
   "protectedBranches": ["main"],
   "agentsMayDeployTo": [],
-  "agentsNeverTouch": []
+  "agentsNeverTouch": [],
+  "userVisible": [],
+  "screenshotsRequiredFor": []
 }

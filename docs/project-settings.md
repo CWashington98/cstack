@@ -18,11 +18,29 @@ Worktrees without their own copy use the main checkout's.
 | `protectedBranches` | No | Branches agents never push to directly. Leave it out to use `main` and `master`. `integrationBranch` is always added. | The guard |
 | `agentsMayDeployTo` | No | Deploy targets agents may use: a staging backend's name, a cloud sandbox profile. Leave it empty if agents never deploy. | The guard |
 | `agentsNeverTouch` | No | Text agents must never use in a command: production backend names, production addresses, cloud profiles for production, or a whole command such as `bun run release:prod`. | The guard |
+| `userVisible` | No | Path patterns for files that change what users see: screens, components, styles, translations. A pattern that starts with `!` leaves files out, such as `!**/*.test.*`. A pull request that changes a matching file needs screenshots. Leave it out and nothing asks for screenshots. | `pr-review` |
+| `screenshotsRequiredFor` | No | GitHub accounts whose pull requests must carry screenshots when they change a `userVisible` file, ignoring capital letters. List accounts on machines that can run the app, such as the owner's and the one agents use. For anyone else, missing screenshots is only a note. | `pr-review` |
 
 Entries in `agentsNeverTouch` and `agentsMayDeployTo` are matched as text inside
 commands, ignoring capital letters. Use full names: an entry like `prod` would
 refuse every command that contains those four letters. `verify` refuses entries
 shorter than 3 characters there. `protectedBranches` holds exact branch names.
+
+## Screenshots
+
+`verify:pr-review` runs `screenshots.mjs` on every pull request. It does nothing
+unless `userVisible` is set and a changed file matches it; a deleted file counts.
+Then the description needs proof: a Markdown image, an `<img>` tag or a link
+into a `pr-assets/` folder or branch. Images inside HTML comments or code don't
+count, so a template's hints never pass, and neither do the buttons a bot adds
+to every description. A line `Screenshots: not applicable — <reason>` also
+counts, and the reason is required.
+
+For an account in `screenshotsRequiredFor`, missing proof sends the pull request
+back to its author. For anyone else it is a note that never blocks, and a line
+`Screenshots: not taken — <reason>` is enough, because their machine may not run
+the app.
+
 
 ## Settings for the spec compliance check
 
@@ -233,6 +251,8 @@ A web app with a staging backend agents may deploy to:
   "highRisk": ["src/billing/**", "src/auth/**"],
   "protectedBranches": ["main"],
   "agentsMayDeployTo": ["happy-otter-123"],
-  "agentsNeverTouch": ["brave-lion-456", "app.example.com"]
+  "agentsNeverTouch": ["brave-lion-456", "app.example.com"],
+  "userVisible": ["src/pages/**", "src/components/**", "*.css", "!**/*.test.*"],
+  "screenshotsRequiredFor": ["owner-account"]
 }
 ```
