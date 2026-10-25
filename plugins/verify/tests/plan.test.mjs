@@ -21,6 +21,7 @@ const GOOD_SCENARIO = [
   "- Proved by: live in the app (feature `recordings`, sub-feature `play`);",
   "  evidence: a recording of the press, plus a read-back of the audio bytes;",
   "  pass when the bytes match the stored file.",
+  "- **EXAMPLE:** Rater 7 opens patient 31 and presses play. The 4.2 second clip plays.",
   "",
 ].join("\n");
 

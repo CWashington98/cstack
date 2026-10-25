@@ -13,6 +13,7 @@ const PROVED = /^\s*(?:[-*]\s+)?Proved by:/i;
 const REQUIREMENT = /^#{2,6}\s+Requirement:\s*(.*)$/;
 const GUARDS = /^\s*[-*]\s+\*\*GUARDS\*\*\s*(.*)$/;
 const SECTION = /^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements\b/i;
+const EXAMPLE = /^\s*[-*]\s+\*\*EXAMPLE:\*\*/;
 const STEP = /^\s*[-*]\s+\*\*(GIVEN|WHEN|THEN|AND)\*\*\s*(.*)$/;
 
 export const hold = (line, message) => ({ line, level: "hold", message });
@@ -31,8 +32,11 @@ export function gather(lines, i) {
 // Each scenario also comes back in `scenarios`: its ID (the first word of its
 // heading), the requirement it sits under, its GIVEN, WHEN, THEN and AND lines, and
 // `guards`: what a **GUARDS** first bullet says must stay the same, or null, and
-// `section`: ADDED, MODIFIED and so on, the kind of requirements block it sits in.
-export function checkScenarios(lines) {
+// `section`: ADDED, MODIFIED and so on, the kind of requirements block it sits in, and
+// `text`: its heading and body as written. A scenario whose last bullet is not an
+// **EXAMPLE:** holds, unless its text is in `unchanged` (the scenarios as they were at
+// --since): old scenarios only get advice.
+export function checkScenarios(lines, unchanged = new Set()) {
   const findings = [];
   const scenarios = [];
   let count = 0;
@@ -59,7 +63,12 @@ export function checkScenarios(lines) {
     // A guard says so in its first bullet: what must stay the same.
     const firstBullet = lines.slice(i + 1, end).find((l) => /^\s*[-*]\s/.test(l.text));
     const guards = firstBullet?.text.match(GUARDS)?.[1].trim() || null;
-    scenarios.push({ id: name.split(/\s+/)[0], name, requirement, section, line: lines[i].line, steps, bullets, guards });
+    const whole = lines.slice(i, end).map((l) => l.text).join("\n").trim();
+    scenarios.push({ id: name.split(/\s+/)[0], name, requirement, section, line: lines[i].line, steps, bullets, guards, text: whole });
+    const lastBullet = lines.slice(i + 1, end).findLast((l) => /^\s*[-*]\s/.test(l.text));
+    if (!lastBullet || !EXAMPLE.test(lastBullet.text)) {
+      findings.push({ line: lines[i].line, level: unchanged.has(whole) ? "advice" : "hold", message: `Scenario "${name}" has no worked example. Add an **EXAMPLE:** bullet with real names and numbers.` });
+    }
     const at = lines.slice(i + 1, end).findIndex((l) => PROVED.test(l.text));
     if (at === -1) {
       findings.push(hold(lines[i].line, `Scenario "${name}" has no "Proved by" line. Add one that names where it is checked, the evidence, and what passing looks like.`));
@@ -216,6 +225,19 @@ export function checkProofBoxes(lines) {
   return findings;
 }
 
+// The file as it was at `since`, or null when it did not exist there or no --since was
+// given. Throws a UsageError when `since` is not a commit.
+function textAtSince({ file, root, since }) {
+  if (!since || !file || !root) return null;
+  const run = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  try { run("rev-parse", "--verify", "--quiet", `${since}^{commit}`); } catch {
+    throw new UsageError(`--since ${since} is not a commit in this repository. Check the name, or fetch it first.`);
+  }
+  try {
+    return run("show", `${since}:${relative(root, file)}`);
+  } catch { return null; /* the ref is real, so the file did not exist there: nothing to compare */ }
+}
+
 const doneLine = (lines) => lines.find((l) => DONE_LINE.test(l.text));
 
 export function checkDone(lines, { file, root, since } = {}) {
@@ -223,26 +245,18 @@ export function checkDone(lines, { file, root, since } = {}) {
   if (!done) return [hold(1, `The plan has no "Done when:" line. Write the finish line as a count fixed before work starts, for example "Done when: all 12 tasks merged, each verified live or by unit test".`)];
   const findings = [];
   if (!/\d/.test(done.text)) findings.push(hold(done.line, `"Done when" has no count. Make it countable, such as "all 12 tasks merged", so nobody can declare victory early.`));
-  if (since && file && root) {
-    const run = (...args) => execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
-    try { run("rev-parse", "--verify", "--quiet", `${since}^{commit}`); } catch {
-      throw new UsageError(`--since ${since} is not a commit in this repository. Check the name, or fetch it first.`);
-    }
-    let old = null;
-    try {
-      old = run("show", `${since}:${relative(root, file)}`);
-    } catch { /* the ref is real, so the plan did not exist there: nothing to compare */ }
-    const before = old && doneLine(proseLines(old));
-    if (before && before.text.trim() !== done.text.trim()) {
-      findings.push(hold(done.line, `The done condition changed since ${since}. It is fixed before work starts and never relaxed. Before: "${before.text.trim()}". Now: "${done.text.trim()}".`));
-    }
+  const old = textAtSince({ file, root, since });
+  const before = old && doneLine(proseLines(old));
+  if (before && before.text.trim() !== done.text.trim()) {
+    findings.push(hold(done.line, `The done condition changed since ${since}. It is fixed before work starts and never relaxed. Before: "${before.text.trim()}". Now: "${done.text.trim()}".`));
   }
   return findings;
 }
 
 export function checkFile(raw, { file, root, since } = {}) {
   const lines = proseLines(raw);
-  const sc = checkScenarios(lines);
+  const old = textAtSince({ file, root, since });
+  const sc = checkScenarios(lines, new Set(old ? checkScenarios(proseLines(old)).scenarios.map((x) => x.text) : []));
   const it = checkItems(lines, root);
   const findings = [...sc.findings, ...it.findings];
   const open = unclosedFence(raw);

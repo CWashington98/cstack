@@ -10,7 +10,7 @@
 
 ## 2. Examples
 
-- [ ] 2.1 In `checkScenarios`, note whether a scenario's last bullet starts `**EXAMPLE:**`. Hold new scenarios that lack one. Scenarios unchanged since `--since` get advice. Verify with the example tests and the existing `plan.test.mjs`. Covers: new-scenario-without-example-holds, old-scenario-without-example-is-advice, scenario-with-example-passes. Touches: plugins/verify/scripts/lib/plan.mjs
+- [x] 2.1 In `checkScenarios`, note whether a scenario's last bullet starts `**EXAMPLE:**`. Hold new scenarios that lack one. Scenarios unchanged since `--since` get advice. Verify with the example tests and the existing `plan.test.mjs`. Covers: new-scenario-without-example-holds, old-scenario-without-example-is-advice, scenario-with-example-passes. Touches: plugins/verify/scripts/lib/plan.mjs
 
 ## 3. Stamps and freshness
 

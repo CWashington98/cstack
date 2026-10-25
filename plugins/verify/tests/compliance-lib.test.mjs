@@ -38,7 +38,7 @@ test("checkScenarios returns each scenario's ID, requirement and step lines", ()
 });
 
 test("checkScenarios still holds a scenario with no Proved by line", () => {
-  const { findings } = checkScenarios(proseLines(SPEC));
+  const findings = checkScenarios(proseLines(SPEC)).findings.filter((f) => /Proved by/.test(f.message));
   assert.equal(findings.length, 2);
   assert.match(findings[0].message, /first-works/);
 });
