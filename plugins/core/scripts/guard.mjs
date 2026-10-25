@@ -49,7 +49,7 @@ import { readFileSync, existsSync, statSync, readdirSync, appendFileSync, mkdirS
 import { resolve, join, dirname, basename, relative, sep } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
-import { pathToFileURL, fileURLToPath } from "node:url";
+import { fileURLToPath } from "node:url";
 import { extractHeredocs, substitutions, segments, tokenize, envFile } from "./lib/shell.mjs";
 
 const SETTINGS = join(".claude", "verify.json");
@@ -1313,13 +1313,14 @@ async function main() {
 // path, with every symlink resolved, while process.argv[1] is the path as
 // typed, so both are resolved before they are compared. Comparing them as
 // they are made the guard do nothing, and allow everything, when started
-// through a symlinked folder such as /tmp on macOS.
+// through a symlinked folder such as /tmp on macOS. When a path can't be
+// resolved, the guard runs: doing nothing would allow every command.
 function startedDirectly() {
   if (!process.argv[1]) return false;
   try {
     return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
   } catch {
-    return import.meta.url === pathToFileURL(process.argv[1]).href;
+    return true;
   }
 }
 
