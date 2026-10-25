@@ -66,8 +66,11 @@ export function checkScenarios(lines, unchanged = new Set()) {
     const whole = lines.slice(i, end).map((l) => l.text).join("\n").trim();
     scenarios.push({ id: name.split(/\s+/)[0], name, requirement, section, line: lines[i].line, steps, bullets, guards, text: whole });
     const lastBullet = lines.slice(i + 1, end).findLast((l) => /^\s*[-*]\s/.test(l.text));
+    const level = unchanged.has(whole) ? "advice" : "hold";
     if (!lastBullet || !EXAMPLE.test(lastBullet.text)) {
-      findings.push({ line: lines[i].line, level: unchanged.has(whole) ? "advice" : "hold", message: `Scenario "${name}" has no worked example. Add an **EXAMPLE:** bullet with real names and numbers.` });
+      findings.push({ line: lines[i].line, level, message: `Scenario "${name}" has no worked example. Add an **EXAMPLE:** bullet with real names and numbers.` });
+    } else if (!/[\p{L}\p{N}]/u.test(gather(lines, lines.indexOf(lastBullet)).replace(EXAMPLE, ""))) {
+      findings.push({ line: lastBullet.line, level, message: `Scenario "${name}": the example is empty. Write real names and numbers after **EXAMPLE:**.` });
     }
     const at = lines.slice(i + 1, end).findIndex((l) => PROVED.test(l.text));
     if (at === -1) {

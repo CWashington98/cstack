@@ -58,6 +58,21 @@ test("Windows line endings are read the same way", () => {
   assert.equal(check(GOOD_SCENARIO.replace(/\n/g, "\r\n")).held, false);
 });
 
+test("an EXAMPLE bullet with nothing after it holds like a missing example", () => {
+  const withoutExample = GOOD_SCENARIO.split("\n").filter((l) => !l.includes("**EXAMPLE:**")).join("\n");
+  for (const tail of ["", "   ", " ...", " - ", " **", " ()"]) {
+    const r = check(`${withoutExample}\n- **EXAMPLE:**${tail}\n`);
+    assert.equal(r.held, true, `tail ${JSON.stringify(tail)} should hold`);
+    assert.match(messages(r), /example is empty/i);
+  }
+});
+
+test("an EXAMPLE bullet whose words wrap onto the next line is not empty", () => {
+  const withoutExample = GOOD_SCENARIO.split("\n").filter((l) => !l.includes("**EXAMPLE:**")).join("\n");
+  const r = check(`${withoutExample}\n- **EXAMPLE:**\n  Rater 7 opens patient 31 and presses play.\n`);
+  assert.equal(r.held, false, messages(r));
+});
+
 test("a file with nothing to check is held rather than passed", () => {
   const r = check("# Notes\n\nJust prose.\n");
   assert.equal(r.held, true);
