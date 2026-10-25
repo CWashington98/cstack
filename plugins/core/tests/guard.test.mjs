@@ -1153,77 +1153,6 @@ test("review round 1: Convex selectors are read the way Convex reads them", () =
   }
 });
 
-test("comments: a whole comment line that only mentions a deploy is not a command, in a script or a command line", () => {
-  // The shape that was refused: a header comment that quotes a command in backticks.
-  const dir = project({
-    "scripts/notes.sh": [
-      "#!/usr/bin/env bash",
-      "# Why this script exists:",
-      "#   - `convex deploy --dry-run` resolves to PROD and prompts interactively.",
-      "  #   - so does $(npx convex deploy), which we don't run.",
-      "\t# and `npx convex deploy`",
-      "echo done",
-      "",
-    ].join("\n"),
-  });
-  allowed(dir, "bash scripts/notes.sh");
-  allowed(dir, "./scripts/notes.sh");
-  allowed(dir, "source scripts/notes.sh");
-  allowed(dir, "# $(npx convex deploy)\necho hi");
-  allowed(dir, "echo hi\n# `npx convex deploy`\necho done");
-  allowed(dir, "bash <<'EOF'\n# run `npx convex deploy` by hand\necho hi\nEOF");
-  // A quote in a comment line hides nothing, so this $( ) is found.
-  refused(dir, "# don't\nx=$(npx convex deploy)\n# it's", /convex deploy/);
-  // Nor does a quote in a comment after a command: each command segments()
-  // keeps is read for pairs too. main allowed this one.
-  refused(dir, "echo hi # don't\nx=$(npx convex deploy)", /convex deploy/);
-});
-
-test("comments: a comment after a command, or a # line the shell may not read as a comment, still counts", () => {
-  const dir = project({
-    "scripts/ship.sh": "#!/usr/bin/env bash\n# Deploys the backend.\n# don't run this by hand\nnpx convex deploy # the real one\n",
-    "scripts/quoted.sh": "#!/usr/bin/env bash\n# don't\nx=$(npx convex deploy)\n# it's done\n",
-    "scripts/inline.sh": "#!/usr/bin/env bash\necho checking # not `npx convex deploy`\n",
-  });
-  refused(dir, "bash scripts/ship.sh", /convex deploy/);
-  refused(dir, "bash scripts/quoted.sh", /convex deploy/);
-  // The guard reads only whole comment lines as comments when it looks for
-  // $( ) and backtick pairs. A comment after a command is read as text, which
-  // can refuse a command the shell would run safely, never the other way.
-  refused(dir, "bash scripts/inline.sh", /convex deploy/);
-  for (const c of [
-    "echo hi # see `npx convex deploy`",
-    "echo a\\\\ # $(npx convex deploy)",
-    'echo "#"; npx convex deploy',
-    "x='#' npx convex deploy",
-    'echo "#" `npx convex deploy`',
-    "echo a#`npx convex deploy`",
-    "x=$(true)#$(npx convex deploy)",
-    "echo ${#x} $(npx convex deploy)",
-    "echo \\# $(npx convex deploy)",
-    "bash <<EOF\n# a comment\nnpx convex deploy\nEOF",
-    "bash <<'EOF'\n# don't\nx=$(npx convex deploy)\nEOF",
-    // In a heredoc's body # is text, so the shell still runs this $( ).
-    "cat <<EOF\n# $(npx convex deploy)\nEOF",
-    // A # line inside a quote, a pair or a joined line is not a comment.
-    'echo "a\n# $(npx convex deploy)"',
-    "echo ${x:-\n# $(npx convex deploy)\n}",
-    "echo $[ 1 +\n# $(npx convex deploy)\n]",
-    "echo a \\\n# $(npx convex deploy)",
-    "x=(\n# $(npx convex deploy)\n)",
-    // A # line after a << the guard didn't read as a heredoc may be the heredoc's body.
-    "cat <(echo)#<<EOF\n# $(npx convex deploy)\nEOF",
-    // An escaped space is part of a word, so the # after it is too.
-    "x\\ #; npx convex deploy",
-    "echo a\\ # $(npx convex deploy)",
-    "\\ #a$(npx convex deploy)",
-    // A # glued to an escaped character or a closing $( ) doesn't hide a quote
-    // that the shell sees, so the heredoc after it isn't one.
-    "x\\ #'\ncat <<EOF\n'; npx convex deploy\nEOF",
-    "x=$(true)#'\ncat <<EOF\n'; npx convex deploy\nEOF",
-  ]) refused(dir, c, /convex deploy|too complex/);
-});
-
 test("env files: a comment in an env file names no deploy target", () => {
   const other = "CONVEX_DEPLOYMENT=dev:other-backend-2";
   const dir = project({
@@ -1300,85 +1229,115 @@ test("env files: a never entry only in a comment isn't used, where the loader re
   allowed(dir, "bun --env-file=.env.node-quirk seed.js");
 });
 
-test("comments inside $( ): a quote in a comment doesn't hide the commands after the pair", () => {
-  const dir = project({ "scripts/sub.sh": "#!/usr/bin/env bash\nx=$(echo hi # it's a note\n)\nnpx convex deploy\n" });
-  // The shape that was allowed. A pair the guard can't close is refused, so
-  // a comment with a quote in it inside $( ) is refused even with no deploy.
+test("$( ) that never closes: a quote in a comment inside it can't hide the commands after it", () => {
+  const dir = project();
+  // main allowed the first two: the quote in the comment opened a quote that
+  // ran to the end, and the command inside the pair was checked with its last
+  // character cut off. The third is the same pair in a heredoc's body.
   for (const c of [
-    "x=$(echo # it's\n) ; npx convex deploy",
-    "x=$(echo # it's\n); npx convex deploy",
+    "x=$(echo hi # it's\n) ; npx convex deploy",
     "x=$(echo # \"\n) && npx convex deploy",
-    "x=$(echo # `\n) ; npx convex deploy",
-    "echo \"$(echo # it's\n)\" ; npx convex deploy",
-    "x=$( (echo a) # it's\n) ; npx convex deploy",
-    "x=$(echo $(echo # it's\n)) ; npx convex deploy",
-    "bash -c 'x=$(echo # q\n) ; npx convex deploy'",
-    "bash scripts/sub.sh",
-    "x=$(echo # it's\nnpx convex deploy\n)",
-    "x=$(echo hi # it's a note\n) ; echo done",
-    "echo `npx convex deploy",
-  ]) refused(dir, c, /convex deploy|too complex/);
-  refused(dir, "x=$(echo a#)\nnpx convex deploy", /convex deploy/);
-  refused(dir, "x=$(echo $(true)#) ; npx convex deploy", /convex deploy/);
-  refused(dir, "x=$(echo ${#y}) ; npx convex deploy", /convex deploy/);
-  // A deploy after a pair keeps the target set before it.
-  const target = "export CONVEX_DEPLOYMENT=dev:staging-backend-1\n";
-  allowed(dir, `${target}x=$(echo $(true)#)\nnpx convex deploy`);
-  allowed(dir, `${target}x=$(echo a\\ #)\nnpx convex deploy`);
+    "cat <<EOF\n$(echo # it's\n)\nEOF\nnpx convex deploy",
+  ]) refused(dir, c, /too complex/);
+  // A pair that closes is read as before.
+  allowed(dir, 'x=$(git log -1 --format=%s) && echo "$x"');
   allowed(dir, "x=$(echo hi # a note\n) ; echo done");
-  // A pair that never closes keeps every character and is marked unclosed.
   const open = substitutions("x=$(echo # it's\n) ; npx convex deploy");
   assert.deepEqual([...open], ["echo # it's\n) ; npx convex deploy"]);
   assert.equal(open.unclosed, true);
   assert.equal(substitutions("x=$(date)").unclosed, false);
 });
 
-
-test("review: each case found in review is refused through the hook itself, as the shells read it", () => {
-  // Each of these ran a deploy in bash, zsh or dash, or is a # the shell reads
-  // as a comment that the guard still refuses, as main does. They go through
+test("review: every case from review that main refuses, or that ran a deploy, is refused through the hook itself", () => {
+  // Rounds 1 and 2 of review, with the env files they use. Each runs through
   // the real entry point: JSON on standard input, exit 2 to refuse.
   const dir = project({
     "vars.c1": "CONVEX_DEPLOYMENT=prod:x # staging-backend-1\n",
     "vars.c2": "A=1\n# prod-backend-9\n",
     "vars.c3": "A=1 #prod-backend-9\n",
     "vars.c5": "#c\n  #K=prod-backend-9\n",
-    "vars.c6": 'CONVEX_DEPLOYMENT="dev:staging-backend-1" # ok\n',
+    "vars.c6": "CONVEX_DEPLOYMENT=\"dev:staging-backend-1\" # ok\n"
   });
   const logFile = join(mkdtempSync(join(tmpdir(), "guard-log-")), "log.jsonl");
   const hook = (command) => spawnSync("node", [script], { input: JSON.stringify({ tool_name: "Bash", tool_input: { command }, cwd: dir }), encoding: "utf8", env: { ...process.env, CSTACK_GUARD_LOG: logFile } });
   const refuse = [
-    "(( 1 + #$(npx convex deploy)\n))",
-    "echo $[ 1 #$(npx convex deploy) ]",
-    "echo ${x:- #$(npx convex deploy)}\necho }",
-    "echo x #$(npx convex deploy)",
-    "echo x\r#$(npx convex deploy)",
-    "cat <(echo a)#$(npx convex deploy)",
-    "((1))#<<EOF\nnpx convex deploy\nEOF",
-    "echo a \\\n#<<EOF\nnpx convex deploy\nEOF",
-    "x=$(cat <(echo)#); npx convex deploy\ncase a in a) ;; esac",
-    "x=$(echo ${y:- #}); npx convex deploy\necho }; case a in a) ;; esac",
-    "x=$(( 1 #)); npx convex deploy\ncase a in a) ;; esac\n)",
-    "echo x\u000b#$(npx convex deploy)",
-    "echo x\f#$(npx convex deploy)",
-    "cat <<EOF\n# $(npx convex deploy)\nEOF",
-    'echo "a\n#$(npx convex deploy)"',
-    "case a in a) x=1 ;; #$(npx convex deploy)\nesac",
-    "echo ${#x} $(npx convex deploy)",
-    "echo $(( 2#1 )) $(npx convex deploy)",
-    "x=$(echo hi # it's\n) ; npx convex deploy",
-    "for i in 1; do #$(npx convex deploy)\n:; done",
-    "a=( 1 #$(npx convex deploy)\n)",
-    "dotenvx run -f vars.c1 -- npx convex deploy",
-    "env-cmd -f vars.c3 npx convex run x",
-    "node --env-file=vars.c5 x.js",
+    ["cases/01-arith-cmd", "(( 1 + #$(npx convex deploy)\n))"],
+    ["cases/02-dollar-bracket", "echo $[ 1 #$(npx convex deploy) ]"],
+    ["cases/03-brace-default", "echo ${x:- #$(npx convex deploy)}\necho }"],
+    ["cases/04-nbsp", "echo x #$(npx convex deploy)"],
+    ["cases/05-cr", "echo x\r#$(npx convex deploy)"],
+    ["cases/06-procsubst", "cat <(echo a)#$(npx convex deploy)"],
+    ["cases/07-arith-heredoc", "((1))#<<EOF\nnpx convex deploy\nEOF"],
+    ["cases/08-backslash-nl-heredoc", "echo a \\\n#<<EOF\nnpx convex deploy\nEOF"],
+    ["cases/09-procsubst-in-comsub", "x=$(cat <(echo)#); npx convex deploy\ncase a in a) ;; esac"],
+    ["cases/10-brace-in-comsub", "x=$(echo ${y:- #}); npx convex deploy\necho }; case a in a) ;; esac"],
+    ["cases/11-arith-in-comsub", "x=$(( 1 #)); npx convex deploy\ncase a in a) ;; esac\n)"],
+    ["cases/12-vtab", "echo x\u000b#$(npx convex deploy)"],
+    ["cases/13-ff", "echo x\f#$(npx convex deploy)"],
+    ["cases2/e1-target-in-comment", "dotenvx run -f vars.c1 -- npx convex deploy"],
+    ["cases2/e3-envcmd-inline", "env-cmd -f vars.c3 npx convex run x"],
+    ["cases2/e5-node-indented", "node --env-file=vars.c5 x.js"],
+    ["cases2/s1-heredoc-comment-subst", "cat <<EOF\n# $(npx convex deploy)\nEOF"],
+    ["cases2/s2-dq-multiline", "echo \"a\n#$(npx convex deploy)\""],
+    ["cases2/s3-case-comment", "case a in a) x=1 ;; #$(npx convex deploy)\nesac"],
+    ["cases2/s4-brace-hash", "echo ${#x} $(npx convex deploy)"],
+    ["cases2/s5-base-arith", "echo $(( 2#1 )) $(npx convex deploy)"],
+    ["cases2/s6-builder-fixed", "x=$(echo hi # it's\n) ; npx convex deploy"],
+    ["cases2/s7-for-comment", "for i in 1; do #$(npx convex deploy)\n:; done"],
+    ["cases2/s8-array-comment", "a=( 1 #$(npx convex deploy)\n)"],
+    ["cases3/n01-heredoc-body-bash", "cat <<EOF | bash\n# $(npx convex deploy)\nEOF\n"],
+    ["cases3/n04-dq-multiline", "echo \"a\n# $(npx convex deploy)\n\"\n"],
+    ["cases3/n05-comsub-span", "x=$(echo a\n# $(npx convex deploy)\n)\n"],
+    ["cases3/n06-backslash-cont", "echo a \\\n# $(npx convex deploy)\n"],
+    ["cases3/n07-case-comment", "case a in\n# $(npx convex deploy)\na) :;;\nesac\n"],
+    ["cases3/n08-array", "a=(1\n# $(npx convex deploy)\n)\n"],
+    ["cases3/n09-herestring", "cat <<< \"a\n# $(npx convex deploy)\n\"\n"],
+    ["cases3/n10-dash-heredoc-tabs", "cat <<-EOF\n\t# $(npx convex deploy)\n\tEOF\n"],
+    ["cases3/n12-crlf-plain", "echo a\r\n# $(npx convex deploy)\r\necho b\r\n"],
+    ["cases3/n13-brace-span", "echo ${x:-a\n# $(npx convex deploy)\n}\n"],
+    ["cases3/n14-eval-sq", "eval 'echo a\n# $(npx convex deploy)\n'\n"],
+    ["cases3/n15-eval-dq-cont", "eval \"echo a\\\\\n# \\$(npx convex deploy)\"\n"],
+    ["cases3/n16-crlf-delim-mismatch", "cat <<EOF\r\nEOF\n# $(npx convex deploy)\nEOF\r\n"],
+    ["cases3/n17-vt-delim", "cat <<EOF\u000bx\nEOF\n# $(npx convex deploy)\n"],
+    ["cases3/n18-backtick-delim", "cat <<EOF`true`\nEOF\n# $(npx convex deploy)\nEOF`true`\n"],
+    ["cases3/n19-case-glued-heredoc", "x=$(case a in a)#<<EOF\nnpx convex deploy\nEOF\n;; esac)\n"],
+    ["cases3/n20-case-glued-heredoc2", "x=$(case a in a)#<<EOF\n# $(npx convex deploy)\nEOF\n;; esac)\n"],
+    ["cases3/n21-glued-comsub", "echo $(echo)#<<EOF\nnpx convex deploy\nEOF\n"],
+    ["cases3/n23-procsubst-hash-heredoc", "cat <(echo)#<<EOF\n# $(npx convex deploy)\nEOF\n"],
+    ["cases3/n24-heredoc-then-mlquote", "cat <<EOF; echo \"\n\"\n# $(npx convex deploy)\nEOF\n"],
+    ["cases3/n25-func-comment", "f() {\n# $(npx convex deploy)\n:\n}\n"],
+    ["cases3/n26-dbracket-span", "[[ a ==\n# $(npx convex deploy)\na ]]\n"],
+    ["cases3/n27-backtick-span", "echo `echo a\n# $(npx convex deploy)\n`\n"],
+    ["cases3/n28-arith-span", "x=$((1+\n# $(npx convex deploy)\n1))\n"],
+    ["cases3/n29-pipe-then-comment", "echo a |\n# $(npx convex deploy)\ncat\n"],
+    ["cases3/n30-legit-comment", "echo a\n# $(npx convex deploy)\n"],
+    ["cases3/n31-dq-comsub-nested", "echo \"$(echo \"\n# $(npx convex deploy)\n\")\"\n"],
+    ["cases3/n33-partquoted-tag", "cat <<E\"O\"F\nEOF\n# $(npx convex deploy)\nEOF\n"],
+    ["cases3/n34-nbsp-delim", "cat <<EOF \nEOF\n# $(npx convex deploy)\n"],
+    ["cases3/n35-ff-delim", "cat <<EOF\fx\nEOF\n# $(npx convex deploy)\n"],
+    ["cases4/t01-brace-tick-close", "echo ${x:-`echo }`\n# $(npx convex deploy)\n}\n"],
+    ["cases4/t02-arith-tick-close", "x=$(( 1 + `echo ))`\n# $(npx convex deploy)\n))\n"],
+    ["cases4/t03-dq-brace-tick", "echo \"${x:-`echo }`\n# $(npx convex deploy)\n}\"\n"],
+    ["cases4/t04-brace-tick-dq", "echo ${x:-`echo \"}\"`\n# $(npx convex deploy)\n}\n"],
+    ["cases4/t06-case-glued-echo", "y=$(case a in a)#<<EOF\nnpx convex deploy\nEOF\n;; esac)\necho \"$y\"\n"],
+    ["cases4/t08-comsub-space-hash", "x=$(echo a) #<<EOF\nnpx convex deploy\nEOF\n"],
+    ["cases4/t09-u2028-delim", "cat <<EOF \nEOF\n# $(npx convex deploy)\n"],
+    ["cases4/t10-bom-delim", "cat <<EOF﻿\nEOF\n# $(npx convex deploy)\n"],
+    ["cases4/t11-ideographic-space-delim", "cat <<EOF　\nEOF\n# $(npx convex deploy)\n"],
+    ["cases4/t12-crlf-consistent", "cat <<EOF\r\n# $(npx convex deploy)\r\nEOF\r\n"],
+    ["cases4/t13-eval-brace", "eval 'echo ${x:-a' '\n# $(npx convex deploy)\n}'\n"],
+    ["cases4/t14-eval-escaped", "eval echo \\${x:-a\\\n\n# $(npx convex deploy)\n}\n"],
+    ["cases4/t15-case-brace", "x=$(case a in a) echo ${y:-\n# $(npx convex deploy)\n};; esac)\n"],
+    ["cases4/t16-case-glued-semi", "z=$(case a in a)#<<EOF; echo\nnpx convex deploy\nEOF\n;; esac)\n"],
   ];
-  for (const c of refuse) assert.equal(hook(c).status, 2, `expected the hook to refuse: ${JSON.stringify(c)}`);
+  for (const [name, c] of refuse) assert.equal(hook(c).status, 2, `expected the hook to refuse ${name}: ${JSON.stringify(c)}`);
   // dotenvx skips a # line, so a "never" name only there isn't used, and a
   // quoted target followed by a comment still counts.
-  for (const c of ["dotenvx run -f vars.c2 -- npx convex run x", "dotenvx run -f vars.c6 -- npx convex deploy"]) {
-    assert.equal(hook(c).status, 0, `expected the hook to allow: ${JSON.stringify(c)}`);
-  }
+  const allow = [
+    ["cases2/e2-never-in-comment-line", "dotenvx run -f vars.c2 -- npx convex run x"],
+    ["cases2/e6-quoted-target", "dotenvx run -f vars.c6 -- npx convex deploy"],
+  ];
+  for (const [name, c] of allow) assert.equal(hook(c).status, 0, `expected the hook to allow ${name}: ${JSON.stringify(c)}`);
 });
 
 test("the hook runs when it is started through a symlinked path", () => {

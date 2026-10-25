@@ -50,7 +50,7 @@ import { resolve, join, dirname, basename, relative, sep } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { pathToFileURL, fileURLToPath } from "node:url";
-import { extractHeredocs, substitutions, segments, tokenize, envFile, withoutCommentLines } from "./lib/shell.mjs";
+import { extractHeredocs, substitutions, segments, tokenize, envFile } from "./lib/shell.mjs";
 
 const SETTINGS = join(".claude", "verify.json");
 const MAX_DEPTH = 8;
@@ -533,27 +533,15 @@ class Checker {
     if (incomplete || (unterminated && !ctx.fragment)) return this.refuse("complex", "It is too complex to read safely: a quote, a $( ) pair or a heredoc in it never closes, so the guard can't tell where the commands after it start. Run the parts separately.");
     for (const [k, v] of heredocs) this.heredocs.set(k, v);
     // The shell runs the $( ) and backtick commands in a heredoc whose tag has no quotes.
-    const bodies = [...live].map((k) => substitutions(heredocs.get(k), { quotes: false }));
-    // The $( ) and backtick commands are read from the whole text, leaving out
-    // only whole comment lines, and again from each command segments() keeps,
-    // so a quote in a comment can't hide the pairs after it. Reading both ways
-    // only ever adds commands to check.
-    const parts = segments(text);
-    const found = [substitutions(withoutCommentLines(text)), ...parts.map((p) => substitutions(p)), ...bodies];
-    if (found.some((f) => f.unclosed)) return this.refuse("complex", "It is too complex to read safely: a $( ) or backtick pair in it never closes as the guard reads it, often because of a quote in a comment, so the guard can't tell where the commands after it start. Run the parts separately.");
-    // A pair both readings find is checked once, so the step budget counts it once.
-    const seen = new Map();
-    for (const inner of found[0]) seen.set(inner, (seen.get(inner) ?? 0) + 1);
-    const inners = [...found[0]];
-    for (const inner of found.slice(1).flat()) {
-      if (seen.get(inner) > 0) seen.set(inner, seen.get(inner) - 1);
-      else inners.push(inner);
-    }
-    for (const inner of inners) this.check(inner, dir, depth + 1, { ...ctx, here: undefined, fragment: true });
+    const found = [...[...live].map((k) => substitutions(heredocs.get(k), { quotes: false })), substitutions(text)];
+    // A $( ) pair that never closes as the guard reads it may hide the commands
+    // after it, as a quote in a comment inside the pair can, so it is refused.
+    if (found.some((f) => f.unclosed)) return this.refuse("complex", "It is too complex to read safely: a $( ) pair in it never closes as the guard reads it, often because of a quote in a comment inside it, so the guard can't tell where the commands after it start. Run the parts separately.");
+    for (const inner of found.flat()) this.check(inner, dir, depth + 1, { ...ctx, here: undefined, fragment: true });
     const vars = new Map(ctx.vars);
     const loops = new Map(ctx.loops ?? []);
     let local = ctx.context;
-    for (const segment of parts) {
+    for (const segment of segments(text)) {
       const words = tokenize(segment);
       // `for NAME in a b c` gives NAME each of those values in the commands after it.
       if (words[0] === "for" && words[2] === "in") {
