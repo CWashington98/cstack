@@ -1353,3 +1353,27 @@ test("the hook runs when it is started through a symlinked path", () => {
   assert.match(no.stderr, /cstack guard refused/);
   assert.equal(hook("git status").status, 0);
 });
+
+test("a # right after an escaped character is part of the word, not a comment", () => {
+  // bash, zsh and dash read x\ # as one word, so the commands after it run.
+  // main dropped the rest of the line as a comment and allowed these.
+  const dir = project();
+  for (const c of [
+    "x\\ #; npx convex deploy",
+    "echo a\\ #; npx convex deploy",
+    "x\\#; npx convex deploy",
+    // The heredoc reader uses the same rule, so the quote after the # is a
+    // quote and the <<EOF inside it is not a heredoc.
+    "x\\ #'\ncat <<EOF\n'; npx convex deploy\nEOF",
+  ]) refused(dir, c, /convex deploy/);
+  // Other spellings that are still refused.
+  for (const c of [
+    "echo a\\ # $(npx convex deploy)",
+    "\\ #a$(npx convex deploy)",
+    // A backslash before a newline only joins the lines, so this # does start
+    // a comment and the << after it is not a heredoc.
+    "echo a \\\n#<<EOF\nnpx convex deploy\nEOF",
+  ]) refused(dir, c, /convex deploy/);
+  // An escaped backslash, then a real space: this # does start a comment.
+  allowed(dir, "echo a\\\\ # npx convex deploy");
+});
