@@ -53,6 +53,10 @@ The script, not the builder, writes the second model's brief:
 
 The brief asks for one pick and three sentences of reasons. Because the builder never writes the brief, it can't lead the second model.
 
+## Where the digest appears
+
+The digest is a section of the morning report. It is written as `digest/<date>.html` and `digest/<date>.md` under `<git common dir>/factory/`, with the screenshots beside them, so it opens in any browser or editor. The owner answers from any terminal, for example `factory keep d-0012`. Nothing here needs a desktop app.
+
 ## Rulings and rules
 
 - **A ruling** is the owner's `keep`. It is one line in `<git common dir>/factory/rulings.jsonl`, with the date and the card it came from. It sits next to the gate's record and is shared by every worktree.

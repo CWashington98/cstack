@@ -42,6 +42,12 @@ without them, while risky changes still wait for a person.
 - **Before:** every pull request waits for the owner to read and merge it. Long agent chats eat the weekly limits.
 - **After:** small pull requests that can be safely undone merge themselves once they pass checks, a review and live proof. The owner reads a 15-minute morning report and decides only the changes that can't be undone.
 
+**The whole system in one picture:**
+
+![How a spec becomes a merged pull request](diagrams/2026-10-25-factory-system.svg)
+
+Notice that the owner's column is empty between approving the spec and the morning report. Scripts make every decision that has one right answer. Agents only build and review. The only things that wait for the owner are questions that can't be undone, and disagreements between two models. Made and last checked on 25 October 2026 (see `diagrams/diagrams.json`).
+
 ## 4. Principles
 
 1. **Scripts decide, agents judge.** The order of work, every check, the risk zone, merging, reverting and reporting are all scripts: the same input always gives the same result. Agents only write code, fix it and review it.
@@ -50,6 +56,7 @@ without them, while risky changes still wait for a person.
 4. **Trust is earned, then sampled.** The merge gate runs in shadow mode first. After that, the owner samples merged work instead of blocking it. A revert is a normal correction that adds a check. It is not a failure of the system.
 5. **Changes that can't be undone stay with a person.** That covers architecture, schema contracts, health data and turning a feature on for users.
 6. **Every file has exactly one writer.** Scripts that run in parallel never write the same file.
+7. **No app is required.** Every run starts from a terminal command, such as `claude -p` for a one-off run, so the factory works in plain Claude Code. Schedules use the computer's own scheduler, and the digest is a file in any browser. A desktop app that hosts agent threads is optional, a nicer view of the same files. The owner reported on 2026-10-25 that the same work seemed to use more of the limits through such an app. `factory tokens` splits usage by harness, so this can be measured rather than guessed.
 
 ## 5. Words
 
@@ -60,6 +67,7 @@ These match Matt Pocock's software-factory vocabulary, so his skills and ours re
 | **Orchestrator** | The `factory` script. It holds state and picks the next action. It never chats. |
 | **Task** | One kind of standing work, such as "drive a spec to merged", "triage the inbox" or "morning report". |
 | **Trigger** | What starts a run: a schedule, a webhook, a pull request event or the owner. |
+| **Harness** | The program an agent run happens in: plain Claude Code in a terminal, or an app built on the same agent SDK. |
 | **Run** | One agent session doing one step. Runs are disposable. |
 | **Coordinator** | A run chain that drives one spec, or one area such as bugs, and never writes code. |
 | **Builder** | A run that writes one slice in its own worktree. |
@@ -245,7 +253,7 @@ Questions that come up mid-work follow the decision desk (the `add-decision-desk
 3. **Can be checked** with a test or command: the answer is proved, and the proof saved.
 4. **Otherwise, two blind opinions.** The builder and a second model of another family pick independently. Agreement decides. On disagreement the coordinator picks, the decision is marked contested, and only the merge waits for the owner.
 
-Every decision becomes a card with tradeoffs, a worked example, how to reverse it, and screenshots when users would see the difference. The morning digest shows the cards, contested ones first. The owner answers each with `keep` (it becomes a ruling), `switch` (a follow-up slice) or `rule` (it becomes a project rule). Three unanswered disagreements in one change pause it, and the owner gets one question about the spec.
+Every decision becomes a card with tradeoffs, a worked example, how to reverse it, and screenshots when users would see the difference. The digest is a section of the morning report, contested cards first. It is written as an HTML file and a Markdown file, so it opens in any browser or editor. The owner answers each with `keep` (it becomes a ruling), `switch` (a follow-up slice) or `rule` (it becomes a project rule). Three unanswered disagreements in one change pause it, and the owner gets one question about the spec.
 - **A `HOLD` ends that pull request's run.** The owner restarts it by adding the `factory:go` label or by approving the review. A new run picks it up.
 - **A global stop line:** `factory stop` tells every agent to make zero writes.
 - **The standing orders are pasted word for word** into every spawn and relay, because instructions decay across resumes.
@@ -276,15 +284,13 @@ Every decision becomes a card with tradeoffs, a worked example, how to reverse i
 - **Before going idle.** The cache lasts an hour, so waking a big context means paying to write it all again.
 - **The cost.** Relays and auto-compacts are counted and their cost measured before either is treated as a failure. On Opus, a relay pays for itself after about 5 more turns.
 
-**In the desktop app that runs the agent threads**, a coordinator relays by doing these in order:
+**How a relay works,** in any harness:
 
-1. Write `STATUS`.
-2. Start the next thread in the same worktree.
-3. That thread registers the pull request watches and links again.
+1. The run writes `STATUS`.
+2. The script starts the next run in the same worktree, with `claude -p` and the brief that points at `STATUS`.
+3. Pull request watches are the `factory watch` script reading `gh`, not a feature of any app, so nothing has to be registered again.
 
-Whether watches carry over between threads still has to be checked.
-
-- **Scheduled tasks start a fresh thread each time.**
+- **Scheduled work** (the morning report, the liveness check) is started by the computer's scheduler (`launchd` on the owner's Mac), which runs `claude -p` with the right account's settings folder. Each run starts fresh.
 - **An hourly liveness check** judges builders by their side effects (commits and pushes) and replaces any that are stuck.
 
 ## 15. Architecture quality
@@ -363,7 +369,7 @@ Each step adds one new trigger and is its own OpenSpec change in cstack.
 |---|---|---|
 | 0a | `add-spec-visuals`: worked examples on every scenario, a dated diagram in every change, and a freshness check | Everything |
 | 0 | `factory` plugin skeleton, `factory tokens`, settings for both projects, `gate` in shadow (ledger only), patch-id verdicts, checks before review | Everything |
-| 1 | Morning report (trigger: schedule). Pilot: Project B's 30 open pull requests run through the gate in shadow | Everything |
+| 1 | Morning report (trigger: schedule, from the computer's scheduler). Pilot: Project B's 30 open pull requests run through the gate in shadow | Everything |
 | 1b | `add-prototype-harvest`: Project B's prototype-to-spec harvest, made generic for every project | Everything |
 | 2 | `factory next` and a spec coordinator for one spec in Project A (trigger: pull request events). Liveness check | Everything |
 | 2b | `add-decision-desk`: questions mid-work answered without stopping, with blind second opinions and a digest of cards | Everything |
@@ -410,6 +416,7 @@ The table records how the cross-reviews changed the earlier draft, and where we 
 - 2026-10-25: The default review is Claims on Opus, Breaker on Codex (Opus when the Codex budget is low), and Standards on Sonnet. Fable is no longer used.
 - 2026-10-25: Project B keeps merging into `main` with deploys. New behavior ships behind database flags that are off by default. The release train is deferred until a named trigger.
 - 2026-10-25: This design replaces the orchestrate design and reuses its parts.
+- 2026-10-25: The factory needs no app. Runs start from `claude -p`, schedules from `launchd`, and the digest is a file. `factory tokens` compares usage by harness.
 - 2026-10-25: Accounts: Personal for specs, Agent for Project A and cstack, Work for Project B, Codex for the Breaker. Budgets are in percent of each subscription limit. Client work is out of scope for now.
 
 ## 22. Open questions

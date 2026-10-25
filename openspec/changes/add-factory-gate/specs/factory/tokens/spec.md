@@ -8,7 +8,9 @@
 
 - Each assistant message counts once, by its message ID, even when a transcript repeats it.
 - Input, cache-write, cache-read and output tokens are kept apart.
-- Each total is split three ways: by project folder, by model, and by main chat versus subagent. A file inside a `subagents` folder is a subagent.
+- Each total is split four ways: by project folder, by model, by main chat versus subagent, and by harness. A file inside a `subagents` folder is a subagent.
+- The harness is the `entrypoint` the transcript records, such as `cli` for plain Claude Code or `sdk-ts` for an app built on the agent SDK. A subagent file takes its main chat's harness. A transcript with no `entrypoint` is listed as `unknown`.
+- For each harness it also prints the average cache-write and cache-read tokens per assistant message, so the same kind of work can be compared across harnesses.
 
 **Pricing.**
 
@@ -32,6 +34,13 @@
 - **WHEN** `factory tokens` runs
 - **THEN** their tokens appear under main and subagent respectively
 - **EXAMPLE:** `chat-1.jsonl` used 50,000 tokens and `chat-1/subagents/review.jsonl` used 20,000. The report shows main 50,000 and subagent 20,000.
+
+#### Scenario: harness-split-by-entrypoint
+
+- **GIVEN** one transcript whose `entrypoint` is `cli` and one whose `entrypoint` is `sdk-ts`
+- **WHEN** `factory tokens` runs
+- **THEN** their tokens appear under separate harness rows, each with its average cache tokens per message
+- **EXAMPLE:** `a.jsonl` (`cli`) has 10 messages that wrote 50,000 cache tokens. `b.jsonl` (`sdk-ts`) has 10 messages that wrote 70,000. The report shows `cli: 5,000 cache-write per message` and `sdk-ts: 7,000 cache-write per message`.
 
 #### Scenario: unknown-model-unpriced
 

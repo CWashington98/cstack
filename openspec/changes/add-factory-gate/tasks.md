@@ -4,7 +4,7 @@ Each numbered group after group 1 is one small pull request, merged bottom-up as
 
 ## 1. Acceptance tests, written first and failing
 
-- [ ] 1.1 Add one acceptance test per scenario, 27 in all, each named with its `[scenario-id]`, in three locked files: `plugins/factory/tests/gate.test.mjs`, `budget.test.mjs` and `tokens.test.mjs`. Gate tests feed facts to the decision code, except `zone-command-runs-from-trunk`, `trunk-moved-under-change-holds` and `rerun-replaces-record`. Those build a small git repository in a temporary folder and use a stand-in `gh` on `PATH`. Budget and tokens tests use small fixture files. Verify that all 27 fail by an assertion on the current code (none crash), then commit them as locked. Covers: all. Touches: plugins/factory/tests/**
+- [ ] 1.1 Add one acceptance test per scenario, 28 in all, each named with its `[scenario-id]`, in three locked files: `plugins/factory/tests/gate.test.mjs`, `budget.test.mjs` and `tokens.test.mjs`. Gate tests feed facts to the decision code, except `zone-command-runs-from-trunk`, `trunk-moved-under-change-holds` and `rerun-replaces-record`. Those build a small git repository in a temporary folder and use a stand-in `gh` on `PATH`. Budget and tokens tests use small fixture files. Verify that all 28 fail by an assertion on the current code (none crash), then commit them as locked. Covers: all. Touches: plugins/factory/tests/**
 
 ## 2. Plugin and settings
 
@@ -12,7 +12,7 @@ Each numbered group after group 1 is one small pull request, merged bottom-up as
 
 ## 3. Where usage went
 
-- [ ] 3.1 Add `tokens.mjs` and `data/prices.json`. Count by message ID, split by project, model, and main versus subagent, and price from the table, listing unknown models as unpriced. Add the Codex totals. Verify with the tokens tests. Covers: repeated-message-counted-once, subagent-files-labelled, unknown-model-unpriced. Touches: plugins/factory/scripts/lib/tokens.mjs, plugins/factory/data/prices.json, plugins/factory/scripts/factory.mjs
+- [ ] 3.1 Add `tokens.mjs` and `data/prices.json`. Count by message ID, split by project, model, main versus subagent, and harness, and price from the table, listing unknown models as unpriced. Add the Codex totals. Verify with the tokens tests. Covers: repeated-message-counted-once, subagent-files-labelled, harness-split-by-entrypoint, unknown-model-unpriced. Touches: plugins/factory/scripts/lib/tokens.mjs, plugins/factory/data/prices.json, plugins/factory/scripts/factory.mjs
 - [ ] 3.2 Add `--repo`: map a repository and its worktrees to their transcript folders, count merged pull requests with `gh`, and print dollars per merged pull request. Verify with its test. Covers: dollars-per-merged-pr. Touches: plugins/factory/scripts/lib/tokens.mjs
 
 ## 4. Subscription budget
