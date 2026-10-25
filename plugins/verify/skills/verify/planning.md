@@ -63,4 +63,4 @@ Run the checker from this plugin:
 
     node <this skill's folder>/../../scripts/verify-plan.mjs <file>
 
-It exits 0 when everything names its evidence, and 1 with a list of "hold" lines to fix. Once work has started, add `--since <the commit where the plan was approved>` so a changed done condition is caught.
+It exits 0 when everything names its evidence, and 1 with a list of "hold" lines to fix. Once work has started, add `--since <the commit where the plan was approved>` so a changed done condition is caught. It also means scenarios that existed then only get advice for a missing `**EXAMPLE:**` bullet, while new ones hold.

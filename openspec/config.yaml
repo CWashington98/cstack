@@ -18,9 +18,11 @@ rules:
     - "Cover refusals and edge cases, not only the happy path."
     - "A scenario that describes behavior the change must leave alone starts with a '- **GUARDS** <what must stay the same>' bullet. Its covering task lists the files it protects after 'Touches:'. Every other scenario must fail before the change and pass after."
     - "No TBD, TODO or '?' placeholders."
+    - "End every scenario with a '- **EXAMPLE:** ...' bullet: one real-looking case with concrete names, numbers and the exact output, so a reader new to the project can follow it."
   design:
     - "Include '## Reuse': for each new piece, what already exists and whether it is extended or created."
     - "Include '## Decisions' with dates, and '## Open questions' for the owner, at most three."
+    - "Show at least one diagram made with plain's to-diagram, under a '## Picture' heading with a one-paragraph caption. Keep it in the change's diagrams/ folder, stamped in diagrams/diagrams.json; diagram-age --changes holds a change without one."
   tasks:
     - "Group 1 is always the acceptance tests: one per scenario, written first, failing on the current code by an assertion, then locked."
     - "End every task with 'Covers: <scenario-ids>' (or 'Covers: all' for the acceptance-test task, or 'Setup: <why>') and 'Touches: <files or globs>'."

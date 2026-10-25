@@ -15,12 +15,13 @@ Read `planning.md`. In short:
 - Every plan item ends with `Evidence:` naming what will show it is done. Tick it only when that evidence exists.
 - Every pull request section in a plan has three proof boxes: verify unit, verify live, and verify performance when speed or size could change. Tests alone never verify a pull request.
 - The plan has a "Done when:" line with a count, fixed before work starts and never relaxed.
+- Every spec scenario ends with a `- **EXAMPLE:**` bullet: one real-looking case with names, numbers and the exact output.
 
 Check a spec or plan with the script in this plugin's `scripts` folder, two levels above this file:
 
     node <this skill's folder>/../../scripts/verify-plan.mjs <file>
 
-Fix every "hold" line. After work starts, add `--since <the commit where the plan was approved>` so a relaxed done condition is caught.
+Fix every "hold" line. After work starts, add `--since <the commit where the plan was approved>` so a relaxed done condition is caught. It also means scenarios that existed then only get advice for a missing `**EXAMPLE:**` bullet, while new ones hold.
 
 ## While proving: the standard
 

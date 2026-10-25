@@ -56,6 +56,17 @@ The checker is in the plugin's `scripts` folder, two levels above this file. Bel
 
 8. **Look at it if you can.** If a browser is available, open the file and check that nothing overlaps or runs off the edge. The checker estimates text width; it can't see the drawing.
 
+9. **Stamp it with today's date.** A diagram that goes into a repository lives in a folder named `diagrams`, next to a `diagrams.json` with one entry per picture:
+
+   ```json
+   { "diagrams": [ { "file": "flow.svg", "question": "Where does an order go after checkout?", "depicts": ["src/checkout/**"], "made": "2026-10-25", "lastValidated": "2026-10-25" } ] }
+   ```
+
+   - `question` is the sentence from step 1. `depicts` lists the files or patterns the picture shows.
+   - The picture shows the same date in words, on the templates' last line: "Last checked against the code on 25 October 2026."
+   - To re-check an old diagram, read it against what it depicts. If it's still right, run `node SCRIPTS/diagram-age.mjs --validate <file.svg>`. That runs the checker, then moves both dates to today. It never changes `made`.
+   - `node SCRIPTS/diagram-age.mjs` lists every diagram as current, lagging (something it depicts changed after its last check), stale (not checked in 90 days) or `remove?` (not checked in 180 days). It fails only for a diagram whose stamp is missing or doesn't match the picture.
+
 ## Showing a diagram
 
 - **In a file or pull request:** save the `.svg` file and link to it, with the caption beside the link.

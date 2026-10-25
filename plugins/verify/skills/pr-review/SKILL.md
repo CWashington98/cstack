@@ -28,7 +28,7 @@ The base is `origin/<integrationBranch>`, taking the branch name from `.claude/v
 
 Each is a script. A failure stops the review and goes back to the author.
 
-- For each plan or spec the change adds or edits: `node <plugin>/scripts/verify-plan.mjs <file>`.
+- For each plan or spec the change adds or edits: `node <plugin>/scripts/verify-plan.mjs <file> --since <base>`. With `--since`, scenarios that were already there before the change only get advice for a missing worked example, so editing an old spec doesn't hold on its old scenarios.
 - The `plain` checker on the pull request description file.
 - For a change users can see: `node <plugin>/scripts/evidence.mjs check <run> --full-run --head HEAD` for each evidence run the description cites. A change users can see with no live evidence fails here.
 

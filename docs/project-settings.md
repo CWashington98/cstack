@@ -223,6 +223,15 @@ These can still get past it, each for the reason given:
   Claude Code always sends valid JSON, so this happens only when someone runs
   the script by hand.
 
+## Diagram freshness settings
+
+These two live in `.claude/plain.json`, the `plain` plugin's settings file, not in `.claude/verify.json`. `diagram-age` reads them.
+
+| Field | Default | What it holds |
+|---|---|---|
+| `diagramMaxAgeDays` | 90 | Days since a diagram was last checked before it is reported as stale. |
+| `diagramRemoveAfterDays` | 180 | Days since a diagram was last checked before it is reported as `remove?`. Nothing is deleted; a person re-checks it or deletes it. |
+
 ## Example
 
 A web app with a staging backend agents may deploy to:

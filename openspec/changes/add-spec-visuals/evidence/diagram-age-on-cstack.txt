@@ -1,0 +1,14 @@
+# diagram-age on cstack, 2026-10-25, commit d626324
+
+$ node plugins/plain/scripts/diagram-age.mjs
+current  docs/specs/diagrams/2026-10-25-factory-system.svg (checked 0 days ago)
+current  openspec/changes/add-decision-desk/diagrams/question-path.svg (checked 0 days ago)
+current  openspec/changes/add-factory-gate/diagrams/gate-flow.svg (checked 0 days ago)
+current  openspec/changes/add-spec-visuals/diagrams/diagram-life.svg (checked 0 days ago)
+exit 0
+
+$ node plugins/plain/scripts/diagram-age.mjs --changes
+hold  add-guard-scenarios has no diagram. Draw one with to-diagram and stamp it in diagrams/diagrams.json.
+exit 1
+
+The --changes hold is add-guard-scenarios, a change approved on 2026-10-12, before this rule existed. No cstack diagram is unstamped.

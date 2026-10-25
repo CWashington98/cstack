@@ -21,4 +21,4 @@
 
 ## 4. Rules and docs
 
-- [ ] 4.1 Add the two rules to `openspec/config.yaml`. Add the stamp step and the visible date line to the `to-diagram` skill and its templates. Document the two settings in `docs/project-settings.md`. Run `diagram-age` on cstack itself and record the output in `evidence/`. Verify that the docs pass the plain-English check and that cstack's own changes report no unstamped diagrams. Setup: rules and docs. Touches: openspec/config.yaml, plugins/plain/skills/to-diagram/**, docs/project-settings.md, openspec/changes/add-spec-visuals/evidence/**
+- [x] 4.1 Add the two rules to `openspec/config.yaml`. Add the stamp step and the visible date line to the `to-diagram` skill and its templates. Document the two settings in `docs/project-settings.md`. Run `diagram-age` on cstack itself and record the output in `evidence/`. Verify that the docs pass the plain-English check and that cstack's own changes report no unstamped diagrams. Setup: rules and docs. Touches: openspec/config.yaml, plugins/plain/skills/to-diagram/**, docs/project-settings.md, openspec/changes/add-spec-visuals/evidence/**
