@@ -2,7 +2,7 @@
 
 ## 1. Acceptance tests, written first and failing
 
-- [ ] 1.1 Add one acceptance test per scenario, 13 in all, each named with its `[scenario-id]`, in two locked files.
+- [x] 1.1 Add one acceptance test per scenario, 13 in all, each named with its `[scenario-id]`, in two locked files.
   - `plugins/verify/tests/examples.test.mjs` uses small spec files.
   - `plugins/plain/tests/diagram-age.test.mjs` uses a temporary git repository with dated commits and fixture diagrams. It includes one diagram that fails the palette.
 
