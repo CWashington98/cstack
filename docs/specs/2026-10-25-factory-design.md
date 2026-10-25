@@ -77,7 +77,7 @@ Background terms used below:
 | **Matt Pocock's skills** | A published set of agent skills for planning, specs, slicing work into tickets, test-first building and review. |
 | **Opus, Sonnet, Fable** | Claude models. Opus is the strong default. Sonnet is cheaper and good for routine work. Fable is the most capable and costs about 2.5 times Opus per token. |
 | **Codex verdict** | A second review from a model made by another company. cstack's pull request review can already ask for one. |
-| **Accounts** | Three Claude subscriptions: personal, agent and work. Each has a weekly usage limit. Two of them were running out mid-week. |
+| **Accounts** | Three Claude subscriptions (personal, agent, and a work account for the owner's company) plus one smaller Codex subscription. Each has a 5-hour and a weekly usage limit. On 2026-10-25, two of the Claude accounts were at 100% of their weekly limit and the third was at 69%. |
 | **Worktree** | A separate checkout of the same repository, so several agents can work at once without touching each other's files. |
 | **Trunk** | The branch pull requests merge into: `dev` in Project A, `main` in Project B. |
 | **Shadow mode** | The gate records what it would do, but merges nothing. |
@@ -88,7 +88,6 @@ Background terms used below:
 | **`findings.md`** | A running list of confirmed review findings. It is read in batches, so repeated mistakes show up. |
 | **Release train** | Deploys happen on a schedule or on demand from the newest green trunk, not on every merge. |
 | **Deploy hold** | Project B's existing check, which stops a production deploy when a high-risk change lacks the owner's approval. |
-| **Advise mode** | The factory checks and reports, but never merges or comments. It is for client work. |
 
 ## 6. Layout
 
@@ -237,12 +236,6 @@ Every write the gate, watch and revert make is idempotent. Running a revert twic
   - the standard zone is about to be switched on.
 - **The long-lived `dev` branch should be retired later.** It and `main` have drifted apart: 323 commits on `main` aren't on `dev`, and 369 commits on `dev` aren't on `main`.
 
-**Client work** (`mode: "advise"`):
-
-- No merges and no pull request comments.
-- Uses the work account only.
-- Nothing is written into client repositories, except through a pull request the owner opens with consent.
-
 ## 13. Gates, escalation and re-entry
 
 - **Builders never stop to ask.** A builder that hits an open question writes a gate with options and a default, then works around it. If the answer can be observed, it prototypes first.
@@ -313,13 +306,21 @@ Whether watches carry over between threads still has to be checked.
 | Account | Used for |
 |---|---|
 | Personal | Spec and prototype threads with the owner |
-| Agent | Coordinators, builders, review lanes and reports |
-| Work | Client work only |
+| Agent | Factory runs for Project A and for cstack itself |
+| Work (the owner's company) | Factory runs for Project B, which the company owns |
 | Codex (OpenAI) | The Breaker lane, within its smaller budget (see "Review lanes") |
 
-When the agent account reaches its limit, the orchestrator pauses. Work never
-moves onto another account. The orchestrate design's pace meter (how much of each account's weekly limit is used) supplies the
-reading.
+Each project's runs are charged to the account of whoever owns the repository.
+
+**Built for subscription limits.** Subscriptions don't bill per token. They lock an account when its 5-hour or weekly limit runs out. So the factory budgets in percent of each limit, not in dollars:
+
+- `factory budget` reads each Claude account's last known usage (each account's settings file keeps a copy) and Codex's (its session logs record it). It prints the percent used, the reset time and the pace: percent used divided by the share of the week that has passed.
+- **Pace above 1.25** (the account would run out early) puts that account in lean mode. New builders start only for slices already in flight. Reviews of the low zone use the cheapest lane that is allowed. Nothing optional runs.
+- **At 90% of either limit**, the orchestrator starts nothing new on that account and finishes what is running. Work never moves to another account, because that would just move the shortage.
+- **A reading older than 12 hours counts as missing.** Missing data means lean mode, never normal.
+- Dollars at API rates are still reported, because they show where the usage goes. The decision always uses percent of the limit.
+
+If this works inside these limits, it works anywhere with more room. That makes it portable to other setups without changes.
 
 **Targets:**
 
@@ -334,7 +335,7 @@ reading.
 | Piece | Already exists | Extended or created |
 |---|---|---|
 | Per-project settings | `.claude/verify.json` (`integrationBranch`, `highRisk`) | Extended with a `factory` block |
-| Live proof, spec compliance, verdicts, evidence | `verify` scripts | Extended: patch-id on verdicts, receipts in place of test re-runs, findings kept per lane |
+| Live proof, spec compliance, verdicts, evidence | `verify` scripts. Verdicts already live in the shared git folder and already carry over when the patch-id matches | Extended: receipts in place of test re-runs, findings kept per lane |
 | Pull request review | `verify:pr-review` + `claims-auditor` | Extended with Breaker, Standards and Behavior lanes |
 | Verification skill per project | `verify-setup`, `verify-upkeep` | Extended with a feature map and a watch signal per feature |
 | Guard | `core` guard | Reused as is |
@@ -358,7 +359,7 @@ Each step adds one new trigger and is its own OpenSpec change in cstack.
 | 2 | `factory next` and a spec coordinator for one spec in Project A (trigger: pull request events). Liveness check | Everything |
 | 3 | Project A low zone switches on, if it has earned it. Watch at promotion, automatic revert | Standard and high |
 | 4 | Project B low zone, with flags off by default and turning off the flag as the first response | Standard and high |
-| 5+ | Area coordinators (trigger: webhooks), lessons loop, drift report. Then the next project, then client work in advise mode | High only in A; standard and high in B |
+| 5+ | Area coordinators (trigger: webhooks), lessons loop, drift report. Then the next project | High only in A; standard and high in B |
 
 ## 19. Non-goals
 
@@ -366,6 +367,7 @@ Each step adds one new trigger and is its own OpenSpec change in cstack.
 - **Many verifiers fuzzing every pull request,** like pstack's full autopilot. It costs too many tokens at our limits. The Behavior lane is the single live verifier.
 - **A chat-based orchestrator that relays messages between chats.** Rejected: its context grows with every child.
 - **Copying pstack's `orch.ts` or Cursor-specific playbooks.** Only their design is borrowed.
+- **Client work, for now.** The design is built for the owner's own subscriptions first. Running it for an employer or a client is a later decision.
 
 ## 20. Cross-review
 
@@ -398,8 +400,9 @@ The table records how the cross-reviews changed the earlier draft, and where we 
 - 2026-10-25: The default review is Claims on Opus, Breaker on Codex (Opus when the Codex budget is low), and Standards on Sonnet. Fable is no longer used.
 - 2026-10-25: Project B keeps merging into `main` with deploys. New behavior ships behind database flags that are off by default. The release train is deferred until a named trigger.
 - 2026-10-25: This design replaces the orchestrate design and reuses its parts.
+- 2026-10-25: Accounts: Personal for specs, Agent for Project A and cstack, Work for Project B, Codex for the Breaker. Budgets are in percent of each subscription limit. Client work is out of scope for now.
 
 ## 22. Open questions
 
-1. **Are the account roles right?** Personal for specs, Agent for the factory, Work for clients, Codex for the Breaker.
-2. **Should the Codex plan grow?** At its current size, it covers about one review lane, and only part of the week. A bigger plan would let Codex run more of the work, including builders for mechanical slices.
+1. **Should the Codex plan grow?** At its current size, it covers about one review lane, and only part of the week. A bigger plan would let Codex run more of the work, including builders for mechanical slices.
+2. **Which Project A spec is the first pilot** for the spec coordinator in step 2?
