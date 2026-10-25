@@ -117,7 +117,9 @@ It doesn't skip shell comments when it looks for `$( )` and backtick pairs.
 A pair in a comment counts as a command, so a comment that mentions a deploy
 that way is refused. A `$( )` pair that never closes as the guard reads it,
 often because of a quote in a comment inside it, is refused, because the guard
-can't tell where the commands after it start.
+can't tell where the commands after it start. A `#` right after an escaped
+character, as in `x\ #`, is part of the word, not the start of a comment, as
+the shell reads it.
 
 It does skip comments in the env files a command loads, by the env file's
 rules, not the shell's: a `#` line is a comment, and so is a `#` after an
@@ -240,7 +242,10 @@ These can still get past it, each for the reason given:
 - A quote in a shell comment can still hide a `$( )` that comes after the
   comment, outside any `$( )`, such as `# don't` on one line and
   `x=$(npx convex deploy)` on the next. Reading comments safely needs a real
-  shell parser.
+  shell parser. The same goes for a quote right after the `)` that closes a
+  `$( )`, as in `x=$(true)#'`: the shell reads it as a quote, while the guard
+  reads the rest of the line as a comment, so a heredoc after it can hide a
+  deploy.
 - A tool-server call that reaches production without naming it. One example
   is a Convex tool server whose own settings point at production, such as a
   production deploy key in its environment. Its selectors still say "your own
