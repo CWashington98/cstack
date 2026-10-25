@@ -48,7 +48,7 @@ export function loadConfig(cwd) {
   const defaults = JSON.parse(readFileSync(join(here, "..", "data", "common-words.json"), "utf8"));
   const broken = [shared, personal].find((s) => s?.__error);
   if (broken) {
-    return { root, enabled: true, error: broken.__error, common: new Set(defaults), neverPublish: {}, watchFolders: DEFAULT_WATCH, readerModel: "sonnet", glossary: [] };
+    return { root, enabled: true, error: broken.__error, common: new Set(defaults), neverPublish: {}, watchFolders: DEFAULT_WATCH, readerModel: "sonnet", glossary: [], diagramMaxAgeDays: 90, diagramRemoveAfterDays: 180 };
   }
   const glossary = [join(root, "GLOSSARY.md"), join(root, ".claude", "GLOSSARY.local.md")]
     .filter(existsSync)
@@ -57,12 +57,14 @@ export function loadConfig(cwd) {
   const neverPublish = {};
   let watchFolders = null;
   let readerModel = null;
+  const diagramDays = {};
   for (const settings of [shared, personal]) {
     if (!settings) continue;
     for (const w of settings.commonWords ?? []) common.add(w);
     Object.assign(neverPublish, settings.neverPublish ?? {});
     if (settings.watchFolders) watchFolders = settings.watchFolders;
     if (settings.readerModel) readerModel = settings.readerModel;
+    for (const key of ["diagramMaxAgeDays", "diagramRemoveAfterDays"]) if (Number.isFinite(settings[key])) diagramDays[key] = settings[key];
   }
   return {
     root,
@@ -72,5 +74,7 @@ export function loadConfig(cwd) {
     watchFolders: watchFolders ?? DEFAULT_WATCH,
     readerModel: readerModel ?? "sonnet",
     glossary,
+    diagramMaxAgeDays: diagramDays.diagramMaxAgeDays ?? 90,
+    diagramRemoveAfterDays: diagramDays.diagramRemoveAfterDays ?? 180,
   };
 }
