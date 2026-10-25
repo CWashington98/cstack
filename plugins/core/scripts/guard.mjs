@@ -536,9 +536,10 @@ class Checker {
   check(command, dir, depth, ctx) {
     if (depth > MAX_DEPTH) return this.refuse("complex", `It runs scripts nested more than ${MAX_DEPTH} levels deep, which the guard doesn't check. Run the inner command directly.`);
     if (++this.steps > MAX_STEPS) return this.refuse("complex", "It runs more scripts than the guard can check in time. Run the parts separately.");
-    const { text, heredocs, live, incomplete, unterminated } = extractHeredocs(command);
+    const { text, heredocs, live, incomplete, unterminated, disputed } = extractHeredocs(command);
     // The body of a heredoc in a $( ) pair is in the text around the pair, so only a whole command must end its heredocs.
     if (incomplete || (unterminated && !ctx.fragment)) return this.refuse("complex", "It is too complex to read safely: a quote, a $( ) pair or a heredoc in it never closes, so the guard can't tell where the commands after it start. Run the parts separately.");
+    if (disputed) return this.refuse("complex", "It is too complex to read safely: a # right after an escaped character, as in x\\ #, is followed by a quote or a backtick, and shells read that as a word or as a comment depending on where it sits, so the guard can't tell where the commands after it start. Run the parts separately.");
     const parts = segments(text);
     // Read both as a whole and command by command, since a quote in a comment
     // can make the two readings see different quotes.

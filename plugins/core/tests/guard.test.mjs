@@ -1249,7 +1249,7 @@ test("$( ) that never closes: a quote in a comment inside it can't hide the comm
 });
 
 test("review: every case from review that main refuses, or that ran a deploy, is refused through the hook itself", () => {
-  // Rounds 1 and 2 of review, with the env files they use. Each runs through
+  // Rounds 1 to 3 of review, with the env files they use. Each runs through
   // the real entry point: JSON on standard input, exit 2 to refuse.
   const dir = project({
     "vars.c1": "CONVEX_DEPLOYMENT=prod:x # staging-backend-1\n",
@@ -1329,6 +1329,42 @@ test("review: every case from review that main refuses, or that ran a deploy, is
     ["cases4/t14-eval-escaped", "eval echo \\${x:-a\\\n\n# $(npx convex deploy)\n}\n"],
     ["cases4/t15-case-brace", "x=$(case a in a) echo ${y:-\n# $(npx convex deploy)\n};; esac)\n"],
     ["cases4/t16-case-glued-semi", "z=$(case a in a)#<<EOF; echo\nnpx convex deploy\nEOF\n;; esac)\n"],
+    ["cases7/k02-tick-hash-heredoc-close", "echo `#<<EOF\nnpx convex deploy\nEOF`\n"],
+    ["cases7/k03-tick-space-hash", "x=`echo hi #<<EOF\nnpx convex deploy\nEOF\n`\n"],
+    ["cases7/k04-bsnl-hash-heredoc", "echo x\\\n#<<EOF\nnpx convex deploy\nEOF\n"],
+    ["cases7/k05-bsnl-hash-semi", "echo x\\\n#; npx convex deploy\n"],
+    ["cases7/k06-esc-space-hash-heredoc", "echo x\\ #<<EOF\nnpx convex deploy\nEOF\n"],
+    ["cases7/k07-esc-space-hash-live", "echo x\\ #<<EOF\n$(npx convex deploy)\nEOF\n"],
+    ["cases7/k08-main-bypass", "echo x\\ #; npx convex deploy\n"],
+    ["cases7/k09-ansic-escq", "echo $'a\\'' #'\nnpx convex deploy\n"],
+    ["cases7/k10-ansic", "echo $'it\\'s' # \nnpx convex deploy\n"],
+    ["cases7/k11-gt-hash-heredoc", "echo hi >#<<EOF\nnpx convex deploy\nEOF\n"],
+    ["cases7/k13-tag-esc-tick-in-tick", "x=`cat <<EOF\\`\nnpx convex deploy\nEOF\\`\n`\n"],
+    ["cases7/k14-tag-esc-tick-in-tick2", "x=`cat <<EOF\\`\nnpx convex deploy\nEOF\n`\n"],
+    ["cases7/k15-tick-tag-close", "echo `cat <<E`\nnpx convex deploy\nE\n"],
+    ["cases7/k16-dq-tick-tag", "echo \"`cat <<E`\"\nnpx convex deploy\nE\n"],
+    ["cases7/k17-comsub-tick-tag", "x=$(echo `cat <<E`\nnpx convex deploy\nE\n)\n"],
+    ["cases7/k18-tick-body-close-on-tag", "x=`cat <<E\nnpx convex deploy\nE`\nnpx convex deploy\n"],
+    ["cases7/k21-dq-escq-comment", "echo \"it\\\"s\" # '\nnpx convex deploy\n"],
+    ["cases7/k22-nbsp-in-comment", "echo \"$(echo \"a\")\" # \nnpx convex deploy\n"],
+    ["cases7/k23-nbsp-hash", "echo hi #; npx convex deploy\n"],
+    ["cases7/k24-cr-hash", "echo hi\r#; npx convex deploy\n"],
+    ["cases7/k25-esc-nbsp", "echo \"a\" \\ ; npx convex deploy\n"],
+    ["cases7/k26-body-quote-then-nbsp", "cat <<EOF\n\"\nEOF\n npx convex deploy\n"],
+    ["cases7/k27-body-sq", "cat <<'EOF'\n'\nEOF\nnpx convex deploy; npx convex deploy\n"],
+    ["cases7/k28-esc-nbsp-hash", "x\\ #; npx convex deploy\n"],
+    ["cases7/k30-tick-hash-line", "echo `#\nnpx convex deploy\n`\n"],
+    ["cases7/k31-comsub-hash-line", "echo $(#\nnpx convex deploy\n)\n"],
+    ["cases8/m05-comment-quote-plain", "ls # it's\nnpx convex deploy\n"],
+    ["cases8/m08-unclosed", "echo hi # it's\n$(npx convex deploy\n"],
+    ["cases9/q01-tick-dbl-bs-space-hash", "x=`echo x\\\\\\ #<<E\nnpx convex deploy\nE\n`\n"],
+    ["cases9/q02-echo-tick-dbl-bs", "echo `echo x\\\\\\ #<<E\nnpx convex deploy\nE\n`\n"],
+    ["cases9/q03-dq-tick-dbl-bs", "x=\"`echo x\\\\\\ #<<E\nnpx convex deploy\nE\n`\"\n"],
+    ["cases9/q04-tick-dbl-bs-semi", "x=`echo x\\\\\\ #; npx convex deploy`\n"],
+    ["cases9/q06-tick-bs-bs-space", "x=`echo x\\\\ #<<E\nnpx convex deploy\nE\n`\n"],
+    ["cases9/q07-tick-esc-tick-hash", "x=`echo \\\\`#<<E\\\\`\nnpx convex deploy\nE\n`\n"],
+    ["cases9/q08-tick-dbl-bs-quote", "x=`echo x\\\\\\ #'\nnpx convex deploy\n`\n"],
+    ["cases10/f01-fuzz7c-tick-dbl-bs", "npx convex deploy`\n\\\\\\ #`"],
   ];
   for (const [name, c] of refuse) assert.equal(hook(c).status, 2, `expected the hook to refuse ${name}: ${JSON.stringify(c)}`);
   // dotenvx skips a # line, so a "never" name only there isn't used, and a
@@ -1362,10 +1398,18 @@ test("a # right after an escaped character is part of the word, not a comment", 
     "x\\ #; npx convex deploy",
     "echo a\\ #; npx convex deploy",
     "x\\#; npx convex deploy",
-    // The heredoc reader uses the same rule, so the quote after the # is a
-    // quote and the <<EOF inside it is not a heredoc.
-    "x\\ #'\ncat <<EOF\n'; npx convex deploy\nEOF",
   ]) refused(dir, c, /convex deploy/);
+  // The heredoc reader leans toward "comment" here, so it would read the
+  // <<EOF as a heredoc that the quote after the # hides from the shell. A quote
+  // or backtick in such a comment is refused instead.
+  for (const c of [
+    "x\\ #'\ncat <<EOF\n'; npx convex deploy\nEOF",
+    "x\\ #\"\ncat <<EOF\n\"; npx convex deploy\nEOF",
+    "x=`echo x\\\\\\ #'\nnpx convex deploy\n`",
+  ]) refused(dir, c, /too complex/);
+  // Inside backticks the shell turns \\ into \, so this # starts a comment for
+  // it, and the <<E after it starts no heredoc. The heredoc reader agrees.
+  refused(dir, "x=`echo x\\\\\\ #<<E\nnpx convex deploy\nE\n`", /convex deploy/);
   // Other spellings that are still refused.
   for (const c of [
     "echo a\\ # $(npx convex deploy)",

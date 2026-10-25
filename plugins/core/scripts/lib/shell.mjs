@@ -20,11 +20,13 @@ export function extractHeredocs(cmd) {
   const stack = [{ quote: null, depth: 0, tick: false }];
   let incomplete = false;
   let unterminated = false;
-  // A # right after an escaped character, as in x\ #, is part of the word, so
-  // it starts no comment. This is where such a # would be. A backslash before
-  // a newline only joins two lines, so it doesn't count. segments() uses the
-  // same rule, so the two agree on where every comment starts.
-  let glued = -1;
+  // A comment that starts right after an escaped character, as in x\ #', is
+  // where the readers disagree: segments() reads the rest of the line as part
+  // of the word, so a quote in it opens a quote, while this reader skips it. If
+  // that rest holds a quote or a backtick, the guard can't tell what follows,
+  // so the command is refused. `escaped` is where such a # would be.
+  let escaped = -1;
+  let disputed = false;
   // Moves past the character at i, keeping track of quotes (including $'...'),
   // comments, $( ) pairs and backtick pairs.
   const step = (i) => {
@@ -35,7 +37,7 @@ export function extractHeredocs(cmd) {
       return i + 1;
     }
     if (c === "\\") {
-      if (cmd[i + 1] !== "\n") glued = i + 2;
+      if (cmd[i + 1] !== "\n") escaped = i + 2;
       return i + 2;
     }
     if (top.quote === "$'") {
@@ -68,8 +70,10 @@ export function extractHeredocs(cmd) {
       return i + 2;
     }
     if (c === "'" || c === '"') top.quote = c;
-    else if (c === "#" && i !== glued && (i === 0 || /[ \t\n;&|()<>]/.test(cmd[i - 1]))) {
+    // See the note above segments(): this reader leans toward "comment".
+    else if (c === "#" && (i === 0 || /[ \t\n;&|()<>]/.test(cmd[i - 1]))) {
       const end = cmd.indexOf("\n", i);
+      if (i === escaped && /["'`]/.test(cmd.slice(i, end === -1 ? cmd.length : end))) disputed = true;
       return end === -1 ? cmd.length : end;
     } else if (c === "(" && cmd[i + 1] === "(" && !top.brace) {
       stack.push({ quote: null, depth: 2, tick: false, arith: true });
@@ -144,7 +148,7 @@ export function extractHeredocs(cmd) {
   }
   // A valid command never ends inside a quote, a $( ) pair or a heredoc.
   if (stack.length > 1 || stack[0].quote) incomplete = true;
-  return { text: text + cmd.slice(from), heredocs, live, incomplete, unterminated };
+  return { text: text + cmd.slice(from), heredocs, live, incomplete, unterminated, disputed };
 }
 
 // The tag after a << at i: its text, whether any of it was quoted (which makes
@@ -294,6 +298,17 @@ export function oddCharacter(text) {
   return null;
 }
 
+// Where a comment starts, the two readers lean opposite ways, each toward
+// checking more. extractHeredocs() decides what is hidden as a heredoc's
+// body, so it leans toward "comment": a # after a blank or an operator starts
+// one, even right after an escaped character, and a << in a comment starts no
+// heredoc. segments() decides what is dropped as a comment, so it leans toward
+// "not a comment": a # right after an escaped character, as in x\ #, is part
+// of the word. Wherever extractHeredocs() finds a heredoc, segments() sees no
+// comment either, so a heredoc can't hide commands that a comment rule skipped.
+// The shell's own reading can differ from both, for example inside backticks,
+// where it turns \\ into \ before it reads the commands.
+
 // Splits a line into the separate commands it runs: on ; & && || | newlines
 // and parentheses, outside quotes. A $( ) or backtick pair stays inside the
 // command it belongs to.
@@ -303,7 +318,7 @@ export function segments(cmd) {
   let quote = null;
   // Where cur ended after its last escaped character. A # right after an
   // escaped character, as in x\ #, is part of the word, so it starts no
-  // comment. extractHeredocs() uses the same rule.
+  // comment: this reader leans toward "not a comment" (see the note above).
   let escapedEnd = -1;
   const flush = () => {
     if (cur.trim()) out.push(cur.trim());

@@ -117,9 +117,20 @@ It doesn't skip shell comments when it looks for `$( )` and backtick pairs.
 A pair in a comment counts as a command, so a comment that mentions a deploy
 that way is refused. A `$( )` pair that never closes as the guard reads it,
 often because of a quote in a comment inside it, is refused, because the guard
-can't tell where the commands after it start. A `#` right after an escaped
-character, as in `x\ #`, is part of the word, not the start of a comment, as
-the shell reads it.
+can't tell where the commands after it start.
+
+Where a comment starts, its two readers lean opposite ways, each toward
+checking more, and neither copies the shell exactly:
+
+- When it splits a line into commands, a `#` right after an escaped
+  character, as in `x\ #`, is part of the word, so the commands after it are
+  checked. Main read it as a comment and allowed `x\ #; npx convex deploy`.
+- When it looks for heredocs, that `#` starts a comment, so a `<<` after it
+  never hides the lines that follow. If such a comment holds a quote or a
+  backtick, the two readings would disagree about what follows, so the command
+  is refused.
+- A `#` right after `<` or `>` starts a comment, as it does in bash, zsh and
+  dash, where it is a syntax error. Main read it as part of a word.
 
 Like the shell, it breaks words only at a space, a tab or a new line, and ends
 a heredoc's tag at one of those or at `< > | ; & ( )`. A command with any other
@@ -127,8 +138,10 @@ control character or space outside quotes is refused: a carriage return, a
 vertical tab, a form feed, a no-break space, a line separator, a byte-order
 mark, an ideographic space, a zero-width space and the like. A shell reads
 those as part of a word, so the guard can't tell where its words and commands
-end. Inside quotes and in a heredoc's body they are text, so a commit message
-may hold them.
+end. A comment counts as outside quotes, so a no-break space in a comment is
+refused too, and so is a command with Windows line endings (a carriage return
+before each new line). Inside quotes and in a heredoc's body these characters
+are text, so a commit message may hold them.
 
 It does skip comments in the env files a command loads, by the env file's
 rules, not the shell's: a `#` line is a comment, and so is a `#` after an
@@ -254,7 +267,9 @@ These can still get past it, each for the reason given:
   shell parser. The same goes for a quote right after the `)` that closes a
   `$( )`, as in `x=$(true)#'`: the shell reads it as a quote, while the guard
   reads the rest of the line as a comment, so a heredoc after it can hide a
-  deploy.
+  deploy. A `#` right after an opening backtick, as in `` echo `#<<EOF ``,
+  and a quote in a comment before a backtick pair on a later line are the same
+  kind of gap.
 - A tool-server call that reaches production without naming it. One example
   is a Convex tool server whose own settings point at production, such as a
   production deploy key in its environment. Its selectors still say "your own
