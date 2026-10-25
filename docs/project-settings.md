@@ -113,6 +113,10 @@ It reads commands the way the shell runs them. It looks through:
 - shell scripts, `source`, and scripts written with a heredoc, `echo` or
   `printf` and run in the same command.
 
+It skips shell comments, in a command and in the scripts it reads. A comment
+that mentions a command, even in backticks or `$( )`, is not a command. A `#`
+inside quotes, in the middle of a word, or in a heredoc's body is not a comment.
+
 Some deploys are known only by a name: a make, just or turbo target, or a
 package script the guard can't find. Such a name counts as a deploy when it
 holds deploy, release, publish, submit or promote. A name that ends in a word

@@ -1151,3 +1151,57 @@ test("review round 1: Convex selectors are read the way Convex reads them", () =
     assert.equal(call(` ${d.kind}:${b64(d)}\n`).allow, true, d.kind);
   }
 });
+
+test("comments: a shell comment that only mentions a deploy is not a command, in a script or a command line", () => {
+  // The shape that was refused: a header comment that quotes a command in backticks.
+  const dir = project({
+    "scripts/notes.sh": [
+      "#!/usr/bin/env bash",
+      "# Why this script exists:",
+      "#   - `convex deploy --dry-run` resolves to PROD and prompts interactively.",
+      "#   - so does $(npx convex deploy), which we don't run.",
+      "echo checking # not `npx convex deploy`, and it's only a note",
+      "echo done",
+      "",
+    ].join("\n"),
+  });
+  allowed(dir, "bash scripts/notes.sh");
+  allowed(dir, "./scripts/notes.sh");
+  allowed(dir, "source scripts/notes.sh");
+  allowed(dir, "echo hi # see `npx convex deploy`");
+  allowed(dir, "# $(npx convex deploy)\necho hi");
+  allowed(dir, "bash <<'EOF'\n# run `npx convex deploy` by hand\necho hi\nEOF");
+});
+
+test("comments: real commands next to comments, and # that isn't a comment, are still refused", () => {
+  const dir = project({
+    "scripts/ship.sh": "#!/usr/bin/env bash\n# Deploys the backend.\n# don't run this by hand\nnpx convex deploy # the real one\n",
+    "scripts/quoted.sh": "#!/usr/bin/env bash\n# don't\nx=$(npx convex deploy)\n# it's done\n",
+  });
+  refused(dir, "bash scripts/ship.sh", /convex deploy/);
+  refused(dir, "bash scripts/quoted.sh", /convex deploy/);
+  for (const c of [
+    'echo "#"; npx convex deploy',
+    "x='#' npx convex deploy",
+    'echo "#" `npx convex deploy`',
+    "echo a#`npx convex deploy`",
+    "x=$(true)#$(npx convex deploy)",
+    "echo ${#x} $(npx convex deploy)",
+    "echo \\# $(npx convex deploy)",
+    "# don't\nx=$(npx convex deploy)\n# it's",
+    "bash <<EOF\n# a comment\nnpx convex deploy\nEOF",
+    "bash <<'EOF'\n# don't\nx=$(npx convex deploy)\nEOF",
+    // In a heredoc's body # is text, so the shell still runs this $( ).
+    "cat <<EOF\n# $(npx convex deploy)\nEOF",
+    // An escaped space is part of a word, so the # after it is too.
+    "x\\ #; npx convex deploy",
+    "echo a\\ # $(npx convex deploy)",
+    "\\ #a$(npx convex deploy)",
+    // A # glued to an escaped character or a closing $( ) doesn't hide a quote
+    // that the shell sees, so the heredoc after it isn't one.
+    "x\\ #'\ncat <<EOF\n'; npx convex deploy\nEOF",
+    "x=$(true)#'\ncat <<EOF\n'; npx convex deploy\nEOF",
+  ]) refused(dir, c, /convex deploy/);
+  // An escaped backslash, then a real space: this # does start a comment.
+  allowed(dir, "echo a\\\\ # $(npx convex deploy)");
+});

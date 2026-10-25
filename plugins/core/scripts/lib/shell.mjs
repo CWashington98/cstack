@@ -20,6 +20,10 @@ export function extractHeredocs(cmd) {
   const stack = [{ quote: null, depth: 0, tick: false }];
   let incomplete = false;
   let unterminated = false;
+  // A # right after an escaped character, or right after the ) that closes a
+  // $( ) or $(( )) pair, is inside a word, so it starts no comment. This is
+  // where such a # would be.
+  let glued = -1;
   // Moves past the character at i, keeping track of quotes (including $'...'),
   // comments, $( ) pairs and backtick pairs.
   const step = (i) => {
@@ -29,7 +33,10 @@ export function extractHeredocs(cmd) {
       if (c === "'") top.quote = null;
       return i + 1;
     }
-    if (c === "\\") return i + 2;
+    if (c === "\\") {
+      glued = i + 2;
+      return i + 2;
+    }
     if (top.quote === "$'") {
       if (c === "'") top.quote = null;
       return i + 1;
@@ -60,7 +67,7 @@ export function extractHeredocs(cmd) {
       return i + 2;
     }
     if (c === "'" || c === '"') top.quote = c;
-    else if (c === "#" && (i === 0 || /[\s;&|()]/.test(cmd[i - 1]))) {
+    else if (c === "#" && i !== glued && (i === 0 || /[\s;&|()]/.test(cmd[i - 1]))) {
       const end = cmd.indexOf("\n", i);
       return end === -1 ? cmd.length : end;
     } else if (c === "(" && cmd[i + 1] === "(" && !top.brace) {
@@ -68,7 +75,10 @@ export function extractHeredocs(cmd) {
       return i + 2;
     } else if (top.brace && c === "}") stack.pop();
     else if (stack.length > 1 && !top.tick && !top.brace && c === "(") top.depth++;
-    else if (stack.length > 1 && !top.tick && !top.brace && c === ")" && --top.depth === 0) stack.pop();
+    else if (stack.length > 1 && !top.tick && !top.brace && c === ")" && --top.depth === 0) {
+      stack.pop();
+      glued = i + 1;
+    }
     return i + 1;
   };
   const tagAt = (j) => {
@@ -245,9 +255,13 @@ export function segments(cmd) {
   const out = [];
   let cur = "";
   let quote = null;
+  // Where cur ended after its last escaped character. An escaped space is part
+  // of a word, so a # after it starts no comment.
+  let escapedEnd = -1;
   const flush = () => {
     if (cur.trim()) out.push(cur.trim());
     cur = "";
+    escapedEnd = -1;
   };
   for (let i = 0; i < cmd.length; i++) {
     const c = cmd[i];
@@ -272,7 +286,10 @@ export function segments(cmd) {
     }
     if (c === "\\" && i + 1 < cmd.length) {
       if (cmd[i + 1] === "\n") i++;
-      else cur += c + cmd[++i];
+      else {
+        cur += c + cmd[++i];
+        escapedEnd = cur.length;
+      }
       continue;
     }
     if (c === "$" && cmd[i + 1] === "'") {
@@ -285,7 +302,7 @@ export function segments(cmd) {
       cur += c;
       continue;
     }
-    if (c === "#" && (cur === "" || /\s$/.test(cur))) {
+    if (c === "#" && (cur === "" || (/\s$/.test(cur) && escapedEnd !== cur.length))) {
       while (i < cmd.length && cmd[i] !== "\n") i++;
       flush();
       continue;

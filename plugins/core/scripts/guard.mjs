@@ -521,11 +521,15 @@ class Checker {
     for (const [k, v] of heredocs) this.heredocs.set(k, v);
     // The shell runs the $( ) and backtick commands in a heredoc whose tag has no quotes.
     for (const k of live) for (const inner of substitutions(heredocs.get(k), { quotes: false })) this.check(inner, dir, depth + 1, { ...ctx, here: undefined, fragment: true });
-    for (const inner of substitutions(text)) this.check(inner, dir, depth + 1, { ...ctx, here: undefined, fragment: true });
+    // segments() drops shell comments, so a $( ) or backtick pair in a comment
+    // is not a command, and a quote in a comment can't hide the ones after it.
+    // Each pair sits whole inside one segment.
+    const parts = segments(text);
+    for (const part of parts) for (const inner of substitutions(part)) this.check(inner, dir, depth + 1, { ...ctx, here: undefined, fragment: true });
     const vars = new Map(ctx.vars);
     const loops = new Map(ctx.loops ?? []);
     let local = ctx.context;
-    for (const segment of segments(text)) {
+    for (const segment of parts) {
       const words = tokenize(segment);
       // `for NAME in a b c` gives NAME each of those values in the commands after it.
       if (words[0] === "for" && words[2] === "in") {
