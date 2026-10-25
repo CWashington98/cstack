@@ -238,9 +238,14 @@ Every write the gate, watch and revert make is idempotent. Running a revert twic
 
 ## 13. Gates, escalation and re-entry
 
-- **Builders never stop to ask.** A builder that hits an open question writes a gate with options and a default, then works around it. If the answer can be observed, it prototypes first.
-- **The coordinator decides gates that can be undone,** and writes down why.
-- **Only questions that can't be undone reach the owner.** They are batched into the morning report.
+Questions that come up mid-work follow the decision desk (the `add-decision-desk` change). The builder never decides alone, and work doesn't stop:
+
+1. **Already answered** by a ruling, a rule or the spec: the answer is applied and cited.
+2. **Can't be undone** (schema, sign-in, health data, turning a feature on, a new dependency): parked for the owner, and the builder takes another slice.
+3. **Can be checked** with a test or command: the answer is proved, and the proof saved.
+4. **Otherwise, two blind opinions.** The builder and a second model of another family pick independently. Agreement decides. On disagreement the coordinator picks, the decision is marked contested, and only the merge waits for the owner.
+
+Every decision becomes a card with tradeoffs, a worked example, how to reverse it, and screenshots when users would see the difference. The morning digest shows the cards, contested ones first. The owner answers each with `keep` (it becomes a ruling), `switch` (a follow-up slice) or `rule` (it becomes a project rule). Three unanswered disagreements in one change pause it, and the owner gets one question about the spec.
 - **A `HOLD` ends that pull request's run.** The owner restarts it by adding the `factory:go` label or by approving the review. A new run picks it up.
 - **A global stop line:** `factory stop` tells every agent to make zero writes.
 - **The standing orders are pasted word for word** into every spawn and relay, because instructions decay across resumes.
@@ -361,6 +366,7 @@ Each step adds one new trigger and is its own OpenSpec change in cstack.
 | 1 | Morning report (trigger: schedule). Pilot: Project B's 30 open pull requests run through the gate in shadow | Everything |
 | 1b | `add-prototype-harvest`: Project B's prototype-to-spec harvest, made generic for every project | Everything |
 | 2 | `factory next` and a spec coordinator for one spec in Project A (trigger: pull request events). Liveness check | Everything |
+| 2b | `add-decision-desk`: questions mid-work answered without stopping, with blind second opinions and a digest of cards | Everything |
 | 3 | Project A low zone switches on, if it has earned it. Watch at promotion, automatic revert | Standard and high |
 | 4 | Project B low zone, with flags off by default and turning off the flag as the first response | Standard and high |
 | 5+ | Area coordinators (trigger: webhooks), lessons loop, drift report. Then the next project | High only in A; standard and high in B |

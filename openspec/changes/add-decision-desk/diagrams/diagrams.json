@@ -1,0 +1,11 @@
+{
+  "diagrams": [
+    {
+      "file": "question-path.svg",
+      "question": "What happens when a question comes up mid-work?",
+      "depicts": ["openspec/changes/add-decision-desk/specs/factory/decisions/spec.md"],
+      "made": "2026-10-25",
+      "lastValidated": "2026-10-25"
+    }
+  ]
+}

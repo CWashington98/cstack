@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 660" width="1040" height="660" role="img" aria-labelledby="diagram-title diagram-desc" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <title id="diagram-title">What happens when a question comes up mid-work</title>
+  <desc id="diagram-desc">A question is checked against earlier answers, then for whether it can be undone, then for whether it can be checked. Questions left over get two blind opinions. Agreement decides and work goes on. Disagreement is decided by the coordinator, and merging waits for the owner. Every decision becomes a card in the morning digest, where the owner keeps it, switches it later, or makes it a rule.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6c788c"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="1040" height="660" fill="#0b0f17"/>
+  <text x="40" y="56" fill="#f2f5f9" font-size="24" font-weight="600">What happens when a question comes up mid-work</text>
+
+  <g><rect x="40" y="100" width="200" height="84" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+    <text x="140" y="136" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">A question comes up</text>
+    <text x="140" y="162" text-anchor="middle" fill="#9aa5b6" font-size="15">any step</text></g>
+  <g><rect x="300" y="100" width="200" height="84" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+    <text x="400" y="136" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Answered before?</text>
+    <text x="400" y="162" text-anchor="middle" fill="#9aa5b6" font-size="15">spec, rulings, rules</text></g>
+  <g><rect x="560" y="100" width="200" height="84" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+    <text x="660" y="136" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Can't be undone?</text>
+    <text x="660" y="162" text-anchor="middle" fill="#9aa5b6" font-size="15">by files touched</text></g>
+  <g><rect x="820" y="100" width="200" height="84" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+    <text x="920" y="136" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Checkable?</text>
+    <text x="920" y="162" text-anchor="middle" fill="#9aa5b6" font-size="15">by a test or code</text></g>
+  <line x1="240" y1="142" x2="296" y2="142" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="500" y1="142" x2="556" y2="142" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="528" y="132" text-anchor="middle" fill="#9aa5b6" font-size="14">no</text>
+  <line x1="760" y1="142" x2="816" y2="142" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="788" y="132" text-anchor="middle" fill="#9aa5b6" font-size="14">no</text>
+  <text x="400" y="214" text-anchor="middle" fill="#5ea8ff" font-size="15">yes: apply that answer</text>
+  <text x="660" y="214" text-anchor="middle" fill="#f2994a" font-size="15">yes: park it, keep going</text>
+  <text x="920" y="214" text-anchor="middle" fill="#5ea8ff" font-size="15">yes: prove it, record it</text>
+
+  <g><rect x="820" y="290" width="200" height="84" rx="10" fill="#202837" stroke="#6c788c" stroke-width="2"/>
+    <text x="920" y="326" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Two blind opinions</text>
+    <text x="920" y="352" text-anchor="middle" fill="#9aa5b6" font-size="15">two models</text></g>
+  <line x1="970" y1="184" x2="970" y2="286" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="984" y="250" fill="#9aa5b6" font-size="14">no</text>
+  <g><rect x="560" y="290" width="200" height="84" rx="10" fill="#151b26" stroke="#5ea8ff" stroke-width="2"/>
+    <text x="660" y="326" text-anchor="middle" fill="#5ea8ff" font-size="17" font-weight="600">They agree</text>
+    <text x="660" y="352" text-anchor="middle" fill="#9aa5b6" font-size="15">decided, work goes on</text></g>
+  <g><rect x="300" y="290" width="200" height="84" rx="10" fill="#151b26" stroke="#f2994a" stroke-width="2"/>
+    <text x="400" y="326" text-anchor="middle" fill="#f2994a" font-size="17" font-weight="600">They disagree</text>
+    <text x="400" y="352" text-anchor="middle" fill="#9aa5b6" font-size="15">coordinator picks</text></g>
+  <line x1="820" y1="332" x2="764" y2="332" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M920,374 C920,420 400,420 400,378" fill="none" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="660" y="440" text-anchor="middle" fill="#9aa5b6" font-size="14">merging waits for one tap from the owner</text>
+
+  <g><rect x="40" y="490" width="200" height="84" rx="10" fill="#151b26" stroke="#3ccbd3" stroke-width="2"/>
+    <text x="140" y="526" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Decision card</text>
+    <text x="140" y="552" text-anchor="middle" fill="#9aa5b6" font-size="15">examples and tradeoffs</text></g>
+  <g><rect x="300" y="490" width="200" height="84" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+    <text x="400" y="526" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Morning digest</text>
+    <text x="400" y="552" text-anchor="middle" fill="#9aa5b6" font-size="15">disagreements first</text></g>
+  <g><rect x="560" y="490" width="200" height="84" rx="10" fill="#202837" stroke="#c49bff" stroke-width="2"/>
+    <text x="660" y="526" text-anchor="middle" fill="#c49bff" font-size="17" font-weight="600">Owner, later</text>
+    <text x="660" y="552" text-anchor="middle" fill="#9aa5b6" font-size="15">keep, switch, or rule</text></g>
+  <path d="M300,332 C140,332 140,420 140,486" fill="none" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M600,374 C600,460 200,440 180,486" fill="none" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="240" y1="532" x2="296" y2="532" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="500" y1="532" x2="556" y2="532" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <text x="40" y="616" fill="#9aa5b6" font-size="14">Made 25 October 2026. Last checked against the spec on 25 October 2026.</text>
+  <g class="legend">
+    <line x1="40" y1="640" x2="72" y2="640" stroke="#5ea8ff" stroke-width="2"/>
+    <text x="82" y="645" fill="#9aa5b6" font-size="14">Blue: no owner needed</text>
+    <line x1="270" y1="640" x2="302" y2="640" stroke="#f2994a" stroke-width="2"/>
+    <text x="312" y="645" fill="#9aa5b6" font-size="14">Orange: owner sees it first</text>
+    <line x1="530" y1="640" x2="562" y2="640" stroke="#c49bff" stroke-width="2"/>
+    <text x="572" y="645" fill="#9aa5b6" font-size="14">Purple: the owner</text>
+    <line x1="740" y1="640" x2="772" y2="640" stroke="#3ccbd3" stroke-width="2"/>
+    <text x="782" y="645" fill="#9aa5b6" font-size="14">Teal: saved record</text>
+  </g>
+</svg>
