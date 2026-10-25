@@ -22,7 +22,7 @@ function main(argv) {
     return result.ok ? 0 : 1;
   }
   if (args.includes("--changes")) {
-    const holds = checkChanges(root);
+    const holds = checkChanges(root, config);
     console.log(holds.length ? holds.join("\n") : "Every open change has a stamped diagram that design.md shows.");
     return holds.length ? 1 : 0;
   }
