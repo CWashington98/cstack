@@ -49,7 +49,7 @@ import { readFileSync, existsSync, statSync, readdirSync, appendFileSync, mkdirS
 import { resolve, join, dirname, basename, relative, sep } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
-import { pathToFileURL } from "node:url";
+import { pathToFileURL, fileURLToPath } from "node:url";
 import { extractHeredocs, substitutions, segments, tokenize, envFile, withoutCommentLines } from "./lib/shell.mjs";
 
 const SETTINGS = join(".claude", "verify.json");
@@ -1321,4 +1321,18 @@ async function main() {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main().then((code) => process.exit(code));
+// True when node was started on this file. import.meta.url is the file's real
+// path, with every symlink resolved, while process.argv[1] is the path as
+// typed, so both are resolved before they are compared. Comparing them as
+// they are made the guard do nothing, and allow everything, when started
+// through a symlinked folder such as /tmp on macOS.
+function startedDirectly() {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return import.meta.url === pathToFileURL(process.argv[1]).href;
+  }
+}
+
+if (startedDirectly()) main().then((code) => process.exit(code));

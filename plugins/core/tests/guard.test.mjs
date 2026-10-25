@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, existsSync, symlinkSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { tmpdir, homedir } from "node:os";
 import { spawnSync } from "node:child_process";
@@ -1379,4 +1379,18 @@ test("review: each case found in review is refused through the hook itself, as t
   for (const c of ["dotenvx run -f vars.c2 -- npx convex run x", "dotenvx run -f vars.c6 -- npx convex deploy"]) {
     assert.equal(hook(c).status, 0, `expected the hook to allow: ${JSON.stringify(c)}`);
   }
+});
+
+test("the hook runs when it is started through a symlinked path", () => {
+  // macOS keeps /tmp as a link to /private/tmp, and a plugin folder can be a
+  // link too. Started through a link, the guard used to do nothing and exit 0.
+  const dir = project();
+  const links = mkdtempSync(join(tmpdir(), "guard-link-"));
+  symlinkSync(join(here, "..", "scripts"), join(links, "scripts"));
+  const linked = join(links, "scripts", "guard.mjs");
+  const hook = (command) => spawnSync("node", [linked], { input: JSON.stringify({ tool_name: "Bash", tool_input: { command }, cwd: dir }), encoding: "utf8", env: { ...process.env, CSTACK_GUARD_LOG: join(links, "log.jsonl") } });
+  const no = hook("npx convex deploy");
+  assert.equal(no.status, 2);
+  assert.match(no.stderr, /cstack guard refused/);
+  assert.equal(hook("git status").status, 0);
 });
