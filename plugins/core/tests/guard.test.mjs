@@ -1153,15 +1153,15 @@ test("review round 1: Convex selectors are read the way Convex reads them", () =
   }
 });
 
-test("comments: a shell comment that only mentions a deploy is not a command, in a script or a command line", () => {
+test("comments: a whole comment line that only mentions a deploy is not a command, in a script or a command line", () => {
   // The shape that was refused: a header comment that quotes a command in backticks.
   const dir = project({
     "scripts/notes.sh": [
       "#!/usr/bin/env bash",
       "# Why this script exists:",
       "#   - `convex deploy --dry-run` resolves to PROD and prompts interactively.",
-      "#   - so does $(npx convex deploy), which we don't run.",
-      "echo checking # not `npx convex deploy`, and it's only a note",
+      "  #   - so does $(npx convex deploy), which we don't run.",
+      "\t# and `npx convex deploy`",
       "echo done",
       "",
     ].join("\n"),
@@ -1169,19 +1169,31 @@ test("comments: a shell comment that only mentions a deploy is not a command, in
   allowed(dir, "bash scripts/notes.sh");
   allowed(dir, "./scripts/notes.sh");
   allowed(dir, "source scripts/notes.sh");
-  allowed(dir, "echo hi # see `npx convex deploy`");
   allowed(dir, "# $(npx convex deploy)\necho hi");
+  allowed(dir, "echo hi\n# `npx convex deploy`\necho done");
   allowed(dir, "bash <<'EOF'\n# run `npx convex deploy` by hand\necho hi\nEOF");
+  // A quote in a comment line hides nothing, so this $( ) is found.
+  refused(dir, "# don't\nx=$(npx convex deploy)\n# it's", /convex deploy/);
+  // Nor does a quote in a comment after a command: each command segments()
+  // keeps is read for pairs too. main allowed this one.
+  refused(dir, "echo hi # don't\nx=$(npx convex deploy)", /convex deploy/);
 });
 
-test("comments: real commands next to comments, and # that isn't a comment, are still refused", () => {
+test("comments: a comment after a command, or a # line the shell may not read as a comment, still counts", () => {
   const dir = project({
     "scripts/ship.sh": "#!/usr/bin/env bash\n# Deploys the backend.\n# don't run this by hand\nnpx convex deploy # the real one\n",
     "scripts/quoted.sh": "#!/usr/bin/env bash\n# don't\nx=$(npx convex deploy)\n# it's done\n",
+    "scripts/inline.sh": "#!/usr/bin/env bash\necho checking # not `npx convex deploy`\n",
   });
   refused(dir, "bash scripts/ship.sh", /convex deploy/);
   refused(dir, "bash scripts/quoted.sh", /convex deploy/);
+  // The guard reads only whole comment lines as comments when it looks for
+  // $( ) and backtick pairs. A comment after a command is read as text, which
+  // can refuse a command the shell would run safely, never the other way.
+  refused(dir, "bash scripts/inline.sh", /convex deploy/);
   for (const c of [
+    "echo hi # see `npx convex deploy`",
+    "echo a\\\\ # $(npx convex deploy)",
     'echo "#"; npx convex deploy',
     "x='#' npx convex deploy",
     'echo "#" `npx convex deploy`',
@@ -1189,11 +1201,18 @@ test("comments: real commands next to comments, and # that isn't a comment, are 
     "x=$(true)#$(npx convex deploy)",
     "echo ${#x} $(npx convex deploy)",
     "echo \\# $(npx convex deploy)",
-    "# don't\nx=$(npx convex deploy)\n# it's",
     "bash <<EOF\n# a comment\nnpx convex deploy\nEOF",
     "bash <<'EOF'\n# don't\nx=$(npx convex deploy)\nEOF",
     // In a heredoc's body # is text, so the shell still runs this $( ).
     "cat <<EOF\n# $(npx convex deploy)\nEOF",
+    // A # line inside a quote, a pair or a joined line is not a comment.
+    'echo "a\n# $(npx convex deploy)"',
+    "echo ${x:-\n# $(npx convex deploy)\n}",
+    "echo $[ 1 +\n# $(npx convex deploy)\n]",
+    "echo a \\\n# $(npx convex deploy)",
+    "x=(\n# $(npx convex deploy)\n)",
+    // A # line after a << the guard didn't read as a heredoc may be the heredoc's body.
+    "cat <(echo)#<<EOF\n# $(npx convex deploy)\nEOF",
     // An escaped space is part of a word, so the # after it is too.
     "x\\ #; npx convex deploy",
     "echo a\\ # $(npx convex deploy)",
@@ -1202,9 +1221,7 @@ test("comments: real commands next to comments, and # that isn't a comment, are 
     // that the shell sees, so the heredoc after it isn't one.
     "x\\ #'\ncat <<EOF\n'; npx convex deploy\nEOF",
     "x=$(true)#'\ncat <<EOF\n'; npx convex deploy\nEOF",
-  ]) refused(dir, c, /convex deploy/);
-  // An escaped backslash, then a real space: this # does start a comment.
-  allowed(dir, "echo a\\\\ # $(npx convex deploy)");
+  ]) refused(dir, c, /convex deploy|too complex/);
 });
 
 test("env files: a comment in an env file names no deploy target", () => {
@@ -1285,8 +1302,9 @@ test("env files: a never entry only in a comment isn't used, where the loader re
 
 test("comments inside $( ): a quote in a comment doesn't hide the commands after the pair", () => {
   const dir = project({ "scripts/sub.sh": "#!/usr/bin/env bash\nx=$(echo hi # it's a note\n)\nnpx convex deploy\n" });
+  // The shape that was allowed. A pair the guard can't close is refused, so
+  // a comment with a quote in it inside $( ) is refused even with no deploy.
   for (const c of [
-    // The shape that was allowed.
     "x=$(echo # it's\n) ; npx convex deploy",
     "x=$(echo # it's\n); npx convex deploy",
     "x=$(echo # \"\n) && npx convex deploy",
@@ -1295,23 +1313,70 @@ test("comments inside $( ): a quote in a comment doesn't hide the commands after
     "x=$( (echo a) # it's\n) ; npx convex deploy",
     "x=$(echo $(echo # it's\n)) ; npx convex deploy",
     "bash -c 'x=$(echo # q\n) ; npx convex deploy'",
-  ]) refused(dir, c, /convex deploy/);
-  refused(dir, "bash scripts/sub.sh", /convex deploy/);
-  // A deploy inside the pair, after the comment, is still a command.
-  refused(dir, "x=$(echo # it's\nnpx convex deploy\n)", /convex deploy/);
-  // A # glued to a word or to a closing $( ) starts no comment, so the ) after it still closes the pair.
+    "bash scripts/sub.sh",
+    "x=$(echo # it's\nnpx convex deploy\n)",
+    "x=$(echo hi # it's a note\n) ; echo done",
+    "echo `npx convex deploy",
+  ]) refused(dir, c, /convex deploy|too complex/);
   refused(dir, "x=$(echo a#)\nnpx convex deploy", /convex deploy/);
   refused(dir, "x=$(echo $(true)#) ; npx convex deploy", /convex deploy/);
   refused(dir, "x=$(echo ${#y}) ; npx convex deploy", /convex deploy/);
-  // ...and the deploy after the pair keeps the target set before it.
+  // A deploy after a pair keeps the target set before it.
   const target = "export CONVEX_DEPLOYMENT=dev:staging-backend-1\n";
   allowed(dir, `${target}x=$(echo $(true)#)\nnpx convex deploy`);
   allowed(dir, `${target}x=$(echo a\\ #)\nnpx convex deploy`);
-  allowed(dir, `${target}x=$(echo # it's\n)\nnpx convex deploy`);
-  allowed(dir, "x=$(echo hi # it's a note\n) ; echo done");
-  // The pair ends where the shell ends it. One that never closes keeps every
-  // character, so the command in it is checked whole.
-  assert.deepEqual(substitutions("x=$(echo # it's\n) ; npx convex deploy"), ["echo # it's\n"]);
-  assert.deepEqual(substitutions("x=$(npx convex deploy"), ["npx convex deploy"]);
-  allowed(dir, "x=$(git log -1 --format=%s # the subject, it's short\n)");
+  allowed(dir, "x=$(echo hi # a note\n) ; echo done");
+  // A pair that never closes keeps every character and is marked unclosed.
+  const open = substitutions("x=$(echo # it's\n) ; npx convex deploy");
+  assert.deepEqual([...open], ["echo # it's\n) ; npx convex deploy"]);
+  assert.equal(open.unclosed, true);
+  assert.equal(substitutions("x=$(date)").unclosed, false);
+});
+
+
+test("review: each case found in review is refused through the hook itself, as the shells read it", () => {
+  // Each of these ran a deploy in bash, zsh or dash, or is a # the shell reads
+  // as a comment that the guard still refuses, as main does. They go through
+  // the real entry point: JSON on standard input, exit 2 to refuse.
+  const dir = project({
+    "vars.c1": "CONVEX_DEPLOYMENT=prod:x # staging-backend-1\n",
+    "vars.c2": "A=1\n# prod-backend-9\n",
+    "vars.c3": "A=1 #prod-backend-9\n",
+    "vars.c5": "#c\n  #K=prod-backend-9\n",
+    "vars.c6": 'CONVEX_DEPLOYMENT="dev:staging-backend-1" # ok\n',
+  });
+  const logFile = join(mkdtempSync(join(tmpdir(), "guard-log-")), "log.jsonl");
+  const hook = (command) => spawnSync("node", [script], { input: JSON.stringify({ tool_name: "Bash", tool_input: { command }, cwd: dir }), encoding: "utf8", env: { ...process.env, CSTACK_GUARD_LOG: logFile } });
+  const refuse = [
+    "(( 1 + #$(npx convex deploy)\n))",
+    "echo $[ 1 #$(npx convex deploy) ]",
+    "echo ${x:- #$(npx convex deploy)}\necho }",
+    "echo x #$(npx convex deploy)",
+    "echo x\r#$(npx convex deploy)",
+    "cat <(echo a)#$(npx convex deploy)",
+    "((1))#<<EOF\nnpx convex deploy\nEOF",
+    "echo a \\\n#<<EOF\nnpx convex deploy\nEOF",
+    "x=$(cat <(echo)#); npx convex deploy\ncase a in a) ;; esac",
+    "x=$(echo ${y:- #}); npx convex deploy\necho }; case a in a) ;; esac",
+    "x=$(( 1 #)); npx convex deploy\ncase a in a) ;; esac\n)",
+    "echo x\u000b#$(npx convex deploy)",
+    "echo x\f#$(npx convex deploy)",
+    "cat <<EOF\n# $(npx convex deploy)\nEOF",
+    'echo "a\n#$(npx convex deploy)"',
+    "case a in a) x=1 ;; #$(npx convex deploy)\nesac",
+    "echo ${#x} $(npx convex deploy)",
+    "echo $(( 2#1 )) $(npx convex deploy)",
+    "x=$(echo hi # it's\n) ; npx convex deploy",
+    "for i in 1; do #$(npx convex deploy)\n:; done",
+    "a=( 1 #$(npx convex deploy)\n)",
+    "dotenvx run -f vars.c1 -- npx convex deploy",
+    "env-cmd -f vars.c3 npx convex run x",
+    "node --env-file=vars.c5 x.js",
+  ];
+  for (const c of refuse) assert.equal(hook(c).status, 2, `expected the hook to refuse: ${JSON.stringify(c)}`);
+  // dotenvx skips a # line, so a "never" name only there isn't used, and a
+  // quoted target followed by a comment still counts.
+  for (const c of ["dotenvx run -f vars.c2 -- npx convex run x", "dotenvx run -f vars.c6 -- npx convex deploy"]) {
+    assert.equal(hook(c).status, 0, `expected the hook to allow: ${JSON.stringify(c)}`);
+  }
 });

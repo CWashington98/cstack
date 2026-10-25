@@ -12,16 +12,6 @@
 // $( ) or backtick pair closes on its own first line has no body: the shell
 // runs the lines after it as commands, so they stay in the text.
 let heredocCount = 0;
-
-// The one rule for where a shell comment starts. A # starts a comment when it
-// begins a word: at the start of the text, or after a space, tab, newline, or
-// one of ; & | ( ). A # right after an escaped character, or right after the )
-// that closes a $( ) pair, is inside a word. `glued` is the index where such a
-// # would be. segments() applies the same rule to the command it builds.
-function startsComment(s, i, glued) {
-  return s[i] === "#" && i !== glued && (i === 0 || /[\s;&|()]/.test(s[i - 1]));
-}
-
 export function extractHeredocs(cmd) {
   const heredocs = new Map();
   const live = new Set();
@@ -32,7 +22,9 @@ export function extractHeredocs(cmd) {
   let unterminated = false;
   // A # right after an escaped character, or right after the ) that closes a
   // $( ) or $(( )) pair, is inside a word, so it starts no comment. This is
-  // where such a # would be.
+  // where such a # would be. A backslash before a newline only joins two
+  // lines, and a # after a plain (( )) does start a comment, so neither
+  // counts. segments() reads a # after an escaped character the same way.
   let glued = -1;
   // Moves past the character at i, keeping track of quotes (including $'...'),
   // comments, $( ) pairs and backtick pairs.
@@ -44,7 +36,7 @@ export function extractHeredocs(cmd) {
       return i + 1;
     }
     if (c === "\\") {
-      glued = i + 2;
+      if (cmd[i + 1] !== "\n") glued = i + 2;
       return i + 2;
     }
     if (top.quote === "$'") {
@@ -52,11 +44,11 @@ export function extractHeredocs(cmd) {
       return i + 1;
     }
     if (c === "$" && cmd[i + 1] === "(" && cmd[i + 2] === "(") {
-      stack.push({ quote: null, depth: 2, tick: false, arith: true });
+      stack.push({ quote: null, depth: 2, tick: false, arith: true, dollar: true });
       return i + 3;
     }
     if (c === "$" && cmd[i + 1] === "(") {
-      stack.push({ quote: null, depth: 1, tick: false });
+      stack.push({ quote: null, depth: 1, tick: false, dollar: true });
       return i + 2;
     }
     if (c === "$" && cmd[i + 1] === "{") {
@@ -77,7 +69,7 @@ export function extractHeredocs(cmd) {
       return i + 2;
     }
     if (c === "'" || c === '"') top.quote = c;
-    else if (startsComment(cmd, i, glued)) {
+    else if (c === "#" && i !== glued && (i === 0 || /[\s;&|()]/.test(cmd[i - 1]))) {
       const end = cmd.indexOf("\n", i);
       return end === -1 ? cmd.length : end;
     } else if (c === "(" && cmd[i + 1] === "(" && !top.brace) {
@@ -87,7 +79,7 @@ export function extractHeredocs(cmd) {
     else if (stack.length > 1 && !top.tick && !top.brace && c === "(") top.depth++;
     else if (stack.length > 1 && !top.tick && !top.brace && c === ")" && --top.depth === 0) {
       stack.pop();
-      glued = i + 1;
+      if (top.dollar) glued = i + 1;
     }
     return i + 1;
   };
@@ -200,15 +192,14 @@ function heredocTag(cmd, i) {
   return tag ? { tag, quoted, dash, end: j } : null;
 }
 
-// The index just past the ) that closes the $( whose ( is at i. A comment
-// inside the pair runs to the end of its line, so a quote or ) in it changes
-// nothing. When the pair never closes, this returns s.length + 1, so a caller
-// that drops the closing ) still keeps every character of the text.
+// The index just past the ) that closes the $( starting at i. It doesn't know
+// about comments, so a quote in a comment inside the pair can keep it from
+// closing. When the pair never closes, this returns s.length + 1: a caller
+// that drops the closing ) still keeps every character, and substitutions()
+// marks its result unclosed, so the guard refuses rather than guess.
 function closeSubst(s, i) {
-  // One entry per open (, true when it opened a $( pair.
-  const open = [];
+  let depth = 0;
   let quote = null;
-  let glued = -1;
   for (let j = i; j < s.length; j++) {
     const c = s[j];
     if (quote) {
@@ -216,29 +207,23 @@ function closeSubst(s, i) {
       else if (c === quote.at(-1)) quote = null;
       continue;
     }
-    if (c === "\\") {
-      j++;
-      glued = j + 1;
-    } else if (c === "$" && s[j + 1] === "'") quote = "$'", j++;
+    if (c === "\\") j++;
+    else if (c === "$" && s[j + 1] === "'") quote = "$'", j++;
     else if (c === "'" || c === '"') quote = c;
-    else if (startsComment(s, j, glued)) {
-      const end = s.indexOf("\n", j);
-      if (end === -1) break;
-      j = end - 1;
-    } else if (c === "(") open.push(s[j - 1] === "$");
-    else if (c === ")") {
-      if (open.pop()) glued = j + 1;
-      if (!open.length) return j + 1;
-    }
+    else if (c === "(") depth++;
+    else if (c === ")" && --depth === 0) return j + 1;
   }
   return s.length + 1;
 }
 
 // The text inside every $( ) and backtick pair outside single quotes. These run
 // as commands of their own, even inside double quotes. In a heredoc's body,
-// quotes are plain text, so pass { quotes: false }.
+// quotes are plain text, so pass { quotes: false }. When a pair never closes,
+// the result has `unclosed` set: the guard can't tell where the commands
+// after it start.
 export function substitutions(cmd, { quotes = true } = {}) {
   const out = [];
+  out.unclosed = false;
   let quote = null;
   for (let i = 0; i < cmd.length; i++) {
     const c = cmd[i];
@@ -260,16 +245,81 @@ export function substitutions(cmd, { quotes = true } = {}) {
     else if (c === '"') quote = quote === '"' ? null : '"';
     if (c === "$" && cmd[i + 1] === "(" && cmd[i + 2] !== "(") {
       const end = closeSubst(cmd, i + 1);
+      if (end > cmd.length) out.unclosed = true;
       out.push(cmd.slice(i + 2, end - 1));
       i = end - 1;
     } else if (c === "`") {
       const end = cmd.indexOf("`", i + 1);
-      if (end === -1) break;
+      if (end === -1) {
+        out.unclosed = true;
+        out.push(cmd.slice(i + 1));
+        break;
+      }
       out.push(cmd.slice(i + 1, end));
       i = end;
     }
   }
   return out;
+}
+
+// The text with each whole comment line blanked: a line whose first character
+// other than spaces and tabs is #. A $( ) or backtick pair on such a line is
+// not a command, and a quote on it hides nothing. A line counts only when the
+// shell surely starts a new command there, so this stops blanking for good
+// after the first line that may not end where it seems to: one that ends
+// inside a quote or a ( ), $( ), ${ }, [ ] or backtick pair, or with a
+// backslash that joins it to the next line, or that has a << the guard didn't
+// read as a heredoc. Pass text whose heredoc bodies are already taken out
+// (extractHeredocs()), since a # line in a heredoc's body is not a comment.
+export function withoutCommentLines(text) {
+  const lines = text.split("\n");
+  for (let n = 0; n < lines.length; n++) {
+    if (/^[ \t]*#/.test(lines[n])) lines[n] = "";
+    else if (!endsWhole(lines[n])) break;
+  }
+  return lines.join("\n");
+}
+
+// True when nothing the line opens is still open at its end, read plainly:
+// comments are not skipped, so a quote in one counts as open.
+function endsWhole(line) {
+  if (/<<(?!<|HEREDOC __HEREDOC_\d+__)/.test(line)) return false;
+  let quote = null;
+  let tick = false;
+  const open = [];
+  const pairs = { "(": ")", "{": "}", "[": "]" };
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (quote === "'") {
+      if (c === "'") quote = null;
+      continue;
+    }
+    if (c === "\\") {
+      if (i === line.length - 1) return false;
+      i++;
+      continue;
+    }
+    if (quote === "$'") {
+      if (c === "'") quote = null;
+      continue;
+    }
+    if (quote === '"') {
+      // A pair inside double quotes can hold quotes of its own; don't guess.
+      if (c === "`" || (c === "$" && "({[".includes(line[i + 1] ?? ""))) return false;
+      if (c === '"') quote = null;
+      continue;
+    }
+    if (c === "$" && line[i + 1] === "'") {
+      quote = "$'";
+      i++;
+    } else if (c === "'" || c === '"') quote = c;
+    else if (c === "`") tick = !tick;
+    else if (c === "(" || c === "[" || (c === "{" && line[i - 1] === "$")) open.push(pairs[c]);
+    else if (c === ")" || c === "]" || (c === "}" && open.at(-1) === "}")) {
+      if (open.pop() !== c) return false;
+    }
+  }
+  return !quote && !tick && !open.length;
 }
 
 // Splits a line into the separate commands it runs: on ; & && || | newlines

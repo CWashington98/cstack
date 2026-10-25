@@ -113,10 +113,21 @@ It reads commands the way the shell runs them. It looks through:
 - shell scripts, `source`, and scripts written with a heredoc, `echo` or
   `printf` and run in the same command.
 
-It skips shell comments, in a command and in the scripts it reads. A comment
-that mentions a command, even in backticks or `$( )`, is not a command. A `#`
-inside quotes, in the middle of a word, or in a heredoc's body is not a comment.
-A quote in a comment inside `$( )` doesn't hide the commands after the `)`.
+It skips whole comment lines, in a command and in the scripts it reads: a
+line whose first character other than spaces and tabs is `#`. A command in
+backticks or `$( )` on such a line is not a command, and a quote on it hides
+nothing. A line counts only when the shell surely starts a new command there.
+From the first line that ends inside a quote, a `( )`, `$( )`, `${ }`, `[ ]` or
+backtick pair, or with a `\` that joins it to the next line, or that holds a
+`<<` the guard didn't read as a heredoc, it skips no more comment lines in that
+command. A `#` line in a heredoc's body is text, not a comment.
+
+A comment after a command on the same line, such as ``echo hi # see `deploy` ``,
+still counts when the guard looks for `$( )` and backtick pairs. That can refuse
+a command the shell would run safely, never the other way. A `$( )` or backtick
+pair that never closes as the guard reads it, often because of a quote in a
+comment inside it, is refused, because the guard can't tell where the commands
+after it start.
 
 It skips comments in the env files a command loads, too, by the env file's
 rules, not the shell's: a `#` line is a comment, and so is a `#` after an
@@ -231,6 +242,10 @@ These can still get past it, each for the reason given:
 - Env files a program loads without being told, such as `.env` for
   `dotenvx run` with no `-f`, and the `$( )` commands dotenvx runs inside an
   env file's values.
+- A few spellings the guard reads differently from the shell: a `\` at the
+  very end of a command, which the shell drops, as in `npx convex deploy\`; an
+  empty `$( )` or backtick pair glued to a word, as in `npx convex deploy$()`;
+  and a command whose output is run as a command.
 - A tool-server call that reaches production without naming it. One example
   is a Convex tool server whose own settings point at production, such as a
   production deploy key in its environment. Its selectors still say "your own
