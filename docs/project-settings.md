@@ -126,11 +126,13 @@ checking more, and neither copies the shell exactly:
   character, as in `x\ #`, is part of the word, so the commands after it are
   checked. Main read it as a comment and allowed `x\ #; npx convex deploy`.
 - When it looks for heredocs, that `#` starts a comment, so a `<<` after it
-  never hides the lines that follow. If such a comment holds a quote or a
-  backtick, the two readings would disagree about what follows, so the command
-  is refused.
-- A `#` right after `<` or `>` starts a comment, as it does in bash, zsh and
-  dash, where it is a syntax error. Main read it as part of a word.
+  never hides the lines that follow.
+- A comment that starts right after an escaped character, or right after a
+  `\` and a new line that join it to a word, is where the two readings
+  disagree. If it holds a quote or a backtick, they would disagree about what
+  follows, so the command is refused.
+- A `#` right after `<` or `>` is text in both readers, as on main. ksh reads
+  it as the start of a file name, as in `2>#build.err`.
 
 Like the shell, it breaks words only at a space, a tab or a new line, and ends
 a heredoc's tag at one of those or at `< > | ; & ( )`. A command with any other

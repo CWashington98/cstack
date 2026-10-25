@@ -20,11 +20,12 @@ export function extractHeredocs(cmd) {
   const stack = [{ quote: null, depth: 0, tick: false }];
   let incomplete = false;
   let unterminated = false;
-  // A comment that starts right after an escaped character, as in x\ #', is
-  // where the readers disagree: segments() reads the rest of the line as part
-  // of the word, so a quote in it opens a quote, while this reader skips it. If
-  // that rest holds a quote or a backtick, the guard can't tell what follows,
-  // so the command is refused. `escaped` is where such a # would be.
+  // A comment that starts right after an escaped character, as in x\ #', or
+  // right after a backslash-newline that joins it to a word, as in x\<newline>#',
+  // is where the readers disagree: segments() reads the rest of the line as
+  // part of the word, so a quote in it opens a quote, while this reader skips
+  // it. If that rest holds a quote or a backtick, the guard can't tell what
+  // follows, so the command is refused. `escaped` is where such a # would be.
   let escaped = -1;
   let disputed = false;
   // Moves past the character at i, keeping track of quotes (including $'...'),
@@ -37,7 +38,7 @@ export function extractHeredocs(cmd) {
       return i + 1;
     }
     if (c === "\\") {
-      if (cmd[i + 1] !== "\n") escaped = i + 2;
+      if (cmd[i + 1] !== "\n" || !/[ \t\n;&|()<>]/.test(cmd[i - 1] ?? "\n")) escaped = i + 2;
       return i + 2;
     }
     if (top.quote === "$'") {
@@ -71,7 +72,7 @@ export function extractHeredocs(cmd) {
     }
     if (c === "'" || c === '"') top.quote = c;
     // See the note above segments(): this reader leans toward "comment".
-    else if (c === "#" && (i === 0 || /[ \t\n;&|()<>]/.test(cmd[i - 1]))) {
+    else if (c === "#" && (i === 0 || /[ \t\n;&|()]/.test(cmd[i - 1]))) {
       const end = cmd.indexOf("\n", i);
       if (i === escaped && /["'`]/.test(cmd.slice(i, end === -1 ? cmd.length : end))) disputed = true;
       return end === -1 ? cmd.length : end;
@@ -364,9 +365,10 @@ export function segments(cmd) {
       cur += c;
       continue;
     }
-    // As in extractHeredocs(), a # starts a comment only after a space, tab or
-    // newline, after one of ; & | ( ) < >, or at the start.
-    if (c === "#" && (cur === "" || (/[ \t\n<>&]$/.test(cur) && escapedEnd !== cur.length))) {
+    // A # starts a comment only at the start of a command or after a space,
+    // tab or newline that isn't escaped. After < or >, ksh reads it as the
+    // start of a file name, so it is text here.
+    if (c === "#" && (cur === "" || (/[ \t\n]$/.test(cur) && escapedEnd !== cur.length))) {
       while (i < cmd.length && cmd[i] !== "\n") i++;
       flush();
       continue;

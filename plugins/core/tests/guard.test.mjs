@@ -1338,7 +1338,6 @@ test("review: every case from review that main refuses, or that ran a deploy, is
     ["cases7/k08-main-bypass", "echo x\\ #; npx convex deploy\n"],
     ["cases7/k09-ansic-escq", "echo $'a\\'' #'\nnpx convex deploy\n"],
     ["cases7/k10-ansic", "echo $'it\\'s' # \nnpx convex deploy\n"],
-    ["cases7/k11-gt-hash-heredoc", "echo hi >#<<EOF\nnpx convex deploy\nEOF\n"],
     ["cases7/k13-tag-esc-tick-in-tick", "x=`cat <<EOF\\`\nnpx convex deploy\nEOF\\`\n`\n"],
     ["cases7/k14-tag-esc-tick-in-tick2", "x=`cat <<EOF\\`\nnpx convex deploy\nEOF\n`\n"],
     ["cases7/k15-tick-tag-close", "echo `cat <<E`\nnpx convex deploy\nE\n"],
@@ -1365,11 +1364,24 @@ test("review: every case from review that main refuses, or that ran a deploy, is
     ["cases9/q07-tick-esc-tick-hash", "x=`echo \\\\`#<<E\\\\`\nnpx convex deploy\nE\n`\n"],
     ["cases9/q08-tick-dbl-bs-quote", "x=`echo x\\\\\\ #'\nnpx convex deploy\n`\n"],
     ["cases10/f01-fuzz7c-tick-dbl-bs", "npx convex deploy`\n\\\\\\ #`"],
+    ["cases13/h04-ksh-c-gt", "ksh -c 'echo hi >#x; npx convex deploy'\n"],
+    ["cases13/h13-ksh-gt-quote-heredoc", "ksh -c \"echo >#'\ncat <<E\n';npx convex deploy\nE\n\"\n"],
+    ["cases13/h15-ksh-redirect-realistic", "ksh -c 'make build 2>#build.err; npx convex deploy'\n"],
+    ["cases13/h16-ksh-heredoc-script", "ksh <<'S'\necho hi >#x; npx convex deploy\nS\n"],
+    ["cases13/h17-ksh-script-file", "printf 'echo hi >#x; npx convex deploy\\n' > /tmp/karen-k.sh; ksh /tmp/karen-k.sh\n"],
+    ["cases10/r01-bsnl-hash-quote-heredoc", "x\\\n#'\ncat <<E\n';npx convex deploy\nE\n"],
+    ["cases10/r02-echo-bsnl-hash-quote", "echo x\\\n#'\ncat <<E\n';npx convex deploy\nE\n"],
+    ["cases10/r03-bsnl-hash-dquote", "echo x\\\n#\"\ncat <<E\n\";npx convex deploy\nE\n"],
+    ["cases10/r04-bsnl-hash-tick", "echo x\\\n#`\ncat <<E\n`;npx convex deploy\nE\n"],
+    ["cases10/r08-bsnl-in-tick", "x=`echo x\\\n#'\ncat <<E\n';npx convex deploy\nE\n`\n"],
   ];
   for (const [name, c] of refuse) assert.equal(hook(c).status, 2, `expected the hook to refuse ${name}: ${JSON.stringify(c)}`);
   // dotenvx skips a # line, so a "never" name only there isn't used, and a
-  // quoted target followed by a comment still counts.
+  // quoted target followed by a comment still counts. In k11, ksh reads >#
+  // as a redirect to a file whose name starts with #, and the other shells
+  // stop at a syntax error, so nothing deploys.
   const allow = [
+    ["cases7/k11-gt-hash-heredoc", "echo hi >#<<EOF\nnpx convex deploy\nEOF\n"],
     ["cases2/e2-never-in-comment-line", "dotenvx run -f vars.c2 -- npx convex run x"],
     ["cases2/e6-quoted-target", "dotenvx run -f vars.c6 -- npx convex deploy"],
   ];
@@ -1407,6 +1419,14 @@ test("a # right after an escaped character is part of the word, not a comment", 
     "x\\ #\"\ncat <<EOF\n\"; npx convex deploy\nEOF",
     "x=`echo x\\\\\\ #'\nnpx convex deploy\n`",
   ]) refused(dir, c, /too complex/);
+  for (const c of [
+    "x\\ #`\ncat <<EOF\n`; npx convex deploy\nEOF",
+    "x\\\n#'\ncat <<E\n';npx convex deploy\nE",
+    "echo x\\\n#`\ncat <<E\n`;npx convex deploy\nE",
+  ]) refused(dir, c, /too complex/);
+  // After a blank, a backslash-newline only joins the lines, and the # still
+  // starts a comment for every reader.
+  allowed(dir, "echo x \\\n# a note\necho done");
   // Inside backticks the shell turns \\ into \, so this # starts a comment for
   // it, and the <<E after it starts no heredoc. The heredoc reader agrees.
   refused(dir, "x=`echo x\\\\\\ #<<E\nnpx convex deploy\nE\n`", /convex deploy/);
@@ -1437,10 +1457,11 @@ test("shell blanks: only a space, tab or newline breaks a word, and anything els
   refused(dir, "cat <<EOF\r\nEOF\n# $(npx convex deploy)\nEOF\r\n", /convex deploy/);
   refused(dir, "cat <<EOF \nEOF\n# $(npx convex deploy)\n", /too complex|convex deploy/);
   refused(dir, "cat <<EOF`true`\nEOF\n# $(npx convex deploy)\nEOF`true`\n", /convex deploy/);
-  // A # right after < or > starts a comment in both readers, as in the shells.
-  // The shells stop at a syntax error there; the guard reads the trailing ' as
-  // a quote that never closes, and refuses.
-  refused(dir, "echo hi >#'\nnpx convex deploy\n'", /convex deploy|too complex/);
+  // A # right after < or > is text in both readers, as ksh reads it: a file
+  // name. Here that name is the quoted text, so nothing deploys; bash, zsh
+  // and dash stop at a syntax error.
+  allowed(dir, "echo hi >#'\nnpx convex deploy\n'");
+  refused(dir, "ksh -c 'make build 2>#build.err; npx convex deploy'", /convex deploy/);
   // Inside quotes, and in a heredoc's body, these characters are text.
   for (const c of [
     'git commit -m "Fix: café — naïve 🎉 a b"',
