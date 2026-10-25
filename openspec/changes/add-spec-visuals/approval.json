@@ -1,0 +1,7 @@
+{
+  "approvedBy": "owner",
+  "approvedOn": "2026-10-25",
+  "covers": "specs/**/*.md",
+  "fingerprint": "sha256:104e5a1257ecdc225366728b7dcd679daf5f2426d759eb32496210ad7ff5a73b",
+  "note": "The owner approved on 2026-10-25 by asking to build after reviewing the three changes (\"lets do one more updated system diagram then build\"). Open question kept at its recommended default."
+}
