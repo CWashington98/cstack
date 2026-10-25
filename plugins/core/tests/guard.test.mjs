@@ -7,6 +7,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { makeRepo, git } from "../../../tests/helpers.mjs";
 import { decide, mask, unwrap, programName, refuseOnError } from "../scripts/guard.mjs";
+import { substitutions } from "../scripts/lib/shell.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const script = join(here, "..", "scripts", "guard.mjs");
@@ -1204,4 +1205,113 @@ test("comments: real commands next to comments, and # that isn't a comment, are 
   ]) refused(dir, c, /convex deploy/);
   // An escaped backslash, then a real space: this # does start a comment.
   allowed(dir, "echo a\\\\ # $(npx convex deploy)");
+});
+
+test("env files: a comment in an env file names no deploy target", () => {
+  const other = "CONVEX_DEPLOYMENT=dev:other-backend-2";
+  const dir = project({
+    // The shape that was allowed: a commented-out allowed target above the live line.
+    ".env.was": `# was: CONVEX_DEPLOYMENT=dev:staging-backend-1\n${other}\n`,
+    ".env.indented": `  # CONVEX_DEPLOYMENT=dev:staging-backend-1\n${other}\n`,
+    ".env.crlf": `# was: CONVEX_DEPLOYMENT=dev:staging-backend-1\r\n${other}\r\n`,
+    // After an unquoted value, every loader reads # as the start of a comment,
+    // with or without a space before it.
+    ".env.inline": `${other} # staging-backend-1 next week\n`,
+    ".env.glued": `${other}#staging-backend-1\n`,
+    ".env.after-quote": `CONVEX_DEPLOYMENT="dev:other-backend-2" # staging-backend-1\n`,
+    // Some loaders read these lines as values and some as comments, so the
+    // guard doesn't count them as naming a target.
+    ".env.multiline": `NOTE="old target:\n# CONVEX_DEPLOYMENT=dev:staging-backend-1\n"\n${other}\n`,
+    ".env.escaped": `NOTE='it\\'s # staging-backend-1'\n${other}\n`,
+    // node ends NOTE at the second " and drops the rest of that line, so after
+    // a quote that runs over lines nothing more counts.
+    ".env.after-multiline": `NOTE="a\nCONVEX_URL=x" staging-backend-1\n${other}\n`,
+  });
+  for (const file of [".env.was", ".env.indented", ".env.crlf", ".env.inline", ".env.glued", ".env.after-quote", ".env.multiline", ".env.escaped", ".env.after-multiline"]) {
+    for (const c of [
+      `dotenvx run -f ${file} -- npx convex deploy`,
+      `dotenvx run --env-file=${file} -- npx convex deploy`,
+      `dotenv -e ${file} -- npx convex deploy`,
+      `env-cmd -f ${file} npx convex deploy`,
+      `op run --env-file ${file} -- npx convex deploy`,
+    ]) refused(dir, c, /convex deploy/);
+  }
+});
+
+test("env files: a target in a live line still counts, quoted or followed by a comment", () => {
+  const dir = project({
+    ".env.a": "# the staging backend\nCONVEX_DEPLOYMENT=dev:staging-backend-1 # agents may deploy here\n",
+    ".env.b": "CONVEX_DEPLOYMENT=\"dev:staging-backend-1\" # c\n",
+    ".env.c": "export CONVEX_DEPLOYMENT='dev:staging-backend-1'\n",
+    ".env.d": "CONVEX_DEPLOYMENT = dev:staging-backend-1\r\n",
+    ".env.e": "NOTE=\"a # in quotes is text: staging-backend-1\"\n",
+  });
+  for (const f of [".env.a", ".env.b", ".env.c", ".env.d", ".env.e", ".env.staging"]) allowed(dir, `dotenvx run -f ${f} -- npx convex deploy`);
+  // A target in the file never covers a second deploy outside it.
+  refused(dir, "dotenvx run -f .env.a -- npx convex deploy && vercel --prod", /Vercel/);
+});
+
+test("env files: a never entry only in a comment isn't used, where the loader reads it as a comment", () => {
+  const dir = project({
+    ".env.note": "# old: CONVEX_DEPLOYMENT=prod:prod-backend-9\nCONVEX_DEPLOYMENT=dev:staging-backend-1\n",
+    ".env.inline": "CONVEX_DEPLOYMENT=dev:staging-backend-1 # not prod-backend-9\n",
+    ".env.live": "# staging only\nCONVEX_DEPLOYMENT=prod:prod-backend-9 # careful\n",
+    ".env.multiline": "NOTE=\"x\n# prod-backend-9\n\"\nCONVEX_DEPLOYMENT=dev:staging-backend-1\n",
+    ".env.quoted": "NOTE=\"see # prod-backend-9\"\nCONVEX_DEPLOYMENT=dev:staging-backend-1\n",
+    // node 22 reads an indented # line after a comment line as a variable named "# CONVEX_DEPLOYMENT".
+    ".env.node-quirk": "# header\n  # CONVEX_DEPLOYMENT=prod:prod-backend-9\nCONVEX_DEPLOYMENT=dev:staging-backend-1\n",
+  });
+  allowed(dir, "dotenvx run -f .env.note -- npx convex deploy");
+  allowed(dir, "node --env-file=.env.note seed.js");
+  allowed(dir, "dotenv -e .env.note -- npx convex deploy");
+  allowed(dir, "dotenvx run -f .env.inline -- npx convex deploy");
+  allowed(dir, "bun --env-file=.env.inline seed.js");
+  // A live line still counts, and so does a # inside quotes or inside a
+  // value that runs over several lines.
+  for (const f of [".env.live", ".env.multiline", ".env.quoted"]) {
+    refused(dir, `dotenvx run -f ${f} -- npx convex run seed:all`, /prod-backend-9/);
+    refused(dir, `node --env-file=${f} seed.js`, /prod-backend-9/);
+  }
+  // env-cmd 10 and dotenv before 15 read an inline # as part of the value,
+  // and env-cmd reads an indented # line as a variable. Loaders the guard
+  // hasn't checked keep every line.
+  refused(dir, "env-cmd -f .env.inline npx convex run seed:all", /prod-backend-9/);
+  refused(dir, "dotenv -e .env.inline -- npx convex run seed:all", /prod-backend-9/);
+  refused(dir, "op run --env-file .env.note -- npx convex run seed:all", /prod-backend-9/);
+  refused(dir, "node --env-file=.env.node-quirk seed.js", /prod-backend-9/);
+  allowed(dir, "dotenvx run -f .env.node-quirk -- npx convex deploy");
+  allowed(dir, "bun --env-file=.env.node-quirk seed.js");
+});
+
+test("comments inside $( ): a quote in a comment doesn't hide the commands after the pair", () => {
+  const dir = project({ "scripts/sub.sh": "#!/usr/bin/env bash\nx=$(echo hi # it's a note\n)\nnpx convex deploy\n" });
+  for (const c of [
+    // The shape that was allowed.
+    "x=$(echo # it's\n) ; npx convex deploy",
+    "x=$(echo # it's\n); npx convex deploy",
+    "x=$(echo # \"\n) && npx convex deploy",
+    "x=$(echo # `\n) ; npx convex deploy",
+    "echo \"$(echo # it's\n)\" ; npx convex deploy",
+    "x=$( (echo a) # it's\n) ; npx convex deploy",
+    "x=$(echo $(echo # it's\n)) ; npx convex deploy",
+    "bash -c 'x=$(echo # q\n) ; npx convex deploy'",
+  ]) refused(dir, c, /convex deploy/);
+  refused(dir, "bash scripts/sub.sh", /convex deploy/);
+  // A deploy inside the pair, after the comment, is still a command.
+  refused(dir, "x=$(echo # it's\nnpx convex deploy\n)", /convex deploy/);
+  // A # glued to a word or to a closing $( ) starts no comment, so the ) after it still closes the pair.
+  refused(dir, "x=$(echo a#)\nnpx convex deploy", /convex deploy/);
+  refused(dir, "x=$(echo $(true)#) ; npx convex deploy", /convex deploy/);
+  refused(dir, "x=$(echo ${#y}) ; npx convex deploy", /convex deploy/);
+  // ...and the deploy after the pair keeps the target set before it.
+  const target = "export CONVEX_DEPLOYMENT=dev:staging-backend-1\n";
+  allowed(dir, `${target}x=$(echo $(true)#)\nnpx convex deploy`);
+  allowed(dir, `${target}x=$(echo a\\ #)\nnpx convex deploy`);
+  allowed(dir, `${target}x=$(echo # it's\n)\nnpx convex deploy`);
+  allowed(dir, "x=$(echo hi # it's a note\n) ; echo done");
+  // The pair ends where the shell ends it. One that never closes keeps every
+  // character, so the command in it is checked whole.
+  assert.deepEqual(substitutions("x=$(echo # it's\n) ; npx convex deploy"), ["echo # it's\n"]);
+  assert.deepEqual(substitutions("x=$(npx convex deploy"), ["npx convex deploy"]);
+  allowed(dir, "x=$(git log -1 --format=%s # the subject, it's short\n)");
 });

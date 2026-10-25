@@ -50,7 +50,7 @@ import { resolve, join, dirname, basename, relative, sep } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
-import { extractHeredocs, substitutions, segments, tokenize } from "./lib/shell.mjs";
+import { extractHeredocs, substitutions, segments, tokenize, envFile } from "./lib/shell.mjs";
 
 const SETTINGS = join(".claude", "verify.json");
 const MAX_DEPTH = 8;
@@ -88,6 +88,19 @@ const RUN_WRAPPERS = {
 };
 // Flags, per program, whose value is an env file the program loads.
 const ENV_FILE_FLAGS = { dotenvx: ["-f", "--env-file"], dotenv: ["-e"], "dotenv-cli": ["-e"], "env-cmd": ["-f", "--file"], op: ["--env-file"], node: ["--env-file"], bun: ["--env-file"] };
+// The comments each program skips in an env file, checked against its parser
+// (see envFile() in lib/shell.mjs). node 22 reads an indented # line that
+// follows a comment line as a variable named "# ...". env-cmd 10 and dotenv
+// before 15 read an inline # as part of the value, and env-cmd 10 reads an
+// indented # line as a variable. A program not listed (op) keeps every line.
+const ENV_FILE_COMMENTS = {
+  dotenvx: { inline: true, indented: true },
+  bun: { inline: true, indented: true },
+  node: { inline: true, indented: false },
+  dotenv: { inline: false, indented: false },
+  "dotenv-cli": { inline: false, indented: false },
+  "env-cmd": { inline: false, indented: false },
+};
 const SHELLS = new Set(["bash", "sh", "zsh", "dash", "ksh"]);
 // Shell words that start or end a block. They come before the command, or alone.
 const KEYWORDS = new Set(["if", "then", "elif", "else", "do", "while", "until", "!", "{", "}", "coproc"]);
@@ -562,11 +575,11 @@ class Checker {
         const [name, ...rest] = a.split("=");
         segCtx.passVars.set(name, this.expand(rest.join("="), segCtx));
       }
-      const envText = this.envFiles(plain, dir);
-      if (envText) segCtx.here += `\n${envText}`;
+      const env = this.envFiles(plain, dir);
+      if (env.live) segCtx.here += `\n${env.live}`;
       const w = unwrap(plain);
       if (!w.length) continue;
-      if (!mentionsOnly(w)) this.used.push(segment, envText);
+      if (!mentionsOnly(w)) this.used.push(segment, env.kept);
       if (heredoc !== null) {
         for (const target of words.writes) this.write(dir, target, heredoc, words.appends.has(target));
         if (programName(w[0]) === "tee") for (const f of w.slice(1).filter((x) => !x.startsWith("-"))) this.write(dir, f, heredoc, w.includes("-a"));
@@ -594,23 +607,31 @@ class Checker {
     this.written.set(file, append ? `${this.written.get(file) ?? readText(file) ?? ""}\n${text}` : text);
   }
 
-  // The text of env files a wrapper or program loads, so a "never" name or a
-  // deploy target inside them counts.
+  // The env files a wrapper or program loads, so a deploy target or a
+  // "never" name inside them counts. A comment in them counts as neither:
+  // `live` holds only the lines every loader reads as values, for deploy
+  // targets, and `kept` drops only the comments this loader skips, for
+  // "never" names.
   envFiles(words, dir) {
-    const texts = [];
+    const live = [];
+    const kept = [];
     for (let i = 0; i < words.length; i++) {
-      const flags = ENV_FILE_FLAGS[programName(words[i])];
+      const prog = programName(words[i]);
+      const flags = ENV_FILE_FLAGS[prog];
       if (!flags) continue;
       for (let j = i + 1; j < words.length && words[j] !== "--"; j++) {
         for (const f of flags) {
           let file = null;
           if (words[j] === f) file = words[j + 1];
           else if (f.startsWith("--") && words[j].startsWith(`${f}=`)) file = words[j].slice(f.length + 1);
-          if (file) texts.push(readText(resolve(dir, file)) ?? "");
+          if (!file) continue;
+          const text = envFile(readText(resolve(dir, file)) ?? "", ENV_FILE_COMMENTS[prog] ?? null);
+          live.push(text.live);
+          kept.push(text.kept);
         }
       }
     }
-    return texts.join("\n");
+    return { live: live.join("\n"), kept: kept.join("\n") };
   }
 
   checkWords(w, dir, depth, ctx, heredoc) {

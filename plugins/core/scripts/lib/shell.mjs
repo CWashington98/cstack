@@ -12,6 +12,16 @@
 // $( ) or backtick pair closes on its own first line has no body: the shell
 // runs the lines after it as commands, so they stay in the text.
 let heredocCount = 0;
+
+// The one rule for where a shell comment starts. A # starts a comment when it
+// begins a word: at the start of the text, or after a space, tab, newline, or
+// one of ; & | ( ). A # right after an escaped character, or right after the )
+// that closes a $( ) pair, is inside a word. `glued` is the index where such a
+// # would be. segments() applies the same rule to the command it builds.
+function startsComment(s, i, glued) {
+  return s[i] === "#" && i !== glued && (i === 0 || /[\s;&|()]/.test(s[i - 1]));
+}
+
 export function extractHeredocs(cmd) {
   const heredocs = new Map();
   const live = new Set();
@@ -67,7 +77,7 @@ export function extractHeredocs(cmd) {
       return i + 2;
     }
     if (c === "'" || c === '"') top.quote = c;
-    else if (c === "#" && i !== glued && (i === 0 || /[\s;&|()]/.test(cmd[i - 1]))) {
+    else if (startsComment(cmd, i, glued)) {
       const end = cmd.indexOf("\n", i);
       return end === -1 ? cmd.length : end;
     } else if (c === "(" && cmd[i + 1] === "(" && !top.brace) {
@@ -190,10 +200,15 @@ function heredocTag(cmd, i) {
   return tag ? { tag, quoted, dash, end: j } : null;
 }
 
-// The index just past the ) that closes the $( starting at i.
+// The index just past the ) that closes the $( whose ( is at i. A comment
+// inside the pair runs to the end of its line, so a quote or ) in it changes
+// nothing. When the pair never closes, this returns s.length + 1, so a caller
+// that drops the closing ) still keeps every character of the text.
 function closeSubst(s, i) {
-  let depth = 0;
+  // One entry per open (, true when it opened a $( pair.
+  const open = [];
   let quote = null;
+  let glued = -1;
   for (let j = i; j < s.length; j++) {
     const c = s[j];
     if (quote) {
@@ -201,13 +216,22 @@ function closeSubst(s, i) {
       else if (c === quote.at(-1)) quote = null;
       continue;
     }
-    if (c === "\\") j++;
-    else if (c === "$" && s[j + 1] === "'") quote = "$'", j++;
+    if (c === "\\") {
+      j++;
+      glued = j + 1;
+    } else if (c === "$" && s[j + 1] === "'") quote = "$'", j++;
     else if (c === "'" || c === '"') quote = c;
-    else if (c === "(") depth++;
-    else if (c === ")" && --depth === 0) return j + 1;
+    else if (startsComment(s, j, glued)) {
+      const end = s.indexOf("\n", j);
+      if (end === -1) break;
+      j = end - 1;
+    } else if (c === "(") open.push(s[j - 1] === "$");
+    else if (c === ")") {
+      if (open.pop()) glued = j + 1;
+      if (!open.length) return j + 1;
+    }
   }
-  return s.length;
+  return s.length + 1;
 }
 
 // The text inside every $( ) and backtick pair outside single quotes. These run
@@ -396,4 +420,57 @@ export function tokenize(segment) {
     words.push(w);
   }
   return words;
+}
+
+// Reads an env file the way the programs that load one do, such as dotenvx,
+// node --env-file and bun --env-file. Their comment rules are not the shell's:
+// after an unquoted value, a # starts a comment even in the middle of a word,
+// so KEY=a#b is a. A # line is a comment, and so is the rest of a line after a
+// closed quote. Loaders disagree on some lines, so this returns two readings,
+// each wrong only in the safe direction:
+//   live  the KEY=value lines every loader reads as values, with their
+//         comments removed. A deploy target counts only when it is here, so a
+//         line some loader reads as a comment never allows a deploy.
+//   kept  every line except the comments `skips` says this loader skips. A
+//         "never" entry counts when it is here, so a line the loader may read
+//         as a value is never dropped.
+// `skips` is what the loader is known to skip, or null for a loader the guard
+// hasn't checked, which keeps the whole file:
+//   inline    the comment after a value
+//   indented  a # line that starts after spaces or tabs, not only one that
+//             starts in the first column
+// A quote that doesn't close on its line may run on over later lines, and
+// loaders disagree on where it ends and what follows it. From that line on,
+// nothing more is live and every line is kept.
+export function envFile(text, skips) {
+  const live = [];
+  const kept = [];
+  let open = false;
+  for (const line of text.replace(/\r\n?/g, "\n").split("\n")) {
+    if (open) {
+      kept.push(line);
+      continue;
+    }
+    const value = envValue(line);
+    if (value) live.push(value.text);
+    if (skips && /^#/.test(skips.indented ? line.trimStart() : line)) continue;
+    kept.push(skips?.inline && value ? value.text : line);
+    // Some loaders read an indented # line as a variable, so its quotes count too.
+    if (!value && !line.startsWith("#") && /["'`]/.test(line)) open = true;
+  }
+  return { live: live.join("\n"), kept: kept.join("\n") };
+}
+
+// KEY=value with its comment and quotes removed, when every loader reads the
+// line the same way, or null. A quoted value counts only when it closes on its
+// line with no backslash in it and nothing but a comment after it.
+function envValue(line) {
+  const m = line.match(/^\s*(?:export\s+)?([\w.-]+)\s*=\s*(.*)$/);
+  if (!m) return null;
+  const [, key, rest] = m;
+  const q = rest[0];
+  if (q !== '"' && q !== "'" && q !== "`") return { text: `${key}=${rest.split("#")[0].trim()}` };
+  const end = rest.indexOf(q, 1);
+  if (end === -1 || rest.slice(0, end).includes("\\") || !/^\s*(#.*)?$/.test(rest.slice(end + 1))) return null;
+  return { text: `${key}=${rest.slice(1, end)}` };
 }

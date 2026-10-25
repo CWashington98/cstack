@@ -116,6 +116,18 @@ It reads commands the way the shell runs them. It looks through:
 It skips shell comments, in a command and in the scripts it reads. A comment
 that mentions a command, even in backticks or `$( )`, is not a command. A `#`
 inside quotes, in the middle of a word, or in a heredoc's body is not a comment.
+A quote in a comment inside `$( )` doesn't hide the commands after the `)`.
+
+It skips comments in the env files a command loads, too, by the env file's
+rules, not the shell's: a `#` line is a comment, and so is a `#` after an
+unquoted value, even with no space before it (`KEY=a#b` is `a`). A deploy
+target in a comment doesn't count. Neither does one on a line that loaders read
+differently, such as a quoted value with a backslash in it, or any line after
+a quote that runs over several lines, so put the target line above such a
+value. A "never" entry in a comment counts only when the loader might read that
+comment as a value: env-cmd 10 and dotenv before 15 (which dotenv-cli may use)
+read a `#` after a value as part of it, `node --env-file` can read an indented
+`#` line as a variable, and the guard reads every line of a file loaded by `op`.
 
 Some deploys are known only by a name: a make, just or turbo target, or a
 package script the guard can't find. Such a name counts as a deploy when it
@@ -213,6 +225,12 @@ These can still get past it, each for the reason given:
 - An allowed deploy target named in any variable set earlier in the same
   command. It counts for every deploy after it, even one the variable doesn't
   feed, because the guard doesn't track which variables each deploy reads.
+  The same goes for env files: a target in any file the command loads counts,
+  even when a later line or an earlier file sets the same variable to
+  something else.
+- Env files a program loads without being told, such as `.env` for
+  `dotenvx run` with no `-f`, and the `$( )` commands dotenvx runs inside an
+  env file's values.
 - A tool-server call that reaches production without naming it. One example
   is a Convex tool server whose own settings point at production, such as a
   production deploy key in its environment. Its selectors still say "your own
