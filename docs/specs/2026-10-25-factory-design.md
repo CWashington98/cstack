@@ -156,17 +156,22 @@ out that action and records the result.
 | Lane | Model | Sees | When |
 |---|---|---|---|
 | Claims | Opus (`claims-auditor`) | Pull request body, diff, check receipts (it doesn't re-run them) | Every pull request |
-| Breaker | Opus, briefed like pstack's `blast-radius` | Diff and spec only, never the pull request description. Each finding needs a failing test or a reproduction | Every pull request |
+| Breaker | Codex when its budget allows, otherwise Opus. Briefed like pstack's `blast-radius` | Diff and spec only, never the pull request description. Each finding needs a failing test or a reproduction | Every pull request |
 | Standards | Sonnet, Matt's `code-review` standards pass | Diff and the project's standards files | Every pull request |
 | Behavior | Sonnet + verification skill | The running app | Any runtime surface |
 | Architecture | Opus | `objectives.md`, architecture decision records (ADRs), spec, diff | Standard and high zones, or a new module |
-| Spot check | Another model family if the owner allows it, otherwise Fable | Same as Breaker | High zone, plus a random 1 in 10 |
 
 - **Agent review starts only after checks are green.** Findings stay separate for each lane.
 - **One verdict per patch.**
   - The verdict stores the base commit's ID and the `git patch-id`, a fingerprint of the change itself.
   - When a stack rebase leaves the patch unchanged, the verdict stands, and only CI and mergeability run again. Without this, one merge would void every verdict above it.
-- **The spot check has a kill switch.** After about 4 weeks, the ledger shows how often it caught a confirmed must-fix that every other lane missed. If that is under 1 in 20, it is dropped.
+- **The Breaker runs on a different model family from the builder.** Builders are Claude, so the Breaker is Codex (OpenAI) whenever Codex has budget. This follows pstack: "Run a unit's verifier on a different model family from its worker." Models from different makers tend to miss different things, so a second family catches mistakes the first one would wave through. Fable is no longer used.
+- **Codex has a much smaller budget than Claude.** In the week measured, the owner's Codex plan used about 115 million tokens and reached 66% of its weekly limit. Claude used 12.5 billion. So Codex goes where it adds the most, decided by a script:
+  1. Below 70% of the weekly Codex limit: the Breaker runs on Codex for every pull request.
+  2. From 70% to 90%: Codex only for standard and high zone. The low zone uses Opus.
+  3. Above 90%, or when the 5-hour limit is near: the Breaker runs on Opus everywhere.
+
+  The script reads the limit from Codex's own session logs, which record the percentage used. The verdict file records which model ran each lane, and the gate refuses a "Codex" verdict that didn't come from Codex.
 
 ## 10. Merge gate
 
@@ -181,6 +186,7 @@ It fails closed: if any fact is missing, the answer is `HOLD`.
 4. The base is allowed, and the pull request is at the bottom of its stack (or its parent has merged).
 5. Spec compliance passes, and the approval hash matches.
 6. There is live evidence for any runtime surface.
+   In a project whose merges deploy, a slice that adds behavior also names its flag. The flag defaults to off, and the Behavior lane showed that with the flag off the app behaves as trunk does.
 7. The review verdict is `READY` for this patch, with no confirmed must-fix.
 8. It is within the size limit, it is not a draft, and it has no unresolved threads.
 9. Merging is switched on for this zone in this project.
@@ -216,16 +222,20 @@ Every write the gate, watch and revert make is idempotent. Running a revert twic
 
 **Project B** (web app, SMS, base `main`):
 
-- **Today, merging into `main` deploys the production backend.** Proposed change, a release train:
-  1. Pushing to `main` no longer deploys.
-  2. A scheduled or on-demand script takes the newest green `main` and runs the end-to-end tests against the development backend.
-  3. It deploys the backend, then publishes the matching web builds.
-  4. It watches for 30 minutes and rolls back the web side if anything goes red.
-  5. A batch that holds a high-zone change waits for the owner. This uses the project's existing deploy hold.
-- **The long-lived `dev` branch is retired.** It and `main` have drifted apart: 323 commits on `main` aren't on `dev`, and 369 commits on `dev` aren't on `main`.
+- **Merging into `main` keeps deploying the production backend.** The owner decided (2026-10-25) that validation plus feature flags is enough for now. A release train is deferred.
+- **New behavior ships dark.** Project B already keeps feature flags in its database, so a flag can change without a deploy.
+  - Every slice that adds behavior declares its flag. The flag must default to off.
+  - The Behavior lane runs the app with the flag off and checks that it behaves exactly as trunk does. That proves the deploy changes nothing users see.
+  - Turning a flag on is the owner's decision.
+- **The first response to a problem is the flag, then a revert.** When the watch goes red on a flagged change, the script turns the flag off first, which takes seconds. Then it opens the revert.
+- **What flags don't cover:** schema changes, data backfills, and timing between the backend deploy and the web deploy. Those stay in the high zone, behind the existing deploy hold.
 - **The zone script already exists.** It works out the zone from the diff, and the core copies its approach.
-- **First agent merges:** the low zone, once the train is live.
+- **First agent merges:** the low zone, with flags.
 - **Never switched on:** the high zone, including any schema change.
+- **The release train comes back** if either of these happens:
+  - a change the flags couldn't contain reaches users;
+  - the standard zone is about to be switched on.
+- **The long-lived `dev` branch should be retired later.** It and `main` have drifted apart: 323 commits on `main` aren't on `dev`, and 369 commits on `dev` aren't on `main`.
 
 **Client work** (`mode: "advise"`):
 
@@ -305,6 +315,7 @@ Whether watches carry over between threads still has to be checked.
 | Personal | Spec and prototype threads with the owner |
 | Agent | Coordinators, builders, review lanes and reports |
 | Work | Client work only |
+| Codex (OpenAI) | The Breaker lane, within its smaller budget (see "Review lanes") |
 
 When the agent account reaches its limit, the orchestrator pauses. Work never
 moves onto another account. The orchestrate design's pace meter (how much of each account's weekly limit is used) supplies the
@@ -346,7 +357,7 @@ Each step adds one new trigger and is its own OpenSpec change in cstack.
 | 1 | Morning report (trigger: schedule). Pilot: Project B's 30 open pull requests run through the gate in shadow | Everything |
 | 2 | `factory next` and a spec coordinator for one spec in Project A (trigger: pull request events). Liveness check | Everything |
 | 3 | Project A low zone switches on, if it has earned it. Watch at promotion, automatic revert | Standard and high |
-| 4 | Project B release train, then Project B low zone | Standard and high |
+| 4 | Project B low zone, with flags off by default and turning off the flag as the first response | Standard and high |
 | 5+ | Area coordinators (trigger: webhooks), lessons loop, drift report. Then the next project, then client work in advise mode | High only in A; standard and high in B |
 
 ## 19. Non-goals
@@ -366,7 +377,7 @@ The table records how the cross-reviews changed the earlier draft, and where we 
 | pstack `shipping` | Keep verdicts across rebases by patch-id | Added |
 | pstack `autopilot-full` | Check freshness against trunk at merge, check liveness, have a stop line | Added |
 | pstack `autopilot-full` | Live verification is the minimum | Behavior lane is required for any runtime surface |
-| pstack `orchestrate` | Verifier from a different model family | Made the spot check a different family if the owner allows it (open question 1) |
+| pstack `orchestrate` | Verifier from a different model family | Adopted: the Breaker runs on Codex whenever its budget allows. Fable dropped |
 | pstack `orchestrate` | Every file has one writer; status is generated | Adopted |
 | pstack `correct` | A lesson becomes a rule after 2 sightings | Adopted, down from 3 |
 | pstack `orchestrate` | Park questions as gates with defaults | Adopted; builders no longer stop to ask |
@@ -384,12 +395,11 @@ The table records how the cross-reviews changed the earlier draft, and where we 
 
 - 2026-10-25: Scripts decide and agents judge; at most 2 levels of delegation.
 - 2026-10-25: One pull request is one observable outcome, about 300 lines, merged bottom-up.
-- 2026-10-25: The default review is Claims and Breaker on Opus plus Standards on Sonnet. Fable moves from always-on to a spot check.
-- 2026-10-25: Project B moves to a release train before any agent merges there.
+- 2026-10-25: The default review is Claims on Opus, Breaker on Codex (Opus when the Codex budget is low), and Standards on Sonnet. Fable is no longer used.
+- 2026-10-25: Project B keeps merging into `main` with deploys. New behavior ships behind database flags that are off by default. The release train is deferred until a named trigger.
 - 2026-10-25: This design replaces the orchestrate design and reuses its parts.
 
 ## 22. Open questions
 
-1. **May the spot check use another model family** (the Codex verdict `pr-review` already supports), or should it stay on Fable?
-2. **Are the account roles right?** Personal for specs, Agent for the factory, Work for clients.
-3. **Should the release train and the retirement of `dev` go ahead in Project B?**
+1. **Are the account roles right?** Personal for specs, Agent for the factory, Work for clients, Codex for the Breaker.
+2. **Should the Codex plan grow?** At its current size, it covers about one review lane, and only part of the week. A bigger plan would let Codex run more of the work, including builders for mechanical slices.
