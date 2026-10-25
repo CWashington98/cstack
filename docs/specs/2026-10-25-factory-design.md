@@ -111,7 +111,7 @@ factory (script): the orchestrator
 
 | # | Step | Who | How |
 |---|---|---|---|
-| 1 | Grill, spec, prototype. Architecture and seams (the few places where tests attach to the code) are agreed here. | Owner + Opus | Matt's `grilling`, `to-spec`, `prototype` |
+| 1 | Grill, prototype, harvest, spec. Architecture and seams (the few places where tests attach to the code) are agreed here. Every scenario gets a worked example, and the change gets a dated diagram. | Owner + Opus | Matt's `grilling` and `to-spec`, Project B's prototype harvest, `plain`'s `to-diagram` |
 | 2 | Approve and lock: approval hash, locked acceptance tests, agreed seams | Script | `factory approve` |
 | 3 | Slice the spec. Prefactor slices (tidy-ups that make the feature easy to add) go first. | Script, from `to-tickets` output | `factory plan` (linted like pstack's `check-plan`) |
 | 4 | Build one slice, test-first | Builder | `build-slice` brief + Matt's `tdd` |
@@ -341,6 +341,8 @@ If this works inside these limits, it works anywhere with more room. That makes 
 | Guard | `core` guard | Reused as is |
 | Context meter, status file, packet files, pace | Orchestrate design (not built) | Built here |
 | Slicing input | Matt's `to-tickets` (local mode) | Reused; `factory plan` adds base, files, model, budget, scenario and watch |
+| From prototype to spec | Project B's prototype harvest. It freezes the prototype and walks it with screenshots. It maps each value to real data, and lists where the prototype and real data differ. Each interaction becomes a scenario. | Harvested into cstack as its own change, with a throwaway prototype space for each project |
+| Examples and dated diagrams | `plain`'s `to-diagram` and its checker | Extended by the `add-spec-visuals` change: worked examples, stamps, and a freshness check |
 | Test-first inner loop | Matt's `tdd` | Reused |
 | Pull request body | Matt's `pr` (evidence, merge danger) | Reused; the zone still comes from the diff |
 | Inbox triage | Matt's `triage` | Reused, with de-duplication: comment on the open ticket instead of filing a new one |
@@ -354,8 +356,10 @@ Each step adds one new trigger and is its own OpenSpec change in cstack.
 
 | Step | Adds | Owner still merges |
 |---|---|---|
+| 0a | `add-spec-visuals`: worked examples on every scenario, a dated diagram in every change, and a freshness check | Everything |
 | 0 | `factory` plugin skeleton, `factory tokens`, settings for both projects, `gate` in shadow (ledger only), patch-id verdicts, checks before review | Everything |
 | 1 | Morning report (trigger: schedule). Pilot: Project B's 30 open pull requests run through the gate in shadow | Everything |
+| 1b | `add-prototype-harvest`: Project B's prototype-to-spec harvest, made generic for every project | Everything |
 | 2 | `factory next` and a spec coordinator for one spec in Project A (trigger: pull request events). Liveness check | Everything |
 | 3 | Project A low zone switches on, if it has earned it. Watch at promotion, automatic revert | Standard and high |
 | 4 | Project B low zone, with flags off by default and turning off the flag as the first response | Standard and high |

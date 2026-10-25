@@ -29,24 +29,28 @@ A stale reading SHALL say it is stale.
 - **GIVEN** an account at 60% of its weekly limit, 1.6 days into its week, read 1 hour ago
 - **WHEN** `factory budget` runs
 - **THEN** that account's pace is about 2.6 and its mode is lean
+- **EXAMPLE:** The work account's week started Sunday 6pm. On Tuesday 8:24am (1.6 days in) it shows 60% used, read an hour ago. Pace is 60 ÷ 23 = 2.6, so the mode is lean.
 
 #### Scenario: ninety-percent-is-stop
 
 - **GIVEN** an account at 92% of its weekly limit
 - **WHEN** `factory budget` runs
 - **THEN** its mode is stop
+- **EXAMPLE:** The personal account shows 92% of its weekly limit. Its mode is stop, so nothing new starts on it.
 
 #### Scenario: stale-reading-is-lean
 
 - **GIVEN** an account whose reading is 20 hours old and shows 10% used
 - **WHEN** `factory budget` runs
 - **THEN** its mode is lean and it is marked stale
+- **EXAMPLE:** The agent account's reading was saved 20 hours ago and showed 10%. It prints `lean (stale: read 20 hours ago)`.
 
 #### Scenario: backup-folders-skipped
 
 - **GIVEN** a home folder with `.claude-work` and `.claude-work.bak-2026-08-21`, both holding readings
 - **WHEN** `factory budget` runs with no `--claude-dir`
 - **THEN** only `.claude-work` is listed
+- **EXAMPLE:** The home folder has `.claude-work` and `.claude-work.bak-2026-08-21`. Only `.claude-work` appears in the table.
 
 ### Requirement: budget-routes-the-cross-family-lane
 
@@ -66,15 +70,18 @@ Every route SHALL come with a one-line reason.
 - **GIVEN** a Codex reading of 66% weekly and 11% of the 5-hour limit, 1 hour old
 - **WHEN** `factory budget` runs
 - **THEN** the Breaker uses Codex for every zone
+- **EXAMPLE:** Codex shows 66% weekly and 11% of its 5-hour window, read an hour ago. The output says `Breaker: Codex for low, standard and high`.
 
 #### Scenario: codex-seventy-to-ninety-saves-it
 
 - **GIVEN** a Codex reading of 75% weekly
 - **WHEN** `factory budget` runs
 - **THEN** the Breaker uses Codex for the standard and high zones and Opus for the low zone
+- **EXAMPLE:** Codex shows 75% weekly. The output says `Breaker: Opus for low, Codex for standard and high (Codex at 75% this week)`.
 
 #### Scenario: codex-missing-uses-opus
 
 - **GIVEN** no Codex session logs
 - **WHEN** `factory budget` runs
 - **THEN** the Breaker uses Opus for every zone, with the reason "no Codex reading"
+- **EXAMPLE:** `~/.codex/sessions` doesn't exist. The output says `Breaker: Opus for every zone (no Codex reading)`.

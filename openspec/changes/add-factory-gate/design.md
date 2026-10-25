@@ -1,5 +1,11 @@
 # Design: add-factory-gate
 
+## Picture
+
+![How the shadow gate decides about one pull request](diagrams/gate-flow.svg)
+
+Notice that every path ends in a saved record, and none ends in a merge. Made and last checked on 25 October 2026 (see `diagrams/diagrams.json`).
+
 ## Layout
 
 ```

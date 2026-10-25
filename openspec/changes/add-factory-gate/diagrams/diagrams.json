@@ -1,0 +1,12 @@
+{
+  "diagrams": [
+    {
+      "file": "gate-flow.svg",
+      "question": "How does the shadow gate decide about one pull request?",
+      "depicts": ["openspec/changes/add-factory-gate/specs/factory/gate/spec.md"],
+      "made": "2026-10-25",
+      "lastValidated": "2026-10-25",
+      "validatedBy": "owner's assistant, against the gate spec"
+    }
+  ]
+}

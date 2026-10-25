@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" width="1000" height="480" role="img" aria-labelledby="diagram-title diagram-desc" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <title id="diagram-title">How the shadow gate decides about one pull request</title>
+  <desc id="diagram-desc">Five steps run left to right, from a pull request to a shadow call. The call is either would merge or would hold with reasons. Both are saved as one record. Nothing is merged.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6c788c"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="1000" height="480" fill="#0b0f17"/>
+  <text x="40" y="56" fill="#f2f5f9" font-size="24" font-weight="600">How the shadow gate decides about one pull request</text>
+
+  <g>
+    <rect x="40" y="100" width="160" height="96" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+    <text x="120" y="142" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Pull request</text>
+    <text x="120" y="168" text-anchor="middle" fill="#9aa5b6" font-size="15">into trunk</text>
+  </g>
+  <g>
+    <rect x="236" y="100" width="160" height="96" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+    <text x="316" y="142" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Read facts</text>
+    <text x="316" y="168" text-anchor="middle" fill="#9aa5b6" font-size="15">checks and reviews</text>
+  </g>
+  <g>
+    <rect x="432" y="100" width="160" height="96" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+    <text x="512" y="142" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Find the risk</text>
+    <text x="512" y="168" text-anchor="middle" fill="#9aa5b6" font-size="15">from changed files</text>
+  </g>
+  <g>
+    <rect x="628" y="100" width="160" height="96" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+    <text x="708" y="142" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Fixed rules</text>
+    <text x="708" y="168" text-anchor="middle" fill="#9aa5b6" font-size="15">missing fact holds</text>
+  </g>
+  <g>
+    <rect x="824" y="100" width="160" height="96" rx="10" fill="#202837" stroke="#6c788c" stroke-width="2"/>
+    <text x="904" y="142" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Shadow call</text>
+    <text x="904" y="168" text-anchor="middle" fill="#9aa5b6" font-size="15">merges nothing</text>
+  </g>
+
+  <line x1="200" y1="148" x2="232" y2="148" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="396" y1="148" x2="428" y2="148" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="592" y1="148" x2="624" y2="148" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="788" y1="148" x2="820" y2="148" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <g>
+    <rect x="628" y="270" width="160" height="96" rx="10" fill="#151b26" stroke="#5ea8ff" stroke-width="2"/>
+    <text x="708" y="312" text-anchor="middle" fill="#5ea8ff" font-size="17" font-weight="600">Would merge</text>
+    <text x="708" y="338" text-anchor="middle" fill="#9aa5b6" font-size="15">every rule passed</text>
+  </g>
+  <g>
+    <rect x="824" y="270" width="160" height="96" rx="10" fill="#151b26" stroke="#f2994a" stroke-width="2"/>
+    <text x="904" y="312" text-anchor="middle" fill="#f2994a" font-size="17" font-weight="600">Would hold</text>
+    <text x="904" y="338" text-anchor="middle" fill="#9aa5b6" font-size="15">with every reason</text>
+  </g>
+  <g>
+    <rect x="432" y="270" width="160" height="96" rx="10" fill="#151b26" stroke="#3ccbd3" stroke-width="2"/>
+    <text x="512" y="312" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Saved record</text>
+    <text x="512" y="338" text-anchor="middle" fill="#9aa5b6" font-size="15">one per change</text>
+  </g>
+
+  <line x1="880" y1="196" x2="740" y2="266" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="904" y1="196" x2="904" y2="266" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="628" y1="318" x2="596" y2="318" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M904,366 C904,410 512,410 512,370" fill="none" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <text x="40" y="440" fill="#9aa5b6" font-size="14">Made 25 October 2026. Last checked against the spec on 25 October 2026.</text>
+
+  <g class="legend">
+    <line x1="40" y1="462" x2="72" y2="462" stroke="#5ea8ff" stroke-width="2"/>
+    <text x="82" y="467" fill="#9aa5b6" font-size="14">Blue edge: would merge</text>
+    <line x1="280" y1="462" x2="312" y2="462" stroke="#f2994a" stroke-width="2"/>
+    <text x="322" y="467" fill="#9aa5b6" font-size="14">Orange edge: would hold</text>
+    <line x1="530" y1="462" x2="562" y2="462" stroke="#3ccbd3" stroke-width="2"/>
+    <text x="572" y="467" fill="#9aa5b6" font-size="14">Teal edge: stored data</text>
+  </g>
+</svg>

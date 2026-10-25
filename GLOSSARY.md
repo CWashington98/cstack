@@ -42,3 +42,6 @@ In an OpenSpec change, the heading for requirements this change rewrites. The fu
 
 **GUARDS**:
 In a spec scenario, a first line marking behavior the change must not alter. The check proves such a scenario by requiring its test to pass before and after the change, and by breaking the code it protects.
+
+**EXAMPLE**:
+In a spec scenario, the last line: one worked case with real-looking names, numbers and the exact output, so a reader new to the project can follow the scenario.
