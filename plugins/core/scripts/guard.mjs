@@ -50,7 +50,7 @@ import { resolve, join, dirname, basename, relative, sep } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { extractHeredocs, substitutions, segments, tokenize, envFile } from "./lib/shell.mjs";
+import { extractHeredocs, substitutions, segments, tokenize, envFile, oddCharacter } from "./lib/shell.mjs";
 
 const SETTINGS = join(".claude", "verify.json");
 const MAX_DEPTH = 8;
@@ -159,8 +159,8 @@ const DEPLOY_TARGET = /(^|:)deploy(:|$)/;
 const RUNNERS = new Set(["npm", "pnpm", "yarn", "bun", "make", "just", "turbo", "run-s", "nx", "ng", "lerna", "npx", "bunx", "pnpx", "deno", "node", "python", "python3", "env", "xargs"]);
 // $( ) forms whose value the guard can work out: the checked-out branch, the
 // repository's top folder and the current folder.
-const CURRENT_BRANCH = /\$\(\s*git\s+(branch\s+--show-current|rev-parse\s+--abbrev-ref\s+HEAD|symbolic-ref\s+--short(\s+-q)?\s+HEAD)\s*\)/g;
-const TOP_FOLDER = /\$\(\s*git\s+rev-parse\s+--show-toplevel\s*\)/g;
+const CURRENT_BRANCH = /\$\([ \t]*git[ \t]+(branch[ \t]+--show-current|rev-parse[ \t]+--abbrev-ref[ \t]+HEAD|symbolic-ref[ \t]+--short([ \t]+-q)?[ \t]+HEAD)[ \t]*\)/g;
+const TOP_FOLDER = /\$\([ \t]*git[ \t]+rev-parse[ \t]+--show-toplevel[ \t]*\)/g;
 const VERSION_LIKE = /^v?\d+\.\d+(\.\d+)?([-+][\w.]+)?$/;
 
 const log = (entry) => {
@@ -207,6 +207,14 @@ function real(p) {
     const parent = dirname(full);
     return parent === full ? full : join(real(parent), basename(full));
   }
+}
+
+// A character as its Unicode code point, such as U+00A0, with its name when
+// it is a common one.
+function codePoint(ch) {
+  const names = { "\r": "a carriage return", "\v": "a vertical tab", "\f": "a form feed", "\u00a0": "a no-break space", "\u2028": "a line separator", "\u2029": "a paragraph separator", "\ufeff": "a byte-order mark", "\u3000": "an ideographic space" };
+  const hex = `U+${ch.codePointAt(0).toString(16).toUpperCase().padStart(4, "0")}`;
+  return names[ch] ? `${names[ch]} (${hex})` : `the character ${hex}`;
 }
 
 function readText(file) {
@@ -492,9 +500,9 @@ class Checker {
       .replace(/^~(?=\/|$)/, homedir())
       .replace(CURRENT_BRANCH, () => (ctx.dir && this.currentBranch(ctx.dir)) || "$(unknown)")
       .replace(TOP_FOLDER, () => (ctx.dir && projectFor(ctx.dir, this.cache).root) || "$(unknown)")
-      .replace(/\$\(\s*pwd\s*\)/g, () => ctx.dir ?? "$(unknown)")
-      .replace(/\$\(\s*mktemp\b[^)]*\)/g, () => join(tmpdir(), "guard-mktemp"))
-      .replace(/\$\(\s*(?:cd\s+)?"?\$\(\s*dirname\s+"?\$\{?0\}?"?\s*\)"?(?:\s*&&\s*pwd)?\s*\)|\$\(\s*dirname\s+"?\$\{?0\}?"?\s*\)/g, () => {
+      .replace(/\$\([ \t]*pwd[ \t]*\)/g, () => ctx.dir ?? "$(unknown)")
+      .replace(/\$\([ \t]*mktemp\b[^)]*\)/g, () => join(tmpdir(), "guard-mktemp"))
+      .replace(/\$\([ \t]*(?:cd[ \t]+)?"?\$\([ \t]*dirname[ \t]+"?\$\{?0\}?"?[ \t]*\)"?(?:[ \t]*&&[ \t]*pwd)?[ \t]*\)|\$\([ \t]*dirname[ \t]+"?\$\{?0\}?"?[ \t]*\)/g, () => {
         if (!ctx.scriptDir) unknown = true;
         return ctx.scriptDir ?? "";
       })
@@ -531,6 +539,11 @@ class Checker {
     const { text, heredocs, live, incomplete, unterminated } = extractHeredocs(command);
     // The body of a heredoc in a $( ) pair is in the text around the pair, so only a whole command must end its heredocs.
     if (incomplete || (unterminated && !ctx.fragment)) return this.refuse("complex", "It is too complex to read safely: a quote, a $( ) pair or a heredoc in it never closes, so the guard can't tell where the commands after it start. Run the parts separately.");
+    const parts = segments(text);
+    // Read both as a whole and command by command, since a quote in a comment
+    // can make the two readings see different quotes.
+    const odd = [text, ...parts].map(oddCharacter).find(Boolean);
+    if (odd) return this.refuse("complex", `It has ${codePoint(odd)} outside quotes. Shells read only spaces, tabs and new lines as breaks between words, so the guard can't tell where its words and commands end. Use plain spaces, or put the character in quotes.`);
     for (const [k, v] of heredocs) this.heredocs.set(k, v);
     // The shell runs the $( ) and backtick commands in a heredoc whose tag has no quotes.
     const found = [...[...live].map((k) => substitutions(heredocs.get(k), { quotes: false })), substitutions(text)];
@@ -541,7 +554,7 @@ class Checker {
     const vars = new Map(ctx.vars);
     const loops = new Map(ctx.loops ?? []);
     let local = ctx.context;
-    for (const segment of segments(text)) {
+    for (const segment of parts) {
       const words = tokenize(segment);
       // `for NAME in a b c` gives NAME each of those values in the commands after it.
       if (words[0] === "for" && words[2] === "in") {
@@ -643,7 +656,7 @@ class Checker {
       const after = w.slice(flag + 1);
       const cmd = flag === -1 ? undefined : after.find((x, j) => !/^([-+][a-zA-Z]+|--)$/.test(x) && !["-o", "+o", "-O", "+O"].includes(after[j - 1]));
       if (cmd !== undefined) {
-        const fromHeredoc = cmd.match(/^\$\(\s*cat\s+<<HEREDOC\s+(__HEREDOC_\d+__)\s*\)$/);
+        const fromHeredoc = cmd.match(/^\$\([ \t\n]*cat[ \t\n]+<<HEREDOC[ \t\n]+(__HEREDOC_\d+__)[ \t\n]*\)$/);
         return this.check(fromHeredoc ? this.heredocs.get(fromHeredoc[1]) ?? "" : cmd, dir, depth + 1, same);
       }
       if (heredoc) return this.check(heredoc, dir, depth + 1, same);

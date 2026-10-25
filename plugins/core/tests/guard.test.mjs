@@ -1377,3 +1377,33 @@ test("a # right after an escaped character is part of the word, not a comment", 
   // An escaped backslash, then a real space: this # does start a comment.
   allowed(dir, "echo a\\\\ # npx convex deploy");
 });
+
+test("shell blanks: only a space, tab or newline breaks a word, and anything else outside quotes is refused", () => {
+  const dir = project();
+  // A shell reads these characters as part of a word, so the # after each is
+  // not a comment and the deploy runs. The guard refuses them outside quotes.
+  for (const ch of [" ", "\u000b", "\f", "\r", " ", " ", "﻿", "　", "​", "\u0001"]) {
+    refused(dir, `echo x${ch}#; npx convex deploy`, /outside quotes/);
+    refused(dir, `echo x${ch}#$(npx convex deploy)`, /outside quotes|convex deploy/);
+  }
+  refused(dir, "echo x y", /a no-break space \(U\+00A0\) outside quotes/);
+  refused(dir, "x=$(echo #) ; npx convex deploy", /outside quotes|convex deploy/);
+  // A heredoc's tag ends where the shell ends a word, so a carriage return
+  // or a no-break space is part of it, and the body runs to the line that matches.
+  refused(dir, "cat <<EOF\r\nEOF\n# $(npx convex deploy)\nEOF\r\n", /convex deploy/);
+  refused(dir, "cat <<EOF \nEOF\n# $(npx convex deploy)\n", /too complex|convex deploy/);
+  refused(dir, "cat <<EOF`true`\nEOF\n# $(npx convex deploy)\nEOF`true`\n", /convex deploy/);
+  // A # right after < or > starts a comment in both readers, as in the shells.
+  // The shells stop at a syntax error there; the guard reads the trailing ' as
+  // a quote that never closes, and refuses.
+  refused(dir, "echo hi >#'\nnpx convex deploy\n'", /convex deploy|too complex/);
+  // Inside quotes, and in a heredoc's body, these characters are text.
+  for (const c of [
+    'git commit -m "Fix: café — naïve 🎉 a b"',
+    "printf 'a\rb'",
+    "printf '\\r\\n'",
+    "echo $'\\v'",
+    "git commit -F - <<'EOF'\nFix spacing — café 🎉\r\nsecond line \nEOF",
+    'gh pr create --title "Docs" --body "$(cat <<\'EOF\'\nCafé crème — done.\nEOF\n)"',
+  ]) allowed(dir, c);
+});

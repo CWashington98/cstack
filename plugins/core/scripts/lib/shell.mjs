@@ -68,7 +68,7 @@ export function extractHeredocs(cmd) {
       return i + 2;
     }
     if (c === "'" || c === '"') top.quote = c;
-    else if (c === "#" && i !== glued && (i === 0 || /[\s;&|()]/.test(cmd[i - 1]))) {
+    else if (c === "#" && i !== glued && (i === 0 || /[ \t\n;&|()<>]/.test(cmd[i - 1]))) {
       const end = cmd.indexOf("\n", i);
       return end === -1 ? cmd.length : end;
     } else if (c === "(" && cmd[i + 1] === "(" && !top.brace) {
@@ -81,7 +81,7 @@ export function extractHeredocs(cmd) {
   };
   const tagAt = (j) => {
     const top = stack[stack.length - 1];
-    return top.quote || top.brace || top.arith ? null : heredocTag(cmd, j);
+    return top.quote || top.brace || top.arith ? null : heredocTag(cmd, j, top.tick);
   };
   let text = "";
   let from = 0;
@@ -148,8 +148,13 @@ export function extractHeredocs(cmd) {
 }
 
 // The tag after a << at i: its text, whether any of it was quoted (which makes
-// the body plain text), and where it ends. Null when i starts no heredoc.
-function heredocTag(cmd, i) {
+// the body plain text), and where it ends. Null when i starts no heredoc. The
+// tag ends where the shell ends a word: at a space, tab, newline or one of
+// < > | ; & ( ). Other characters, such as a carriage return, a no-break space
+// or a backtick, are part of it, as they are for the shell. Inside a backtick
+// pair, a backtick ends it too, which can only make it shorter than the
+// shell's, so the body ends early and the lines after it are checked.
+function heredocTag(cmd, i, inTick = false) {
   if (!cmd.startsWith("<<", i) || cmd[i + 2] === "<" || /[<)]/.test(cmd[i - 1] ?? "") || cmd.startsWith("<<HEREDOC __HEREDOC_", i)) return null;
   let j = i + 2;
   const dash = cmd[j] === "-";
@@ -157,7 +162,7 @@ function heredocTag(cmd, i) {
   while (cmd[j] === " " || cmd[j] === "\t") j++;
   let tag = "";
   let quoted = false;
-  while (j < cmd.length && !/[\s<>|;&()`]/.test(cmd[j])) {
+  while (j < cmd.length && !/[ \t\n<>|;&()]/.test(cmd[j]) && !(inTick && cmd[j] === "`")) {
     const c = cmd[j];
     if (c === "$" && cmd[j + 1] === "'") {
       let k = j + 2;
@@ -253,6 +258,42 @@ export function substitutions(cmd, { quotes = true } = {}) {
   return out;
 }
 
+// The first character outside quotes that a shell may read differently from
+// the guard, or null. The shell's blanks are only space, tab and newline, so
+// any other control character or space, such as a carriage return, a vertical
+// tab, a no-break space, a line separator or a byte-order mark, can sit
+// inside a word for the shell where a reader would see a break, or the other
+// way round. Pass text whose heredoc bodies are already taken out.
+const ODD = /[\p{Cc}\p{Cf}\p{Zs}\p{Zl}\p{Zp}]/u;
+export function oddCharacter(text) {
+  let quote = null;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quote === "'") {
+      if (c === "'") quote = null;
+      continue;
+    }
+    if (quote) {
+      if (c === "\\") i++;
+      else if (c === quote.at(-1)) quote = null;
+      continue;
+    }
+    if (c === "\\") i++;
+    else if (c === "$" && text[i + 1] === "'") {
+      quote = "$'";
+      i++;
+      continue;
+    } else if (c === "'" || c === '"') {
+      quote = c;
+      continue;
+    }
+    const ch = String.fromCodePoint(text.codePointAt(i) ?? 0);
+    if (i < text.length && ch !== " " && ch !== "\t" && ch !== "\n" && ODD.test(ch)) return ch;
+    if (ch.length > 1) i++;
+  }
+  return null;
+}
+
 // Splits a line into the separate commands it runs: on ; & && || | newlines
 // and parentheses, outside quotes. A $( ) or backtick pair stays inside the
 // command it belongs to.
@@ -308,7 +349,9 @@ export function segments(cmd) {
       cur += c;
       continue;
     }
-    if (c === "#" && (cur === "" || (/\s$/.test(cur) && escapedEnd !== cur.length))) {
+    // As in extractHeredocs(), a # starts a comment only after a space, tab or
+    // newline, after one of ; & | ( ) < >, or at the start.
+    if (c === "#" && (cur === "" || (/[ \t\n<>&]$/.test(cur) && escapedEnd !== cur.length))) {
       while (i < cmd.length && cmd[i] !== "\n") i++;
       flush();
       continue;
@@ -364,7 +407,7 @@ export function tokenize(segment) {
       started = true;
       continue;
     }
-    if (/\s/.test(c)) {
+    if (c === " " || c === "\t" || c === "\n") {
       if (started) out.push(cur);
       cur = "";
       started = false;

@@ -121,6 +121,15 @@ can't tell where the commands after it start. A `#` right after an escaped
 character, as in `x\ #`, is part of the word, not the start of a comment, as
 the shell reads it.
 
+Like the shell, it breaks words only at a space, a tab or a new line, and ends
+a heredoc's tag at one of those or at `< > | ; & ( )`. A command with any other
+control character or space outside quotes is refused: a carriage return, a
+vertical tab, a form feed, a no-break space, a line separator, a byte-order
+mark, an ideographic space, a zero-width space and the like. A shell reads
+those as part of a word, so the guard can't tell where its words and commands
+end. Inside quotes and in a heredoc's body they are text, so a commit message
+may hold them.
+
 It does skip comments in the env files a command loads, by the env file's
 rules, not the shell's: a `#` line is a comment, and so is a `#` after an
 unquoted value, even with no space before it (`KEY=a#b` is `a`). A deploy
