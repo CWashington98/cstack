@@ -8,17 +8,17 @@ Each numbered group after group 1 is one small pull request, merged bottom-up as
 
 ## 2. Plugin and settings
 
-- [ ] 2.1 Add the `factory` plugin: `plugin.json`, a marketplace entry, the `factory.mjs` command with `gate`, `budget` and `tokens`, and `settings.mjs`. `settings.mjs` reads the `factory` block, fills in defaults, always adds the never-merge paths, and refuses any `merge` value other than `off` or `shadow`. Verify with the settings scenario's test and `npm test`. Covers: merge-on-is-refused. Touches: plugins/factory/.claude-plugin/plugin.json, .claude-plugin/marketplace.json, plugins/factory/scripts/factory.mjs, plugins/factory/scripts/lib/settings.mjs
+- [x] 2.1 Add the `factory` plugin: `plugin.json`, a marketplace entry, the `factory.mjs` command with `gate`, `budget` and `tokens`, and `settings.mjs`. `settings.mjs` reads the `factory` block, fills in defaults, always adds the never-merge paths, and refuses any `merge` value other than `off` or `shadow`. Verify with the settings scenario's test and `npm test`. Covers: merge-on-is-refused. Touches: plugins/factory/.claude-plugin/plugin.json, .claude-plugin/marketplace.json, plugins/factory/scripts/factory.mjs, plugins/factory/scripts/lib/settings.mjs
 
 ## 3. Where usage went
 
-- [ ] 3.1 Add `tokens.mjs` and `data/prices.json`. Count by message ID, split by project, model, main versus subagent, and harness, and price from the table, listing unknown models as unpriced. Add the Codex totals. Verify with the tokens tests. Covers: repeated-message-counted-once, subagent-files-labelled, harness-split-by-entrypoint, unknown-model-unpriced. Touches: plugins/factory/scripts/lib/tokens.mjs, plugins/factory/data/prices.json, plugins/factory/scripts/factory.mjs
-- [ ] 3.2 Add `--repo`: map a repository and its worktrees to their transcript folders, count merged pull requests with `gh`, and print dollars per merged pull request. Verify with its test. Covers: dollars-per-merged-pr. Touches: plugins/factory/scripts/lib/tokens.mjs
+- [x] 3.1 Add `tokens.mjs` and `data/prices.json`. Count by message ID, split by project, model, main versus subagent, and harness, and price from the table, listing unknown models as unpriced. Add the Codex totals. Verify with the tokens tests. Covers: repeated-message-counted-once, subagent-files-labelled, harness-split-by-entrypoint, unknown-model-unpriced. Touches: plugins/factory/scripts/lib/tokens.mjs, plugins/factory/data/prices.json, plugins/factory/scripts/factory.mjs
+- [x] 3.2 Add `--repo`: map a repository and its worktrees to their transcript folders, count merged pull requests with `gh`, and print dollars per merged pull request. Verify with its test. Covers: dollars-per-merged-pr. Touches: plugins/factory/scripts/lib/tokens.mjs
 
 ## 4. Subscription budget
 
-- [ ] 4.1 Add `budget.mjs` for the Claude readings: find the account folders and skip backups, then work out pace, staleness and mode. Verify with the budget tests. Covers: fast-pace-is-lean, ninety-percent-is-stop, stale-reading-is-lean, backup-folders-skipped. Touches: plugins/factory/scripts/lib/budget.mjs, plugins/factory/scripts/factory.mjs
-- [ ] 4.2 Add the Codex reading and the Breaker's route for each zone, with a reason for each. Verify with the route tests. Covers: codex-under-seventy-everywhere, codex-seventy-to-ninety-saves-it, codex-missing-uses-opus. Touches: plugins/factory/scripts/lib/budget.mjs
+- [x] 4.1 Add `budget.mjs` for the Claude readings: find the account folders and skip backups, then work out pace, staleness and mode. Verify with the budget tests. Covers: fast-pace-is-lean, ninety-percent-is-stop, stale-reading-is-lean, backup-folders-skipped. Touches: plugins/factory/scripts/lib/budget.mjs, plugins/factory/scripts/factory.mjs
+- [x] 4.2 Add the Codex reading and the Breaker's route for each zone, with a reason for each. Verify with the route tests. Covers: codex-under-seventy-everywhere, codex-seventy-to-ninety-saves-it, codex-missing-uses-opus. Touches: plugins/factory/scripts/lib/budget.mjs
 
 ## 5. The shadow gate
 
