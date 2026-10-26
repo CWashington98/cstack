@@ -22,6 +22,12 @@
       "description": "Proves that work works, not only that tests pass: a proof standard, a check that specs and plans name their evidence, one verification skill per app (created by verify-setup, kept honest by verify-upkeep), shared guides for driving web and Expo apps, and the pr-review skill: claims auditor plus Codex verdicts tied to the commit, posted as one plain-English comment."
     },
     {
+      "name": "factory",
+      "source": "./plugins/factory",
+      "version": "0.1.0",
+      "description": "A shadow merge gate, subscription budget meter and token-usage report for validated delivery. This first slice only validates project settings; gate, budget and token behavior follows in the stacked pull requests."
+    },
+    {
       "name": "agent-browser",
       "source": {
         "source": "url",
