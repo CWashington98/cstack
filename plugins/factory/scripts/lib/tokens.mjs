@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { dirname, join, relative, sep } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { spawnSync } from "node:child_process";
 
 const emptyUsage = () => ({ inputTokens: 0, outputTokens: 0, cacheWriteTokens: 0, cacheReadTokens: 0, dollars: 0 });
 
@@ -76,7 +77,8 @@ export function summarizeTranscripts({ projectsDir, prices = {}, days = 7, now =
 
   const result = {
     totals: emptyUsage(), messageCount: 0,
-    byProject: {}, byModel: {}, byRole: { main: emptyUsage(), subagent: emptyUsage() }, byHarness: {},
+    byProject: {}, byWorkingDirectory: {}, byModel: {},
+    byRole: { main: emptyUsage(), subagent: emptyUsage() }, byHarness: {},
     unpricedModels: [],
   };
   const seen = new Set();
@@ -85,6 +87,7 @@ export function summarizeTranscripts({ projectsDir, prices = {}, days = 7, now =
     const role = file.includes(`${sep}subagents${sep}`) ? "subagent" : "main";
     const main = mainTranscriptFor(file);
     const inheritedHarness = main ? harnessByFile.get(main) : null;
+    const workingDirectory = entries.find((entry) => typeof entry.cwd === "string")?.cwd ?? null;
     for (const entry of entries) {
       const found = assistantMessage(entry);
       if (!found || seen.has(found.message.id)) continue;
@@ -97,7 +100,9 @@ export function summarizeTranscripts({ projectsDir, prices = {}, days = 7, now =
       const dollars = rates ? price(usage, rates) : null;
 
       add(result.totals, usage); add(result.byRole[role], usage);
-      for (const entryBucket of [bucket(result.byProject, project), bucket(result.byModel, model), bucket(result.byHarness, harness)]) {
+      const grouped = [bucket(result.byProject, project), bucket(result.byModel, model), bucket(result.byHarness, harness)];
+      if (workingDirectory) grouped.push(bucket(result.byWorkingDirectory, workingDirectory));
+      for (const entryBucket of grouped) {
         add(entryBucket, usage); entryBucket.messageCount += 1;
         if (dollars != null) entryBucket.dollars += dollars;
       }
@@ -114,6 +119,44 @@ export function summarizeTranscripts({ projectsDir, prices = {}, days = 7, now =
   }
   result.unpricedModels = Object.entries(result.byModel).filter(([, value]) => !value.priced).map(([model]) => model);
   return result;
+}
+
+function run(program, args, options = {}) {
+  const result = spawnSync(program, args, { encoding: "utf8", ...options });
+  if (result.status !== 0) throw new Error(`${program} ${args.join(" ")} failed: ${(result.stderr || result.stdout || "unknown error").trim()}`);
+  return result.stdout.trim();
+}
+
+function worktreeRoots(repo, env) {
+  const result = spawnSync("git", ["worktree", "list", "--porcelain"], { cwd: repo, env, encoding: "utf8" });
+  if (result.status !== 0) return [repo];
+  const output = result.stdout.trim();
+  return output.split("\n").filter((line) => line.startsWith("worktree ")).map((line) => resolve(line.slice(9)));
+}
+
+function belongsToRepo(total, repo, roots) {
+  if (total.repository && resolve(total.repository) === repo) return true;
+  if (!total.path || !isAbsolute(total.path)) return false;
+  const path = resolve(total.path);
+  return roots.some((root) => path === root || path.startsWith(`${root}${sep}`));
+}
+
+export function dollarsPerMergedPr({ repo, projectTotals, env = process.env, since }) {
+  const repository = resolve(repo);
+  const roots = worktreeRoots(repository, env);
+  const search = since ? ["--search", `merged:>=${since}`] : [];
+  const pullRequests = JSON.parse(run("gh", ["pr", "list", "--state", "merged", ...search, "--limit", "1000", "--json", "number"], { cwd: repository, env }) || "[]");
+  const dollars = projectTotals.filter((total) => belongsToRepo(total, repository, roots)).reduce((sum, total) => sum + Number(total.dollars ?? 0), 0);
+  return {
+    repo: repository,
+    dollars,
+    mergedPullRequests: pullRequests.length,
+    dollarsPerMergedPullRequest: pullRequests.length ? dollars / pullRequests.length : null,
+  };
+}
+
+export function workingDirectoryTotals(summary) {
+  return Object.entries(summary.byWorkingDirectory ?? {}).map(([path, usage]) => ({ path, dollars: usage.dollars }));
 }
 
 export function summarizeCodexSessions(codexDir, { days = 7, now = Date.now() } = {}) {
