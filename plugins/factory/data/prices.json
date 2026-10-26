@@ -1,0 +1,13 @@
+{
+  "checkedAt": "2026-10-26",
+  "source": "https://docs.anthropic.com/en/docs/about-claude/pricing",
+  "unit": "USD per million tokens",
+  "models": {
+    "claude-opus-4-1": { "input": 15, "output": 75, "cacheWrite": 18.75, "cacheRead": 1.5 },
+    "claude-opus-4-1-20250805": { "input": 15, "output": 75, "cacheWrite": 18.75, "cacheRead": 1.5 },
+    "claude-opus-4-20250514": { "input": 15, "output": 75, "cacheWrite": 18.75, "cacheRead": 1.5 },
+    "claude-sonnet-4-20250514": { "input": 3, "output": 15, "cacheWrite": 3.75, "cacheRead": 0.3 },
+    "claude-3-7-sonnet-20250219": { "input": 3, "output": 15, "cacheWrite": 3.75, "cacheRead": 0.3 },
+    "claude-3-5-haiku-20241022": { "input": 0.8, "output": 4, "cacheWrite": 1, "cacheRead": 0.08 }
+  }
+}
