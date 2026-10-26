@@ -1,0 +1,11 @@
+{
+  "diagrams": [
+    {
+      "file": "2026-10-25-factory-system.svg",
+      "question": "How does a spec become a merged pull request, and where does the owner come in?",
+      "depicts": ["docs/specs/2026-10-25-factory-design.md"],
+      "made": "2026-10-25",
+      "lastValidated": "2026-10-25"
+    }
+  ]
+}

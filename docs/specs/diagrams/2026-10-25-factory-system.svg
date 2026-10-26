@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1290" width="1080" height="1290" role="img" aria-labelledby="diagram-title diagram-desc" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+<title id="diagram-title">How a spec becomes a merged pull request</title>
+<desc id="diagram-desc">Three columns: the owner, agents and scripts. The owner writes and approves a spec. Scripts plan slices. An agent builds each slice and sends questions to the decision desk. Scripts run checks and work out the risk zone, four agent reviewers review, and the merge gate and the watch after merge are scripts. Questions that cannot be undone, and disagreements between two models, are parked for the owner without stopping the builder. The owner reads a morning report with decision cards. Underneath, state files and a budget meter serve every step.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#6c788c"/></marker></defs>
+<rect x="0" y="0" width="1080" height="1290" fill="#0b0f17"/>
+<text x="40" y="56" fill="#f2f5f9" font-size="24" font-weight="600">How a spec becomes a merged pull request</text>
+<rect x="40" y="96" width="320" height="964" rx="14" fill="#202837" stroke="#6c788c" stroke-width="2"/>
+<text x="60" y="130" fill="#c49bff" font-size="20" font-weight="600">Owner</text>
+
+<rect x="380" y="96" width="320" height="964" rx="14" fill="#202837" stroke="#6c788c" stroke-width="2"/>
+<text x="400" y="130" fill="#3ccbd3" font-size="20" font-weight="600">Agents</text>
+<text x="400" y="153" fill="#9aa5b6" font-size="15">write and review code</text>
+<rect x="720" y="96" width="320" height="964" rx="14" fill="#202837" stroke="#6c788c" stroke-width="2"/>
+<text x="740" y="130" fill="#5ea8ff" font-size="20" font-weight="600">Scripts</text>
+<text x="740" y="153" fill="#9aa5b6" font-size="15">decide, same answer every time</text>
+<rect x="60" y="170" width="280" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="200" y="200" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Spec and prototype</text>
+<text x="200" y="224" text-anchor="middle" fill="#9aa5b6" font-size="15">with worked examples</text>
+<rect x="60" y="270" width="280" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="200" y="300" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Approve the spec</text>
+<text x="200" y="324" text-anchor="middle" fill="#9aa5b6" font-size="15">locks the tests</text>
+<rect x="740" y="370" width="280" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="880" y="400" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Plan the slices</text>
+<text x="880" y="424" text-anchor="middle" fill="#9aa5b6" font-size="15">one outcome each</text>
+<rect x="400" y="470" width="260" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="530" y="500" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Build one slice</text>
+<text x="530" y="524" text-anchor="middle" fill="#9aa5b6" font-size="15">tests written first</text>
+<rect x="740" y="570" width="280" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="880" y="600" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Checks and zone</text>
+<text x="880" y="624" text-anchor="middle" fill="#9aa5b6" font-size="15">from the diff</text>
+<rect x="400" y="670" width="280" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="540" y="700" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Four reviewers</text>
+<text x="540" y="724" text-anchor="middle" fill="#9aa5b6" font-size="15">one from another maker</text>
+<rect x="740" y="770" width="280" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="880" y="800" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Merge gate</text>
+<text x="880" y="824" text-anchor="middle" fill="#9aa5b6" font-size="15">shadow first, fails closed</text>
+<rect x="740" y="870" width="280" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="880" y="900" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Watch after merge</text>
+<text x="880" y="924" text-anchor="middle" fill="#9aa5b6" font-size="15">reverts when red</text>
+<rect x="60" y="970" width="280" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="200" y="1000" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Morning report</text>
+<text x="200" y="1024" text-anchor="middle" fill="#9aa5b6" font-size="15">keep, switch or rule</text>
+<rect x="760" y="470" width="260" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="890" y="500" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Decision desk</text>
+<text x="890" y="524" text-anchor="middle" fill="#9aa5b6" font-size="15">never the builder alone</text>
+<path d="M200,240 V268" fill="none" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M200,340 V355 H880 V368" fill="none" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M880,440 V455 H540 V468" fill="none" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M530,540 V555 H880 V568" fill="none" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M880,640 V655 H540 V668" fill="none" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M540,740 V755 H880 V768" fill="none" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M880,840 V868" fill="none" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M880,940 V955 H200 V968" fill="none" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+<path d="M660,490 H758" fill="none" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="706" y="484" fill="#9aa5b6" font-size="14">asks</text>
+<path d="M760,518 H662" fill="none" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="676" y="536" fill="#9aa5b6" font-size="14">answers</text>
+
+<rect x="60" y="470" width="280" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/><text x="200" y="500" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Parked for you</text><text x="200" y="524" text-anchor="middle" fill="#9aa5b6" font-size="15">one-way questions, disagreements</text>
+<rect x="40" y="1090" width="1000" height="140" rx="14" fill="#202837" stroke="#6c788c" stroke-width="2"/>
+<text x="60" y="1122" fill="#f2f5f9" font-size="18" font-weight="600">Underneath every step</text>
+<rect x="60" y="1140" width="470" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="295" y="1170" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">State files</text>
+<text x="295" y="1194" text-anchor="middle" fill="#9aa5b6" font-size="15">one writer each</text>
+<rect x="550" y="1140" width="470" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="785" y="1170" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Budget meter</text>
+<text x="785" y="1194" text-anchor="middle" fill="#9aa5b6" font-size="15">picks Codex or Opus</text>
+<text x="40" y="1266" fill="#9aa5b6" font-size="15">Every run starts from a terminal command, so no desktop app is needed. Last checked against the design on 25 October 2026.</text>
+</svg>

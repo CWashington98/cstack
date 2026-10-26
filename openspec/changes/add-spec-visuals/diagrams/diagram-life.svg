@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 600" width="960" height="600" role="img" aria-labelledby="diagram-title diagram-desc" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <title id="diagram-title">How a diagram stays trustworthy over time</title>
+  <desc id="diagram-desc">A diagram is drawn and stamped with today's date. A checker reads every stamp and reports it as current, lagging, stale or proposed for removal. Lagging and stale diagrams get re-checked by someone, which updates the stamp.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6c788c"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5ea8ff"/>
+    </marker>
+  </defs>
+  <rect x="0" y="0" width="960" height="600" fill="#0b0f17"/>
+  <text x="40" y="56" fill="#f2f5f9" font-size="24" font-weight="600">How a diagram stays trustworthy over time</text>
+
+  <g>
+    <rect x="40" y="100" width="180" height="96" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+    <text x="130" y="142" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Diagram drawn</text>
+    <text x="130" y="168" text-anchor="middle" fill="#9aa5b6" font-size="15">stamped with today</text>
+  </g>
+  <g>
+    <rect x="270" y="100" width="180" height="96" rx="10" fill="#202837" stroke="#6c788c" stroke-width="2"/>
+    <text x="360" y="142" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Checker runs</text>
+    <text x="360" y="168" text-anchor="middle" fill="#9aa5b6" font-size="15">reads every stamp</text>
+  </g>
+  <g>
+    <rect x="500" y="100" width="180" height="96" rx="10" fill="#151b26" stroke="#5ea8ff" stroke-width="2"/>
+    <text x="590" y="142" text-anchor="middle" fill="#5ea8ff" font-size="17" font-weight="600">Current</text>
+    <text x="590" y="168" text-anchor="middle" fill="#9aa5b6" font-size="15">nothing to do</text>
+  </g>
+  <line x1="220" y1="148" x2="266" y2="148" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="450" y1="148" x2="496" y2="148" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <g>
+    <rect x="270" y="270" width="180" height="96" rx="10" fill="#151b26" stroke="#f2994a" stroke-width="2"/>
+    <text x="360" y="312" text-anchor="middle" fill="#f2994a" font-size="17" font-weight="600">Lagging</text>
+    <text x="360" y="338" text-anchor="middle" fill="#9aa5b6" font-size="15">its subject changed</text>
+  </g>
+  <g>
+    <rect x="500" y="270" width="180" height="96" rx="10" fill="#151b26" stroke="#f2994a" stroke-width="2"/>
+    <text x="590" y="312" text-anchor="middle" fill="#f2994a" font-size="17" font-weight="600">Stale</text>
+    <text x="590" y="338" text-anchor="middle" fill="#9aa5b6" font-size="15">no check in 90 days</text>
+  </g>
+  <g>
+    <rect x="730" y="270" width="180" height="96" rx="10" fill="#151b26" stroke="#ff7a7a" stroke-width="2"/>
+    <text x="820" y="312" text-anchor="middle" fill="#ff7a7a" font-size="17" font-weight="600">Remove it?</text>
+    <text x="820" y="338" text-anchor="middle" fill="#9aa5b6" font-size="15">no check in 180 days</text>
+  </g>
+  <line x1="360" y1="196" x2="360" y2="266" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="400" y1="196" x2="560" y2="266" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="430" y1="196" x2="780" y2="266" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <g>
+    <rect x="270" y="430" width="180" height="96" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+    <text x="360" y="472" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Someone re-checks</text>
+    <text x="360" y="498" text-anchor="middle" fill="#9aa5b6" font-size="15">then validates it</text>
+  </g>
+  <line x1="360" y1="366" x2="360" y2="426" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="560" y1="366" x2="420" y2="426" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M270,478 C130,478 130,260 130,200" fill="none" stroke="#5ea8ff" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow-blue)"/>
+  <text x="40" y="400" fill="#5ea8ff" font-size="15">stamp updated</text>
+
+  <text x="40" y="560" fill="#9aa5b6" font-size="14">Made 25 October 2026. Last checked against the spec on 25 October 2026.</text>
+  <g class="legend">
+    <line x1="40" y1="584" x2="72" y2="584" stroke="#5ea8ff" stroke-width="2"/>
+    <text x="82" y="589" fill="#9aa5b6" font-size="14">Blue: trustworthy</text>
+    <line x1="240" y1="584" x2="272" y2="584" stroke="#f2994a" stroke-width="2"/>
+    <text x="282" y="589" fill="#9aa5b6" font-size="14">Orange: needs a look</text>
+    <line x1="460" y1="584" x2="492" y2="584" stroke="#ff7a7a" stroke-width="2"/>
+    <text x="502" y="589" fill="#9aa5b6" font-size="14">Red: a person decides to keep or delete</text>
+  </g>
+</svg>

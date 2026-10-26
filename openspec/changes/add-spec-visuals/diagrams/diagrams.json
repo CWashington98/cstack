@@ -1,0 +1,11 @@
+{
+  "diagrams": [
+    {
+      "file": "diagram-life.svg",
+      "question": "How does a diagram stay trustworthy over time?",
+      "depicts": ["openspec/changes/add-spec-visuals/specs/plain/diagram-age/spec.md"],
+      "made": "2026-10-25",
+      "lastValidated": "2026-10-25"
+    }
+  ]
+}
