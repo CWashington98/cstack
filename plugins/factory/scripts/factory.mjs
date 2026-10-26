@@ -3,6 +3,7 @@ import { readSettings } from "./lib/settings.mjs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dollarsPerMergedPr, loadPrices, summarizeCodexSessions, summarizeTranscripts, workingDirectoryTotals } from "./lib/tokens.mjs";
+import { readClaudeBudgets } from "./lib/budget.mjs";
 
 const args = process.argv.slice(2);
 const [command] = args;
@@ -23,7 +24,10 @@ if (!["gate", "budget", "tokens"].includes(command)) {
 } else {
   try {
     if (command === "gate") readSettings();
-    if (command === "tokens") {
+    if (command === "budget") {
+      const profileDirs = options("--claude-dir");
+      console.log(JSON.stringify({ claude: readClaudeBudgets({ home: process.env.HOME ?? "", profileDirs }) }, null, 2));
+    } else if (command === "tokens") {
       const days = Number(option("--days", "7"));
       const projectsDir = resolve(option("--projects-dir", join(process.env.HOME ?? "", ".claude-shared", "projects")));
       const codexDir = resolve(option("--codex-dir", join(process.env.HOME ?? "", ".codex", "sessions")));
