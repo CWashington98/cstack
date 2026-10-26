@@ -101,7 +101,7 @@
         "source": "git-subdir",
         "url": "https://github.com/DietrichGebert/ponytail.git",
         "path": "skills",
-        "sha": "9cc65d03aa2da1db7121b912d03596409ee340b8"
+        "sha": "16352ac229eb08a9598dcae48fe9f2b342567d86"
       },
       "strict": false,
       "skills": [
