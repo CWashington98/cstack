@@ -83,3 +83,13 @@ The digest is a section of the morning report. It is written as `digest/<date>.h
 ## Open questions
 
 1. Is three unanswered disagreements the right point to pause a change? Recommended: start at three, and read the first month's digests to tune it.
+
+## Candidates from the pilot evidence (not decisions)
+
+These come from [the Project A loop pilot](../../../docs/specs/2026-10-27-pilot-evidence-mobileapp-v2.md). They are for the owner to accept, change or drop. None is approved, and no spec text under `specs/` changes, so `approval.json` still matches.
+
+1. **Decisions are batched as cold-read cards.** In the pilot, owner touches came as waivers, narrowings and "confirm this" questions, scattered through a long orchestrator chat (evidence sections 3 and 6). The owner's standing preference is a decision page of cards that each carry full context, with answers copied out in one go. This matches the digest here. Candidate: every card is readable alone, with the question, what each option costs, the default, and what happens if it sits unanswered.
+2. **A split vote at the round cap becomes a card, not a stop.** Two slices ended at the two-round cap on a split (evidence section 3). Candidate: the split opens a decision card holding the two reviewers' findings side by side with a recommended default, and only the affected pull request waits. This is the same "disagreement holds the merge, not the build" rule already in Decisions.
+3. **Waivers are cards.** An owner-only waiver that agents cannot take (evidence section 6) is a decision. Candidate: when a gate blocks on something only the owner may waive, the factory writes a card and moves to the next slice. The card lists the exact waiver command.
+4. **Plan scope questions come out early.** One slice stopped because its scope was larger than the plan said (local-data-layer 1.2). Candidate: a builder that finds the stated files are not enough writes a card with the two options (widen the slice, or narrow the acceptance) and stops, not a long report.
+5. **Count of unanswered cards pauses new slices.** The existing three-disagreement pause matches the pilot, where unresolved splits piled up while the loop went on. Candidate: the three-card pause also counts waiver and scope cards, not only model disagreements. Open question: is that too aggressive when most cards are small?
