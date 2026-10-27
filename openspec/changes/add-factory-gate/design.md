@@ -110,3 +110,21 @@ Cache writes are priced at 1.25 times input for the 5-minute cache and 2 times i
 ## Open questions
 
 1. **Project A's zone patterns.** Task 6.1 drafts them from Project A's guardrails document. The owner approves them before they go into Project A's settings file.
+
+## Candidates from the pilot evidence (not decisions)
+
+These come from [the Project A loop pilot](../../../docs/specs/2026-10-27-pilot-evidence-mobileapp-v2.md). They are for the owner to accept, change or drop. None is approved, and no spec text under `specs/` changes, so `approval.json` still matches. Each would need its own spec edit and approval before anyone builds it.
+
+1. **Measure test results instead of guessing from paths.** A test-only auto-merge rule built on file names never converged in four review rounds (evidence section 7). Candidate: before a pull request can ever be marked `would-merge`, the gate runs the changed tests on the base and on the head and compares them. A test that passed on base must still pass. A removed or skipped test holds. This would sit beside `notCounted` and the zone, which are path guesses. Open question: does the gate run tests itself, or read a record that `verify` writes?
+2. **A docs-only path.** A pre-push gate with no docs exemption cost four docs pull requests either two votes each or an owner visit (evidence section 6). Candidate: a diff where every path is under `docs/`, or is Markdown outside `.claude/`, gets its own zone with a lighter check (links resolve, writing rules pass, no review votes). `neverMerge` still covers `openspec/**` and `.github/**`, and files that change how agents behave stay gated.
+3. **Votes are one Claude QA lens and one cross-provider lens.** The pilot's two-voter shape found defects the other lens missed in both directions (evidence section 4). The gate already requires a `codex` verdict with an OpenAI model. Candidate: also require the other verdict to come from a Claude lens, and record the lens name in the ledger so a later review can count findings per lens.
+4. **Two failed rounds means simplify or park.** Non-converging loops cost about 3M to 5M tokens in the pilot (evidence section 3). Candidate: the ledger counts review rounds per change, and a third round on the same design makes the gate hold with `two rounds used, simplify or park` until the owner or a changed design resets the count.
+5. **A mutation check on guard files.** `verify` 0.5.0's `breakGuard` is the automated form of the most repeated review finding. Candidate: for paths in the `high` zone or tagged GUARDS in the spec, the gate reads the `breakGuard` result for the head commit as a required fact.
+6. **Shared tracker files are not a merge hazard.** With one status file per task, the gate should not treat a conflict on `tasks.md` as normal. Candidate: a hold reason, `tasks.md edited by a code pull request`, in line with the one-writer-per-file principle.
+7. **Base branches beyond one trunk.** A fixed list of base branches sent three pilot slices to wrong-base rounds. Open question: should `allowedBases` accept patterns such as `feature/*`, with the merge-base found from the pull request's own `baseRefName`?
+8. **Facts must come from the head commit, not the merge ref.** CI that checks out the pull request's merge ref showed false reds when the pull request merged mid-run (evidence section 9). Candidate: the gate reads checks only for the exact head SHA and says so in the record.
+
+## Candidates for the meters (not decisions)
+
+1. **Usage meters count subagents and per-voter cost.** The pilot's costs were agent-reported estimates because nothing summed subagent tokens (evidence sections 2 and 9). Candidate: `factory tokens` reports, per pull request, the total across the orchestrator, builder and each reviewer separately, so a round's cost shows per voter.
+2. **Fresh-agent setup cost is its own line.** About 100k to 200k tokens per fresh agent went to reading instructions and installing before any work. Candidate: `factory tokens` reports the tokens before an agent's first edit, so a team can see whether resuming an agent is cheaper than starting one.
