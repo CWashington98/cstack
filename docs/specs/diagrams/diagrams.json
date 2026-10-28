@@ -3,9 +3,20 @@
     {
       "file": "2026-10-25-factory-system.svg",
       "question": "How does a spec become a merged pull request, and where does the owner come in?",
-      "depicts": ["docs/specs/2026-10-25-factory-design.md"],
+      "depicts": [
+        "docs/specs/2026-10-25-factory-design.md"
+      ],
       "made": "2026-10-25",
       "lastValidated": "2026-10-25"
+    },
+    {
+      "file": "2026-10-27-build-waves.svg",
+      "question": "Which cstack pieces are built in which order, and which run at the same time?",
+      "depicts": [
+        "docs/specs/2026-10-27-factory-build-plan.md"
+      ],
+      "made": "2026-10-27",
+      "lastValidated": "2026-10-27"
     }
   ]
 }
