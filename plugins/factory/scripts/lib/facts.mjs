@@ -198,8 +198,9 @@ export function collectFacts({ cwd, pr, settings, env = process.env }) {
         Object.assign(facts, countLines(ownFiles, settings));
       }
       // Trunk's changes since the branch point. Both sides of a rename are listed, and paths are read byte for byte.
-      const moved = git(cwd, "diff", "--name-only", "--no-renames", "-z", point, trunk);
-      if (moved.status !== 0) lost("trunk changes", "git diff failed");
+      // Every commit's own paths, so an edit a later commit restored still counts.
+      const moved = git(cwd, "log", "--format=", "--name-only", "--no-renames", "-z", `${point}..${trunk}`);
+      if (moved.status !== 0) lost("trunk changes", "git log failed");
       else {
         const trunkFiles = nul(moved.stdout);
         facts.trunkTouched = changedFiles.filter((p) => trunkFiles.includes(p));

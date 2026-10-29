@@ -349,3 +349,24 @@ test("a trunk that is not in the checkout is reported as unreadable", () => {
   assert.ok(facts.missing.some((m) => m.fact === "trunk"), JSON.stringify(facts.missing));
   assert.match(text(result), /can't read trunk/);
 });
+
+// Review round 3.
+
+test("[codex-1] a trunk edit that a later trunk commit restored is still seen", () => {
+  const cwd = repo(); write(cwd, "src/a.ts", "export const a = 0;\n"); commit(cwd, "a");
+  const head = branch(cwd, "f", () => write(cwd, "src/a.ts", "export const a = 1;\n"));
+  write(cwd, "src/a.ts", "export const a = 2;\n"); commit(cwd, "trunk edit");
+  write(cwd, "src/a.ts", "export const a = 0;\n"); commit(cwd, "trunk restore");
+  const { facts, result } = gather(cwd, { head, files: [file("src/a.ts", 1, 1)] });
+  assert.deepEqual(facts.trunkTouched, ["src/a.ts"]);
+  assert.match(text(result), /trunk changed src\/a\.ts since this pull request branched/);
+});
+
+test("[codex-1] a CI config change that a later trunk commit reverted is still seen", () => {
+  const cwd = repo(); const head = branch(cwd, "f", () => write(cwd, "docs/x.md", "x\n"));
+  write(cwd, ".github/workflows/ci.yml", "on: push\n"); commit(cwd, "add ci");
+  git(cwd, "rm", "-q", ".github/workflows/ci.yml"); commit(cwd, "remove ci");
+  const { facts, result } = gather(cwd, { head, files: [file("docs/x.md")] });
+  assert.equal(facts.ciChanged, true);
+  assert.match(text(result), /CI configuration/);
+});
