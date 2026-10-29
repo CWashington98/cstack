@@ -98,7 +98,12 @@ export function checkVerdicts(repo, { base, head = "HEAD" }) {
     return carried ? { ...carried, carriedFrom: carried.head } : null;
   };
   const claimsAuditor = pick(["claims-auditor"]);
-  const other = pick(["codex", "claude-fallback"]);
+  let other = pick(["codex", "claude-fallback"]);
+  // A fallback stands in for Codex, but never hides a Codex "not ready" for the same change.
+  if (other?.reviewer === "claude-fallback") {
+    const codex = pick(["codex"]);
+    if (codex && codex.verdict !== "ready") other = codex;
+  }
   const problems = [];
   if (!claimsAuditor) problems.push(`No verdict from the claims auditor for commit ${short(headSha)}. A new commit clears earlier verdicts unless the change is identical.`);
   if (!other) problems.push(`No verdict from Codex, or from a fallback reviewer standing in for it, for commit ${short(headSha)}.`);
