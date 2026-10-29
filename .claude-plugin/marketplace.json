@@ -25,7 +25,7 @@
       "name": "factory",
       "source": "./plugins/factory",
       "version": "0.1.0",
-      "description": "A shadow merge gate, subscription budget meter and token-usage report for validated delivery. This first slice only validates project settings; gate, budget and token behavior follows in the stacked pull requests."
+      "description": "Token usage report (factory tokens). The merge gate, budget meter and review routing are parked; see LATER.md."
     },
     {
       "name": "agent-browser",

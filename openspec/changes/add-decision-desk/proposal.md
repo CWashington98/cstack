@@ -1,5 +1,7 @@
 # Proposal: questions mid-work get answered without stopping the work, and the owner sees every answer later
 
+**Status: parked on 2026-10-29 by the owner.** Not to be built unless the owner decides agents should merge without the owner. See `LATER.md`.
+
 ## Why
 
 Agents hit questions all the time while building. Should the list show 25 rows or 50? Should deleted patients be hidden or greyed out? Does this index already exist?

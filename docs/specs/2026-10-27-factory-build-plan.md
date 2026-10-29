@@ -1,5 +1,7 @@
 # Build plan: getting the factory into cstack
 
+**Parked on 2026-10-29 by the owner** (see `LATER.md`): cstack stays a portable skill set, and only `factory tokens` is supported.
+
 Status: 2026-10-27. Written for the owner, the person who approves specs and merges cstack. It lists every piece of the [factory design](2026-10-25-factory-design.md), what state each piece is in, and which pieces can be built at the same time.
 
 ## 1. Where each piece stands

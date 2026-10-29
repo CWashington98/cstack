@@ -1,5 +1,7 @@
 # Proposal: one command works an approved spec from slices to merge-ready pull requests, and picks up where it stopped
 
+**Status: being replaced, 2026-10-29.** The owner chose a smaller version: the `start-change` and `continue-change` skills plus a slice-plan check. A new change will replace this one. See `LATER.md`.
+
 ## Why
 
 The owner writes a spec and a prototype, then wants to come back to built, proven and reviewed pull requests that are ready to merge. Today the owner, or one long orchestrator chat, is the loop. That chat decides the next step, remembers what passed, and re-explains the project to every new agent.

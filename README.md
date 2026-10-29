@@ -7,6 +7,20 @@ that used to be copy-pasted (and drift) across every repo, plus sha-pinned
 third-party skill repos, plus stable python snippets. Licensing/attribution:
 [LICENSE](LICENSE) + [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
+## What belongs in cstack
+
+cstack is the owner's set of skills for the way the owner likes to work. Every piece must drop into any of the owner's projects and work there, with the project's own facts kept in that project's `.claude/verify.json`.
+
+It holds three kinds of thing:
+
+- **Skills:** procedures an agent follows, such as the proof standard, pull request review and plain writing.
+- **Evals:** cases that show a skill still does its job after a change.
+- **Small tested scripts, only where a skill's rule must be checked rather than trusted.** Examples: the guard that refuses production deploys, a review verdict tied to the exact commit it read, the plain-English checker.
+
+It does not run agents, schedule work, watch pull requests or merge. The coding app does those (Claude Code, T3 Code, a terminal), and the owner merges. A new piece earns its place by the rule in [LATER.md](LATER.md): it shows up needed in a third project, or its named trigger fires.
+
+The `factory` plugin is parked except for `factory tokens`, the token usage report. Its merge gate, budget meter and review routing are built and tested but not supported; see [LATER.md](LATER.md).
+
 ## Install
 
 From your project's folder, run:
