@@ -1,0 +1,7 @@
+{
+  "approvedBy": "owner",
+  "approvedOn": "2026-10-29",
+  "covers": "specs/**/*.md",
+  "fingerprint": "sha256:19e26f7b30ef7d5f7e308de3a1a5f28aec181d1ce14d9573ae705c5556718f22",
+  "note": "The owner approved on 2026-10-29 by answering the start-here page's decision to approve /implement-spec with \"yes lets get Cstack up to date and our playbook\". Open question (slice-plan approval default) kept at its recommended default, owner."
+}
