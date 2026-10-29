@@ -13,7 +13,7 @@ Verify every slice with `npm test` and `node plugins/plain/scripts/plain-check.m
 
 ## 1. Acceptance tests, written first and failing
 
-- [ ] 1.1 Add one test per scenario, 23 in all, each named with its `[scenario-id]`: `plugins/verify/tests/gate-reasons.test.mjs`, `gate-apply.test.mjs`, `evidence-publish.test.mjs`, `review-follow-up.test.mjs`. Use the gate tests' stand-in `gh` on `PATH` and temporary git repositories. Verify all 23 fail by an assertion, not a crash, then commit them as locked. Each slice commits only its own file's tests. Covers: all. Touches: plugins/verify/tests/gate-reasons.test.mjs, plugins/verify/tests/gate-apply.test.mjs, plugins/verify/tests/evidence-publish.test.mjs, plugins/verify/tests/review-follow-up.test.mjs
+- [ ] 1.1 Add one test per scenario, 26 in all, each named with its `[scenario-id]`: `plugins/verify/tests/gate-reasons.test.mjs`, `gate-apply.test.mjs`, `evidence-publish.test.mjs`, `review-follow-up.test.mjs`. Use the gate tests' stand-in `gh` on `PATH` and temporary git repositories. Verify all 26 fail by an assertion, not a crash, then commit them as locked. Each slice commits only its own file's tests. Covers: all. Touches: plugins/verify/tests/gate-reasons.test.mjs, plugins/verify/tests/gate-apply.test.mjs, plugins/verify/tests/evidence-publish.test.mjs, plugins/verify/tests/review-follow-up.test.mjs
 
 ## 2. Move the gate (slice A)
 
@@ -23,7 +23,7 @@ Verify every slice with `npm test` and `node plugins/plain/scripts/plain-check.m
 
 - [ ] 3.1 Give every reason a kind; add `--json`; stop holding on drafts, zone merge modes and never-merge paths; report the zone. Covers: ready-when-every-fact-passes, failing-checks-are-fix, running-checks-wait, unreadable-fact-is-fix, workflow-change-is-not-held-by-path. Touches: plugins/verify/scripts/lib/gate/**
 - [ ] 3.2 Read open `decide` and `spec-wrong` findings from the verdicts for the head as `owner` reasons. Covers: decide-finding-needs-owner, spec-wrong-needs-owner. Touches: plugins/verify/scripts/lib/gate/facts.mjs
-- [ ] 3.3 Accept `claude-fallback` in the second slot; add `reviews: "highRisk"`. Covers: fallback-verdict-accepted, low-risk-change-needs-no-review, high-risk-change-needs-reviews, reviews-required-by-default. Touches: plugins/verify/scripts/lib/gate/**
+- [ ] 3.3 Accept `claude-fallback` in the second slot; add `reviews: "highRisk"`. Covers: fallback-verdict-accepted, fallback-does-not-hide-codex-not-ready, low-risk-change-needs-no-review, high-risk-change-needs-reviews, settings-change-needs-reviews, empty-risk-list-needs-reviews, reviews-required-by-default. Touches also: plugins/verify/scripts/lib/verdict.mjs, plugins/verify/tests/verdict.test.mjs, plugins/verify/skills/pr-review/SKILL.md. Touches: plugins/verify/scripts/lib/gate/**
 
 ## 4. Follow-up reviews (slice B)
 
