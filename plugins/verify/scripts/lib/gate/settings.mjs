@@ -67,5 +67,7 @@ export function readSettings(cwd = process.cwd()) {
   let project;
   try { project = JSON.parse(readFileSync(file, "utf8")); }
   catch (error) { throw new Error(`could not read ${SETTINGS_PATH}: ${error.message}`); }
-  return normalizeSettings(project.factory ?? {}, project);
+  // The block used to be called "factory". It is still read when there is no "gate" block.
+  if (project.gate === undefined && project.factory !== undefined) console.error('warning: the "factory" block in .claude/verify.json is renamed "gate". Rename it; the old name will stop being read.');
+  return normalizeSettings(project.gate ?? project.factory ?? {}, project);
 }
