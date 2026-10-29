@@ -371,6 +371,33 @@ test("[codex-1] a CI config change that a later trunk commit reverted is still s
   assert.match(text(result), /CI configuration/);
 });
 
+// A trunk merge commit whose own change (a conflict fix or merge-time edit) touches a path.
+const mergeOnTrunk = (cwd, edit) => {
+  branch(cwd, "side", () => write(cwd, "docs/side.md", "side\n"));
+  git(cwd, "merge", "-q", "--no-ff", "--no-commit", "side");
+  edit();
+  commit(cwd, "merge side");
+};
+
+test("[claims-auditor-r3-1] a trunk merge commit that edits a pull request path is still seen", () => {
+  const lines = (first, last) => `const first = ${first};\n\n\n\n\nconst last = ${last};\n`;
+  const cwd = repo(); write(cwd, "src/a.ts", lines(0, 0)); commit(cwd, "a");
+  const head = branch(cwd, "f", () => write(cwd, "src/a.ts", lines(1, 0)));
+  mergeOnTrunk(cwd, () => write(cwd, "src/a.ts", lines(0, 2)));
+  const { facts, result } = gather(cwd, { head, files: [file("src/a.ts", 1, 1)] });
+  assert.equal(facts.conflict, false, "the edits don't overlap, so only freshness can hold");
+  assert.deepEqual(facts.trunkTouched, ["src/a.ts"]);
+  assert.match(text(result), /trunk changed src\/a\.ts since this pull request branched/);
+});
+
+test("[claims-auditor-r3-1] a trunk merge commit that adds CI config is still seen", () => {
+  const cwd = repo(); const head = branch(cwd, "f", () => write(cwd, "docs/x.md", "x\n"));
+  mergeOnTrunk(cwd, () => write(cwd, ".github/workflows/ci.yml", "on: push\n"));
+  const { facts, result } = gather(cwd, { head, files: [file("docs/x.md")] });
+  assert.equal(facts.ciChanged, true);
+  assert.match(text(result), /CI configuration/);
+});
+
 test("[claims-auditor-r2-1] a binary file outside notCounted holds as uncountable, naming the path", () => {
   const cwd = repo(); const head = branch(cwd, "f", () => write(cwd, "src/big.ts", "// \0\n" + "x\n".repeat(900)));
   const { result } = gather(cwd, { head, files: [{ path: "src/big.ts" }] });

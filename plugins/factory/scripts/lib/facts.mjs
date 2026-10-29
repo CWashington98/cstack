@@ -201,8 +201,9 @@ export function collectFacts({ cwd, pr, settings, env = process.env }) {
         for (const f of ownFiles) if (f.binary && !matchesAny(f.path, settings.notCounted)) lost("line count", `git can't count lines in ${f.path}`);
       }
       // Trunk's changes since the branch point. Both sides of a rename are listed, and paths are read byte for byte.
-      // Every commit's own paths, so an edit a later commit restored still counts.
-      const moved = git(cwd, "log", "--format=", "--name-only", "--no-renames", "--no-relative", "-z", `${point}..${trunk}`);
+      // Every commit's own paths, so an edit a later commit restored still counts. A merge commit lists
+      // its change against its first parent; without that, git log shows no paths for merges at all.
+      const moved = git(cwd, "log", "--format=", "--name-only", "--no-renames", "--no-relative", "--diff-merges=first-parent", "-z", `${point}..${trunk}`);
       if (moved.status !== 0) lost("trunk changes", "git log failed");
       else {
         const trunkFiles = nul(moved.stdout);
