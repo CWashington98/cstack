@@ -1,0 +1,11 @@
+{
+  "diagrams": [
+    {
+      "file": "run-loop.svg",
+      "question": "How does one approved spec become merge-ready pull requests?",
+      "depicts": ["openspec/changes/add-factory-run/specs/factory/run/spec.md"],
+      "made": "2026-10-29",
+      "lastValidated": "2026-10-29"
+    }
+  ]
+}
