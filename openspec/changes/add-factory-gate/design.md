@@ -56,7 +56,7 @@ The new block in `.claude/verify.json`:
 
    `gh api graphql` returns whether every review thread is resolved.
 2. **Commits.** The gate fetches the base and head commits into the project's main checkout without checking them out. The pull request's code is read as data and never run.
-3. **The zone command runs in the main checkout,** and only when that checkout sits on the trunk commit with no local changes. Otherwise the gate holds with a reason. This is the same protection Project B's owner check uses: a pull request can't change the tool that scores it.
+3. **The zone command runs in the main checkout,** and only when that checkout sits on the trunk commit with no local changes. Otherwise the gate holds with a reason. This is the same protection Project B's owner check uses: a pull request can't change the tool that scores it. Untracked files are not counted as local changes: the gate never checks a pull request's code out into the main checkout, and agents work in their own worktrees. Revisit this before any zone moves from shadow to real merges (owner decision, 2026-10-29).
 4. **Verdicts** come from `verify`'s `verdict.mjs check --json`. Compliance reports and evidence runs are found by looking in `.verify/runs` in every worktree that `git worktree list` shows.
 5. **Finding the `verify` scripts** works in this order:
    1. the `CSTACK_VERIFY` environment variable;
