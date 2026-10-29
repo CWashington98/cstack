@@ -7,10 +7,16 @@
       "plugins/verify/tests/spec-compliance.test.mjs",
       "plugins/verify/tests/guard-scenarios.test.mjs",
       "plugins/verify/tests/carried-over-scenarios.test.mjs",
-      "plugins/verify/tests/fixtures/compliance/**"
+      "plugins/verify/tests/fixtures/compliance/**",
+      "plugins/verify/tests/gate-reasons.test.mjs",
+      "plugins/verify/tests/gate-apply.test.mjs",
+      "plugins/verify/tests/evidence-publish.test.mjs",
+      "plugins/verify/tests/review-follow-up.test.mjs"
     ],
     "exclude": [
-      "plugins/verify/tests/fixtures/compliance/**"
+      "plugins/verify/tests/fixtures/compliance/**",
+      "plugins/verify/tests/gate-holds.test.mjs",
+      "plugins/verify/tests/gate.test.mjs"
     ],
     "alwaysAllowed": [
       "openspec/**",

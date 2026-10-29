@@ -13,11 +13,11 @@ Verify every slice with `npm test` and `node plugins/plain/scripts/plain-check.m
 
 ## 1. Acceptance tests, written first and failing
 
-- [ ] 1.1 Add one test per scenario, 23 in all, each named with its `[scenario-id]`: `plugins/verify/tests/gate-reasons.test.mjs`, `gate-apply.test.mjs`, `evidence-publish.test.mjs`, `review-follow-up.test.mjs`. Use the gate tests' stand-in `gh` on `PATH` and temporary git repositories. Verify all 23 fail by an assertion, not a crash, then commit them as locked. Each slice commits only its own file's tests. Covers: all. Touches: plugins/verify/tests/**
+- [ ] 1.1 Add one test per scenario, 23 in all, each named with its `[scenario-id]`: `plugins/verify/tests/gate-reasons.test.mjs`, `gate-apply.test.mjs`, `evidence-publish.test.mjs`, `review-follow-up.test.mjs`. Use the gate tests' stand-in `gh` on `PATH` and temporary git repositories. Verify all 23 fail by an assertion, not a crash, then commit them as locked. Each slice commits only its own file's tests. Covers: all. Touches: plugins/verify/tests/gate-reasons.test.mjs, plugins/verify/tests/gate-apply.test.mjs, plugins/verify/tests/evidence-publish.test.mjs, plugins/verify/tests/review-follow-up.test.mjs
 
 ## 2. Move the gate (slice A)
 
-- [ ] 2.1 `git mv` the gate's `gate`, `facts`, `zone`, `ledger` and `settings` libraries and their tests into `plugins/verify/scripts/lib/gate/`, add `gate.mjs`, and remove `gate` from `factory.mjs`. Settings read the `gate` block, or the `factory` block with a warning. Records go to `<git-common-dir>/verify/gate/`. Verify: the moved gate tests pass unchanged except paths. Covers: old-factory-block-still-read. Touches: plugins/factory/**, plugins/verify/scripts/**
+- [ ] 2.1 `git mv` the gate's `gate`, `facts`, `zone`, `ledger` and `settings` libraries and their tests into `plugins/verify/scripts/lib/gate/`, add `gate.mjs`, and remove `gate` from `factory.mjs`. Settings read the `gate` block, or the `factory` block with a warning. Records go to `<git-common-dir>/verify/gate/`. Verify: the moved gate tests pass unchanged except paths. Covers: old-factory-block-still-read. Touches: plugins/factory/**, plugins/verify/scripts/**, plugins/verify/tests/gate.test.mjs, plugins/verify/tests/gate-holds.test.mjs, plugins/verify/tests/gate-settings.test.mjs, .claude-plugin/marketplace.json, plugins/verify/.claude-plugin/plugin.json, .claude/verify.json
 
 ## 3. Sort the reasons (slice A)
 
@@ -27,15 +27,15 @@ Verify every slice with `npm test` and `node plugins/plain/scripts/plain-check.m
 
 ## 4. Follow-up reviews (slice B)
 
-- [ ] 4.1 `review-prep.mjs --since <commit>`: earlier open findings first, the diff since that commit, the full diff available, and a full packet when the commit isn't an ancestor. Add one sentence to `pr-review` SKILL.md. Covers: all in `verify/review-follow-up`. Touches: plugins/verify/scripts/review-prep.mjs, plugins/verify/scripts/lib/**, plugins/verify/skills/pr-review/SKILL.md
+- [ ] 4.1 `review-prep.mjs --since <commit>`: earlier open findings first, the diff since that commit, the full diff available, and a full packet when the commit isn't an ancestor. Add one sentence to `pr-review` SKILL.md. Covers: follow-up-packet-has-findings-and-delta, rewritten-branch-falls-back-to-full. Touches: plugins/verify/scripts/review-prep.mjs, plugins/verify/scripts/lib/**, plugins/verify/skills/pr-review/SKILL.md
 
 ## 5. Evidence in the pull request (slice C)
 
-- [ ] 5.1 `evidence.mjs publish --pr <n>`: newest run for the head, checked paths, orphan branch in a temporary worktree, description section between markers. Covers: all in `verify/evidence-publish`. Touches: plugins/verify/scripts/evidence.mjs, plugins/verify/scripts/lib/evidence.mjs, plugins/verify/skills/verify/SKILL.md
+- [ ] 5.1 `evidence.mjs publish --pr <n>`: newest run for the head, checked paths, orphan branch in a temporary worktree, description section between markers. Covers: publish-adds-proof-to-description, rerun-replaces-section, no-run-for-head-says-so, files-outside-run-folder-refused. Touches: plugins/verify/scripts/evidence.mjs, plugins/verify/scripts/lib/evidence.mjs, plugins/verify/skills/verify/SKILL.md
 
 ## 6. The pull request step (slice D)
 
-- [ ] 6.1 `verify gate <pr> --apply`: set draft or ready and the description's first line, and count fix rounds from the gate's records. Covers: all in `verify/pr-open`. Touches: plugins/verify/scripts/gate.mjs, plugins/verify/scripts/lib/gate/**
+- [ ] 6.1 `verify gate <pr> --apply`: set draft or ready and the description's first line, and count fix rounds from the gate's records. Covers: check-passes-marks-ready, owner-reasons-become-one-question, fix-reasons-keep-draft, new-commit-returns-to-draft, three-rounds-then-owner. Touches: plugins/verify/scripts/gate.mjs, plugins/verify/scripts/lib/gate/**
 - [ ] 6.2 `pr-open` SKILL.md, three sentences as in the design. Update `how-to-use-cstack`. Verify with `plain-check`. Touches: plugins/verify/skills/pr-open/**, plugins/core/skills/how-to-use-cstack/SKILL.md
 
 ## 7. Settings and docs (slice D)
