@@ -8,13 +8,13 @@ The [delivery loop diagram](../../../docs/diagrams/delivery-loop.svg) shows wher
 
 ```
 plugins/verify/scripts/
-  ready.mjs              verify ready <pr> [--json]       (was factory gate)
-  pr-state.mjs           apply <pr> [--stuck]
+  gate.mjs                verify gate <pr> [--json]        (was factory gate)
+  pr-open.mjs           apply <pr> [--stuck]
   evidence.mjs           + publish --pr <n>
   review-prep.mjs        + --follow-up
   verdict.mjs            + earlier-finding accounting on write
-  lib/ready/{decide,facts,zone,record,settings}.mjs   (moved from plugins/factory/scripts/lib)
-plugins/verify/skills/ready-pr/SKILL.md
+  lib/gate/{decide,facts,zone,record,settings}.mjs   (moved from plugins/factory/scripts/lib)
+plugins/verify/skills/pr-open/SKILL.md
 plugins/factory/                 keeps tokens and budget only
 ```
 
@@ -22,7 +22,7 @@ The move is a `git mv` with history, then edits. The gate's tests move with it a
 
 ## Settings
 
-`.claude/verify.json` gets a `ready` block with the gate's fields: `allowedBases`, `zone`, `runtimeSurface`, `flagsRequired`, `sizeLimit`, `notCounted`, plus the new `reviews` (`"always"` or `"highRisk"`). `neverMerge` and `merge` are dropped. A `factory` block is still read when there is no `ready` block, with a warning, so Hermes and the OneHeartHealth app keep working until they rename it.
+`.claude/verify.json` gets a `gate` block with the gate's fields: `allowedBases`, `zone`, `runtimeSurface`, `flagsRequired`, `sizeLimit`, `notCounted`, plus the new `reviews` (`"always"` or `"highRisk"`). `neverMerge` and `merge` are dropped. A `factory` block is still read when there is no `gate` block, with a warning, so Hermes and the OneHeartHealth app keep working until they rename it.
 
 ## How each reason gets its kind
 
@@ -35,11 +35,11 @@ The move is a `git mv` with history, then edits. The gate's tests move with it a
 | pull request is a draft | removed |
 | zone merge mode, never-merge path | removed |
 
-`pr-state.mjs apply --stuck` turns all remaining reasons into one owner question: "Three fix rounds didn't clear: <reasons>. How do you want to handle it?"
+`pr-open.mjs apply --stuck` turns all remaining reasons into one owner question: "Three fix rounds didn't clear: <reasons>. How do you want to handle it?"
 
 ## Fix rounds
 
-`pr-state.mjs` records each call in `<git-common-dir>/verify/ready/<pr>.rounds.json`: the head and whether it was ready. A round is a new head that ends not ready with a `fix` reason. The `ready-pr` skill reads the count and calls `--stuck` at three. The count is kept outside the branch, so it never lands in a commit.
+`pr-open.mjs` records each call in `<git-common-dir>/verify/gate/<pr>.rounds.json`: the head and whether it was ready. A round is a new head that ends not ready with a `fix` reason. The `pr-open` skill reads the count and calls `--stuck` at three. The count is kept outside the branch, so it never lands in a commit.
 
 ## Follow-up reviews
 
@@ -64,9 +64,16 @@ Links use `https://github.com/<owner>/<repo>/blob/verify-evidence/<path>?raw=tru
 
 - 2026-10-29: the gate is kept as the ready check; only merging without the owner is parked (owner, PR #42).
 - 2026-10-29: cstack reviews only high-risk changes (owner).
+- 2026-10-29: three fix rounds without clearing means stuck; the owner is asked (owner).
+- 2026-10-29: the command keeps the name gate: `verify gate`, settings block `gate`. `factory gate` is removed (owner).
+- 2026-10-29: proof capture stays in each project's app skill; cstack keeps only the run record, publishing and the gate's check (owner).
 
-## Open questions for the owner
+## Proof: cstack owns the contract, each project owns the capture
 
-1. **Three fix rounds before asking you.** Is three right?
-2. **Hermes's evidence branch.** Hermes uses `ui-evidence`. Should Hermes switch to `verify-evidence` when it adopts this, or keep its own script?
-3. **`factory gate`.** Remove it, as proposed, or keep it for a while as another name for `verify ready`?
+cstack defines what a proof run is (`.verify/runs/<app>/<stamp>-<sha>/run.json`: commit, steps, status, files), how it gets into the pull request (`evidence.mjs publish`), and how the gate reads it. How a project captures proof stays in that project's app skill, which `verify-setup` writes: a branch preview for a web dashboard, the simulator for a mobile app, a terminal for a script. cstack never learns a project's hosts, accounts or devices.
+
+Hermes adopts this in its own pull request. Its `ui:evidence` script keeps its capture: changed pages, the branch preview, the test sign-in, hiding that identity, and failing on console errors or leaked secrets. It writes what it captured as a `verify` run and hands the upload to `evidence.mjs publish`. Its old `ui-evidence` branch stays, so links in past pull requests keep working.
+
+## Names
+
+Skills in a family start with the family name, so they sort together: `pr-open` and `pr-review`; later `change-start` and `change-continue`. Commands are `<plugin> <noun>`: `verify gate`, `verify evidence`, `verify verdict`, `factory tokens`. Existing names outside a family stay.
