@@ -14,12 +14,12 @@ function parseJson(text) {
   try { return JSON.parse(text); } catch { return undefined; }
 }
 
-// The verify plugin's scripts folder: CSTACK_VERIFY, then the sibling folder, then the newest installed copy.
+// The verify plugin's scripts folder: CSTACK_VERIFY, then this plugin's own scripts folder, then the newest installed copy.
 export function findVerifyScripts(env = process.env) {
   const hasScripts = (dir) => dir && existsSync(join(dir, "verdict.mjs")) && existsSync(join(dir, "evidence.mjs"));
   const candidates = [];
   if (env.CSTACK_VERIFY) candidates.push(env.CSTACK_VERIFY, join(env.CSTACK_VERIFY, "scripts"));
-  candidates.push(resolve(here, "..", "..", "..", "verify", "scripts"));
+  candidates.push(resolve(here, "..", ".."));
   for (const dir of candidates) if (hasScripts(dir)) return dir;
   const home = env.HOME ?? "";
   try {

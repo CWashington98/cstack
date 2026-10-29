@@ -8,16 +8,16 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const factory = join(here, "..", "scripts", "factory.mjs");
+const gate = join(here, "..", "scripts", "gate.mjs");
 
 async function optional(relative) {
   try { return await import(pathToFileURL(join(here, "..", "scripts", "lib", relative))); }
   catch (error) { if (error?.code === "ERR_MODULE_NOT_FOUND") return {}; throw error; }
 }
 
-const gateModule = await optional("gate.mjs");
-const settingsModule = await optional("settings.mjs");
-const zoneModule = await optional("zone.mjs");
+const gateModule = await optional("gate/decide.mjs");
+const settingsModule = await optional("gate/settings.mjs");
+const zoneModule = await optional("gate/zone.mjs");
 
 function need(module, name) {
   assert.equal(typeof module[name], "function", `factory must export ${name}`);
@@ -126,7 +126,7 @@ function fakeGh(cwd, payload) {
 }
 
 function runGate(cwd, payload, env = fakeGh(cwd, payload)) {
-  return spawnSync("node", [factory, "gate", "417"], { cwd, env, encoding: "utf8" });
+  return spawnSync("node", [gate, "417"], { cwd, env, encoding: "utf8" });
 }
 
 test("[zone-command-runs-from-trunk] the clean trunk copy of the zone command wins", () => {
@@ -196,7 +196,7 @@ test("[rerun-replaces-record] rerunning one pull request head replaces its ledge
   const payload = { number: 412, baseRefName: "main", headRefOid: git(cwd, "rev-parse", "HEAD"), files: [{ path: "docs/readme.md", additions: 1, deletions: 0 }] };
   const first = runGate(cwd, payload); assert.notEqual(first.status, null);
   const second = runGate(cwd, payload); assert.notEqual(second.status, null);
-  const ledger = join(cwd, ".git", "factory", "ledger");
+  const ledger = join(cwd, ".git", "verify", "gate");
   assert.ok(existsSync(ledger), "factory gate must write the ledger folder");
   assert.equal(readdirSync(ledger).length, 1);
   const record = JSON.parse(readFileSync(join(ledger, readdirSync(ledger)[0]), "utf8"));

@@ -1,11 +1,7 @@
 #!/usr/bin/env node
-import { readSettings } from "./lib/settings.mjs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dollarsPerMergedPr, loadPrices, summarizeCodexSessions, summarizeTranscripts, workingDirectoryTotals } from "./lib/tokens.mjs";
-import { collectFacts } from "./lib/facts.mjs";
-import { decideGate } from "./lib/gate.mjs";
-import { writeRecord } from "./lib/ledger.mjs";
 import { latestCodexReading, readClaudeBudgets, routeBreaker } from "./lib/budget.mjs";
 
 const args = process.argv.slice(2);
@@ -21,32 +17,12 @@ function options(name) {
   return args.flatMap((value, index) => value === name && args[index + 1] ? [args[index + 1]] : []);
 }
 
-if (!["gate", "budget", "tokens"].includes(command)) {
-  console.error("usage: factory <gate|budget|tokens>");
+if (!["budget", "tokens"].includes(command)) {
+  console.error("usage: factory <budget|tokens>");
   process.exitCode = 2;
 } else {
   try {
-    if (command === "gate") {
-      const settings = readSettings();
-      const pr = args[1];
-      if (!/^\d+$/.test(pr ?? "")) {
-        console.error("usage: factory gate <pull request number>");
-        process.exitCode = 2;
-      } else {
-        const facts = collectFacts({ cwd: process.cwd(), pr, settings });
-        let result = decideGate(facts, settings);
-        // The record is written before the call is printed. If it can't be written, the call is a hold.
-        if (facts.head) {
-          const record = () => writeRecord(process.cwd(), { pr: facts.pr, head: facts.head, patchId: facts.patchId, zone: facts.zone, call: result.call, reasons: result.reasons });
-          try { record(); } catch (error) {
-            facts.missing.push({ fact: "ledger", why: `could not record the call (${error.message})` });
-            result = decideGate(facts, settings);
-          }
-        } else console.error("no record written: the head commit is unknown");
-        console.log(result.output);
-        process.exitCode = result.exitCode;
-      }
-    } else if (command === "budget") {
+    if (command === "budget") {
       const profileDirs = options("--claude-dir");
       const codexDir = resolve(option("--codex-dir", join(process.env.HOME ?? "", ".codex", "sessions")));
       const codex = latestCodexReading(codexDir);

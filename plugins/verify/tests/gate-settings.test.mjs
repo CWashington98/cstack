@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { normalizeSettings, readSettings } from "../scripts/lib/settings.mjs";
+import { normalizeSettings, readSettings } from "../scripts/lib/gate/settings.mjs";
 
 test("factory settings default the allowed base to the integration branch", () => {
   const settings = normalizeSettings({}, { integrationBranch: "dev" });

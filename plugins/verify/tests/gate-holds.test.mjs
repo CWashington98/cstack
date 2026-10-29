@@ -7,13 +7,13 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
-import { decideGate } from "../scripts/lib/gate.mjs";
-import { collectFacts, countLines, summarizeChecks } from "../scripts/lib/facts.mjs";
-import { classifyZone, zoneFor } from "../scripts/lib/zone.mjs";
-import { writeRecord } from "../scripts/lib/ledger.mjs";
+import { decideGate } from "../scripts/lib/gate/decide.mjs";
+import { collectFacts, countLines, summarizeChecks } from "../scripts/lib/gate/facts.mjs";
+import { classifyZone, zoneFor } from "../scripts/lib/gate/zone.mjs";
+import { writeRecord } from "../scripts/lib/gate/record.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const factory = join(here, "..", "scripts", "factory.mjs");
+const gate = join(here, "..", "scripts", "gate.mjs");
 
 const SETTINGS = {
   allowedBases: ["main"],
@@ -308,14 +308,14 @@ test("zoneFor without a command uses the patterns", () => {
 test("the ledger record is named <pr>-<12 hex>.json and carries settings, time, zone and call", () => {
   const cwd = repo(); const head = "0123456789abcdef".repeat(2) + "01234567";
   const path = writeRecord(cwd, { pr: 412, head, zone: "low", call: "would-hold", reasons: [{ kind: "hold", message: "x" }], now: new Date("2026-01-02T03:04:05.000Z") });
-  assert.match(path, /\/ledger\/412-0123456789ab\.json$/);
+  assert.match(path, /\/verify\/gate\/412-0123456789ab\.json$/);
   const record = JSON.parse(readFileSync(path, "utf8"));
   assert.match(record.settings, /^[0-9a-f]{64}$/);
   assert.equal(record.time, "2026-01-02T03:04:05.000Z");
   assert.equal(record.zone, "low");
   assert.equal(record.call, "would-hold");
   assert.equal(record.head, head);
-  assert.equal(readdirSync(join(cwd, ".git", "factory", "ledger")).length, 1);
+  assert.equal(readdirSync(join(cwd, ".git", "verify", "gate")).length, 1);
 });
 test("a head that is not a commit id gets no record", () => {
   assert.throws(() => writeRecord(repo(), { pr: 1, head: "main", call: "would-hold", reasons: [] }), /no head commit/);
@@ -323,9 +323,9 @@ test("a head that is not a commit id gets no record", () => {
 
 test("[claims-auditor-6] a ledger write failure prints would-hold and exits 1, never would-merge", () => {
   const cwd = repo(); const head = branch(cwd, "f", () => write(cwd, "docs/x.md", "x\n"));
-  writeFileSync(join(cwd, ".git", "factory"), "");
+  writeFileSync(join(cwd, ".git", "verify"), "");
   const { env } = gather(cwd, { head, files: [file("docs/x.md")] });
-  const run = spawnSync("node", [factory, "gate", "7"], { cwd, env, encoding: "utf8" });
+  const run = spawnSync("node", [gate, "7"], { cwd, env, encoding: "utf8" });
   assert.equal(run.status, 1, run.stdout + run.stderr);
   assert.match(run.stdout, /^SHADOW would-hold/m);
   assert.doesNotMatch(run.stdout, /would-merge/);
@@ -335,10 +335,10 @@ test("[claims-auditor-6] a ledger write failure prints would-hold and exits 1, n
 test("the ledger is written before the call is printed", () => {
   const cwd = repo(); const head = branch(cwd, "f", () => write(cwd, "docs/x.md", "x\n"));
   const { env } = gather(cwd, { head, files: [file("docs/x.md")] });
-  const run = spawnSync("node", [factory, "gate", "7"], { cwd, env, encoding: "utf8" });
+  const run = spawnSync("node", [gate, "7"], { cwd, env, encoding: "utf8" });
   assert.equal(run.status, 0, run.stdout + run.stderr);
   assert.match(run.stdout, /^SHADOW would-merge/m);
-  const dir = join(cwd, ".git", "factory", "ledger");
+  const dir = join(cwd, ".git", "verify", "gate");
   const record = JSON.parse(readFileSync(join(dir, readdirSync(dir)[0]), "utf8"));
   assert.equal(record.call, "would-merge");
 });
