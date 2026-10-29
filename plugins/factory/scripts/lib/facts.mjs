@@ -108,6 +108,8 @@ export function collectFacts({ cwd, pr, settings, env = process.env }) {
     lost("pull request data", "gh pr view gave nothing usable");
     return { ...facts, head: null, base: null, changedFiles: [] };
   }
+  // The number GitHub reports is the one recorded, not the one typed.
+  if (Number.isInteger(data.number)) facts.pr = data.number;
   const changedFiles = data.files.map((f) => f.path);
   const head = data.headRefOid;
   const base = data.baseRefName;
@@ -134,8 +136,10 @@ export function collectFacts({ cwd, pr, settings, env = process.env }) {
   }
 
   // Git: fetch quietly, never check anything out.
-  const trunkName = baseAllowed ? base : settings.allowedBases[0];
+  // Trunk is the pull request's base when allowed. Otherwise the first allowed base that exists, else the base itself.
   const hasOrigin = lines(git(cwd, "remote").stdout ?? "").includes("origin");
+  const exists = (name) => ["origin/", ""].some((prefix) => git(cwd, "rev-parse", "--verify", "--quiet", `${prefix}${name}^{commit}`).status === 0);
+  const trunkName = baseAllowed ? base : settings.allowedBases.find(exists) ?? base;
   if (hasOrigin && git(cwd, "fetch", "--quiet", "origin", trunkName).status !== 0) lost("trunk", `could not fetch ${trunkName}`);
   const trunk = git(cwd, "rev-parse", "--verify", "--quiet", `origin/${trunkName}^{commit}`).status === 0 ? `origin/${trunkName}` : trunkName;
   if (git(cwd, "cat-file", "-e", `${head}^{commit}`).status !== 0 && hasOrigin) git(cwd, "fetch", "--quiet", "origin", `pull/${pr}/head`);

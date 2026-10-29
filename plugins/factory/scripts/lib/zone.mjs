@@ -41,8 +41,8 @@ export function runZoneCommand(command, paths, { cwd, trunk }) {
   const there = git(cwd, "rev-parse", `${trunk}^{commit}`);
   if (here.status !== 0 || there.status !== 0) return { zone: null, problem: "can't read the trunk commit to run the zone command" };
   if (here.stdout.trim() !== there.stdout.trim()) return { zone: null, problem: "zone command not run: the main checkout is not on the trunk commit" };
-  const status = git(cwd, "status", "--porcelain", "--untracked-files=all");
-  if (status.status !== 0 || status.stdout.trim()) return { zone: null, problem: "zone command not run: the main checkout has local changes" };
+  const status = git(cwd, "status", "--porcelain", "--untracked-files=no");
+  if (status.status !== 0 || status.stdout.trim()) return { zone: null, problem: "zone command not run: the main checkout has local changes to tracked files" };
   const dir = mkdtempSync(join(tmpdir(), "factory-zone-"));
   try {
     const file = join(dir, "paths.json");

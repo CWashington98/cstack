@@ -3,6 +3,9 @@ import { readSettings } from "./lib/settings.mjs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dollarsPerMergedPr, loadPrices, summarizeCodexSessions, summarizeTranscripts, workingDirectoryTotals } from "./lib/tokens.mjs";
+import { collectFacts } from "./lib/facts.mjs";
+import { decideGate } from "./lib/gate.mjs";
+import { writeRecord } from "./lib/ledger.mjs";
 import { latestCodexReading, readClaudeBudgets, routeBreaker } from "./lib/budget.mjs";
 
 const args = process.argv.slice(2);
@@ -23,8 +26,22 @@ if (!["gate", "budget", "tokens"].includes(command)) {
   process.exitCode = 2;
 } else {
   try {
-    if (command === "gate") readSettings();
-    if (command === "budget") {
+    if (command === "gate") {
+      const settings = readSettings();
+      const pr = args[1];
+      if (!/^\d+$/.test(pr ?? "")) {
+        console.error("usage: factory gate <pull request number>");
+        process.exitCode = 2;
+      } else {
+        const facts = collectFacts({ cwd: process.cwd(), pr, settings });
+        const result = decideGate(facts, settings);
+        console.log(result.output);
+        process.exitCode = result.exitCode;
+        if (facts.head) {
+          writeRecord(process.cwd(), { pr: facts.pr, head: facts.head, patchId: facts.patchId, zone: facts.zone, call: result.call, reasons: result.reasons });
+        } else console.error("no record written: the head commit is unknown");
+      }
+    } else if (command === "budget") {
       const profileDirs = options("--claude-dir");
       const codexDir = resolve(option("--codex-dir", join(process.env.HOME ?? "", ".codex", "sessions")));
       const codex = latestCodexReading(codexDir);
