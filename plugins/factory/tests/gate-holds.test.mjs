@@ -342,3 +342,10 @@ test("the ledger is written before the call is printed", () => {
   const record = JSON.parse(readFileSync(join(dir, readdirSync(dir)[0]), "utf8"));
   assert.equal(record.call, "would-merge");
 });
+
+test("a trunk that is not in the checkout is reported as unreadable", () => {
+  const cwd = repo(); const head = branch(cwd, "f", () => write(cwd, "docs/x.md", "x\n"));
+  const { facts, result } = gather(cwd, { head, files: [file("docs/x.md")], view: { baseRefName: "feat/gone" } });
+  assert.ok(facts.missing.some((m) => m.fact === "trunk"), JSON.stringify(facts.missing));
+  assert.match(text(result), /can't read trunk/);
+});
