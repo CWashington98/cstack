@@ -1,6 +1,6 @@
 # factory: specs in, proven merged pull requests out
 
-**Parked on 2026-10-29 by the owner** (see `LATER.md`): cstack stays a portable skill set, and only `factory tokens` is supported.
+**Partly parked on 2026-10-29 by the owner** (see `LATER.md`): the merge gate, token report, budget meter and review routing stay; merging without the owner, triggers and scheduling are parked.
 
 Status: draft for the owner's review, 2026-10-25. Nothing here is built yet.
 

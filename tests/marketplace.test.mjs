@@ -110,10 +110,8 @@ test("the Vercel React pointer picks the React and web interface skills, and the
   assert.ok(!market.plugins.some((p) => p.name === "vercel-agent-skills"));
 });
 
-test("the caveman pointer picks caveman and the two modes it hands off to", () => {
-  const p = pointer("caveman-picks");
-  assert.equal(p.source.url, "https://github.com/JuliusBrussee/caveman.git");
-  assert.deepEqual([...p.skills].sort(), ["./caveman", "./megacave", "./ultracave"]);
+test("the caveman pointer is gone: plain is the one writing standard", () => {
+  assert.ok(!market.plugins.some((p) => p.name === "caveman-picks"));
 });
 
 test("the Expo pointer leaves out the feedback skill, whose command breaks when picked by folder", () => {
