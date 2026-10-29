@@ -147,6 +147,7 @@ export function collectFacts({ cwd, pr, settings, env = process.env }) {
     const threads = parseJson(graphql.status === 0 ? graphql.stdout : "")?.data?.repository?.pullRequest?.reviewThreads;
     if (!threads || !Array.isArray(threads.nodes)) { threadProblem = `gh api graphql gave nothing usable${pages ? ` for page ${pages + 1}` : ""}`; break; }
     pages += 1;
+    if (threads.nodes.some((n) => !n || typeof n !== "object")) { threadProblem = "gh gave a review thread that is not an object"; break; }
     if (typeof threads.pageInfo?.hasNextPage !== "boolean") { threadProblem = "gh gave no usable hasNextPage for review threads"; break; }
     if (threads.nodes.some((n) => !n.isResolved)) { unresolved = true; break; }
     if (threads.pageInfo?.hasNextPage !== true) break;
@@ -187,7 +188,7 @@ export function collectFacts({ cwd, pr, settings, env = process.env }) {
     else {
       const point = mergeBase.stdout.trim();
       // The pull request's own diff, from git. Zone, never-merge, runtime surface and size all use it.
-      const own = git(cwd, "diff", "--numstat", "--no-renames", "-z", point, head);
+      const own = git(cwd, "diff", "--no-relative", "--numstat", "--no-renames", "-z", point, head);
       const ownFiles = own.status === 0 ? parseNumstat(own.stdout) : null;
       if (!ownFiles) lost("changed files", "git diff of the pull request failed or could not be read");
       else {
@@ -201,7 +202,7 @@ export function collectFacts({ cwd, pr, settings, env = process.env }) {
       }
       // Trunk's changes since the branch point. Both sides of a rename are listed, and paths are read byte for byte.
       // Every commit's own paths, so an edit a later commit restored still counts.
-      const moved = git(cwd, "log", "--format=", "--name-only", "--no-renames", "-z", `${point}..${trunk}`);
+      const moved = git(cwd, "log", "--format=", "--name-only", "--no-renames", "--no-relative", "-z", `${point}..${trunk}`);
       if (moved.status !== 0) lost("trunk changes", "git log failed");
       else {
         const trunkFiles = nul(moved.stdout);

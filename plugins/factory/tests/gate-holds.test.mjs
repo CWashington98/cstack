@@ -392,3 +392,20 @@ test("[claims-auditor-r2-2] a thread page whose hasNextPage is not a boolean hol
   assert.equal(result.call, "would-hold");
   assert.match(text(result), /can't read review threads/);
 });
+
+test("[claims-auditor-r2-3] a null or non-object thread node holds as unreadable instead of crashing", () => {
+  for (const node of [null, "x", 5]) {
+    const cwd = repo(); const head = branch(cwd, "f", () => write(cwd, "docs/x.md", "x\n"));
+    const { result } = gather(cwd, { head, files: [file("docs/x.md")], pages: [thread([node])] });
+    assert.equal(result.call, "would-hold");
+    assert.match(text(result), /can't read review threads/);
+  }
+});
+
+test("[claims-auditor-r2-3] diff.relative config cannot hide paths outside the working directory", () => {
+  const cwd = repo(); git(cwd, "config", "diff.relative", "true");
+  const head = branch(cwd, "f", () => write(cwd, "src/auth/s.ts", "x\n"));
+  const { facts } = gather(join(cwd, "docs"), { head, files: [file("src/auth/s.ts")] });
+  assert.deepEqual(facts.changedFiles, ["src/auth/s.ts"]);
+  assert.equal(facts.zone, "high");
+});
