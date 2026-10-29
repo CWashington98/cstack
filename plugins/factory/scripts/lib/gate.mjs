@@ -48,7 +48,7 @@ export function decideGate(facts, settings) {
   }
 
   if (facts.runtimeChanged && facts.liveProof !== "verified live") hold("no live proof for this commit");
-  if (facts.runtimeChanged && settings.flagsRequired && !/^Flag:\s*\S/m.test(facts.description ?? "")) hold("new behavior must name its flag");
+  if (facts.runtimeChanged && settings.flagsRequired && !/^Flag:[ \t]*\S/m.test(facts.description ?? "")) hold("new behavior must name its flag");
   if (facts.complianceChange) {
     if (!facts.compliance) hold(`no spec compliance report for ${facts.complianceChange} at this commit`);
     else if (!facts.compliance.ok) hold(`spec compliance report for ${facts.complianceChange} holds`);
