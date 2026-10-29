@@ -25,40 +25,42 @@ The owner, who should open a pull request only when the only thing left is to me
 
 ## What Changes
 
-- **The ready check** (`verify ready <pr>`), the merge gate moved into the `verify` plugin. It keeps every check the gate has today, and:
+- **The ready check** (`verify gate <pr>`), the merge gate moved into the `verify` plugin. It keeps every check the gate has today, and:
   - sorts each reason into one of three kinds: the agent can fix it, it's waiting on running checks, or only the owner can decide;
   - adds two reasons only the owner can settle: a review finding marked "decide", and a finding that says the spec looks wrong;
   - runs on drafts;
   - accepts the Claude fallback in place of Codex;
   - can require reviews only for changes that touch high-risk paths, set per project;
   - drops merge modes and never-merge paths, because the owner merges everything.
-- **The pull request step** (`ready-pr` skill plus a small script). It opens a draft with the layout from `plain`, publishes the proof and runs the ready check. Then it does one of three things: marks the pull request ready; keeps it a draft and goes back to fixing; or keeps it a draft with the owner's question on top. A new commit on a ready pull request turns it back into a draft. After three fix rounds without becoming ready, it stops and asks the owner.
+- **The pull request step** (`pr-open` skill plus a small script). It opens a draft with the layout from `plain`, publishes the proof and runs the ready check. Then it does one of three things: marks the pull request ready; keeps it a draft and goes back to fixing; or keeps it a draft with the owner's question on top. A new commit on a ready pull request turns it back into a draft. After three fix rounds without becoming ready, it stops and asks the owner.
 - **Follow-up reviews.** When a pull request already has a review of an earlier commit, `pr-review` starts from that review's findings and the diff since that commit. The new verdict is still for the exact new commit, and it says which earlier findings are fixed.
 - **Evidence in the pull request** (`evidence.mjs publish`). It copies a run's screenshots and recordings to a separate `verify-evidence` branch and writes a "Proof it works" section into the pull request's description. Hermes's `ui:evidence` script is the model.
+- **Names.** Skills in a family start with the family name (`pr-open`, `pr-review`), and commands are `<plugin> <noun>`. The README's naming section gets this rule.
 - **cstack's own settings.** cstack's `.claude/verify.json` lists its high-risk paths: the guard, the review and verdict scripts, the ready check and `install.sh`. Reviews are required only when a change touches them.
 
 ## Capabilities
 
 ### New
 
-- `verify/ready`: the ready check.
-- `verify/ready-pr`: the pull request step.
+- `verify/gate`: the ready check.
+- `verify/pr-open`: the pull request step.
 - `verify/evidence-publish`: proof in the pull request.
 - `verify/review-follow-up`: follow-up reviews.
 
 ### Modified
 
-- `factory/gate` from `add-factory-gate` moves to `verify/ready`. `factory gate` is removed; `factory` keeps `tokens` and `budget`. Group 6 of `add-factory-gate` is replaced by this change.
+- `factory/gate` from `add-factory-gate` moves to `verify/gate`. `factory gate` becomes `verify gate`; `factory` keeps `tokens` and `budget`. Group 6 of `add-factory-gate` is replaced by this change.
 
 ## Non-goals
 
 - Merging. Nothing in this change merges a pull request.
-- Watching pull requests or starting agents. The coding app does that; the `ready-pr` step runs when an agent calls it.
-- The `start-change` and `continue-change` skills. They come in a later change and will call `ready-pr`.
-- Changing Hermes's or OHH's own pull request checks. Each project adopts the step in its own pull request.
+- Watching pull requests or starting agents. The coding app does that; the `pr-open` step runs when an agent calls it.
+- The `start-change` and `continue-change` skills. They come in a later change and will call `pr-open`.
+- How a project captures proof. That stays in each project's app skill; cstack only defines the run record and publishes it.
+- Changing Hermes's or the OneHeartHealth app's own pull request checks. Each project adopts the step in its own pull request.
 
 ## Impact
 
-- Code: `plugins/factory/scripts/lib/{gate,facts,zone,ledger,settings}.mjs` move to `plugins/verify/scripts/lib/`, with their tests. New `plugins/verify/scripts/ready.mjs` and `pr-state.mjs`. Changes to `evidence.mjs`, `review-prep.mjs`, `verdict.mjs`.
-- Skills: new `ready-pr`; changes to `pr-review`, `verify` and `how-to-use-cstack`.
-- Settings: `.claude/verify.json` gains a `ready` block, which replaces the `factory` block; `docs/project-settings.md` documents it. Old `factory` blocks are still read, with a warning.
+- Code: `plugins/factory/scripts/lib/{gate,facts,zone,ledger,settings}.mjs` move to `plugins/verify/scripts/lib/`, with their tests. New `plugins/verify/scripts/gate.mjs` and `pr-open.mjs`. Changes to `evidence.mjs`, `review-prep.mjs`, `verdict.mjs`.
+- Skills: new `pr-open`; changes to `pr-review`, `verify` and `how-to-use-cstack`.
+- Settings: `.claude/verify.json` gains a `gate` block, which replaces the `factory` block; `docs/project-settings.md` documents it. Old `factory` blocks are still read, with a warning.
