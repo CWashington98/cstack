@@ -685,7 +685,8 @@ test("round 2: smaller spellings that used to slip past", () => {
   allowed(dir, "gh api repos/o/r/pulls -f title=x -f body='about prod-backend-9' -f head=feat/x -f base=staging");
   allowed(dir, "rm -rf {dist,build}");
   allowed(dir, "rm -rf /tmp/guard-x");
-  refused(dir, "rm -rf /tmp", /outside/);
+  // On Linux the test folder sits under /tmp, so the guard may name the repository inside it instead.
+  refused(dir, "rm -rf /tmp", /outside|whole repository/);
 });
 
 test("round 3: workspace scripts that run every workspace are checked once each, so the guard can't hang", () => {
