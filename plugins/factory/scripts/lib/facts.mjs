@@ -59,7 +59,7 @@ export function parseNumstat(output) {
     const [added, deleted, path] = [entry.slice(0, first), entry.slice(first + 1, second), entry.slice(second + 1)];
     const binary = added === "-" && deleted === "-";
     if (!path || (!binary && !(/^\d+$/.test(added) && /^\d+$/.test(deleted)))) return null;
-    files.push({ path, additions: binary ? 0 : Number(added), deletions: binary ? 0 : Number(deleted) });
+    files.push({ path, additions: binary ? 0 : Number(added), deletions: binary ? 0 : Number(deleted), binary });
   }
   return files;
 }
@@ -196,6 +196,7 @@ export function collectFacts({ cwd, pr, settings, env = process.env }) {
         changedFiles = [...gitPaths];
         facts.changedFiles = changedFiles;
         Object.assign(facts, countLines(ownFiles, settings));
+        for (const f of ownFiles) if (f.binary && !matchesAny(f.path, settings.notCounted)) lost("line count", `git can't count lines in ${f.path}`);
       }
       // Trunk's changes since the branch point. Both sides of a rename are listed, and paths are read byte for byte.
       // Every commit's own paths, so an edit a later commit restored still counts.

@@ -370,3 +370,17 @@ test("[codex-1] a CI config change that a later trunk commit reverted is still s
   assert.equal(facts.ciChanged, true);
   assert.match(text(result), /CI configuration/);
 });
+
+test("[claims-auditor-r2-1] a binary file outside notCounted holds as uncountable, naming the path", () => {
+  const cwd = repo(); const head = branch(cwd, "f", () => write(cwd, "src/big.ts", "// \0\n" + "x\n".repeat(900)));
+  const { result } = gather(cwd, { head, files: [{ path: "src/big.ts" }] });
+  assert.equal(result.call, "would-hold");
+  assert.match(text(result), /git can't count lines in src\/big\.ts/);
+});
+
+test("[claims-auditor-r2-1] a binary file inside notCounted is still skipped", () => {
+  const cwd = repo(); const head = branch(cwd, "f", () => write(cwd, "src/x.lock", "\0\0\0\n"));
+  const { facts, result } = gather(cwd, { head, files: [file("src/x.lock")] });
+  assert.deepEqual(facts.missing, []);
+  assert.equal(result.call, "would-merge", text(result));
+});
