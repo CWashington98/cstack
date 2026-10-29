@@ -1,0 +1,7 @@
+{
+  "name": "factory",
+  "version": "0.1.0",
+  "description": "A shadow merge gate, subscription budget meter and token-usage report for validated delivery.",
+  "author": { "name": "Crishon Washington" },
+  "license": "MIT"
+}
