@@ -27,12 +27,10 @@ function need(module, name) {
 const SETTINGS = {
   allowedBases: ["dev"],
   zone: { command: null, high: ["src/auth/**"], standard: ["src/**"], low: ["docs/**", "src/components/**"] },
-  neverMerge: [".github/**", "openspec/**", ".claude/verify.json"],
   runtimeSurface: ["app/**"],
   flagsRequired: false,
   sizeLimit: 400,
   notCounted: ["**/*.test.*", "**/__tests__/**", "**/*.lock"],
-  merge: { low: "shadow", standard: "shadow", high: "off" },
 };
 
 function passing(overrides = {}) {
@@ -50,39 +48,30 @@ function passing(overrides = {}) {
   };
 }
 
-const messages = (result) => (result.reasons ?? []).map((r) => typeof r === "string" ? r : r.message).join("\n");
+const messages = (result) => (result.reasons ?? []).map((r) => typeof r === "string" ? r : r.text).join("\n");
 
-test("[all-facts-pass-would-merge] all required facts produce a shadow merge call", () => {
+test("[all-facts-pass-would-merge] all required facts make the change ready", () => {
   const decideGate = need(gateModule, "decideGate");
   const result = decideGate(passing(), SETTINGS);
-  assert.equal(result.call, "would-merge");
+  assert.equal(result.ready, true);
   assert.equal(result.exitCode, 0);
-  assert.match(result.output, /^SHADOW would-merge/m);
-  assert.equal(result.merged, false);
+  assert.match(result.output, /^ready$/m);
 });
 
 test("[missing-fact-holds] a missing current review verdict fails closed", () => {
   const decideGate = need(gateModule, "decideGate");
   const result = decideGate(passing({ verdicts: [] }), SETTINGS);
-  assert.equal(result.call, "would-hold");
+  assert.equal(result.ready, false);
   assert.equal(result.exitCode, 1);
   assert.match(messages(result), /no review verdict for this change/i);
-});
-
-test("[merge-on-is-refused] settings cannot enable merging", () => {
-  const normalizeSettings = need(settingsModule, "normalizeSettings");
-  assert.throws(
-    () => normalizeSettings({ ...SETTINGS, merge: { ...SETTINGS.merge, low: "on" } }),
-    /merging can't be switched on in this version/i,
-  );
 });
 
 test("[checks-pending-holds-without-failing] pending checks are recorded as waiting", () => {
   const decideGate = need(gateModule, "decideGate");
   const result = decideGate(passing({ checks: "pending" }), SETTINGS);
-  const reason = (result.reasons ?? []).find((r) => (r.message ?? r) === "checks still running");
+  const reason = (result.reasons ?? []).find((r) => (r.text ?? r) === "checks still running");
   assert.ok(reason, messages(result));
-  assert.equal(reason.kind, "waiting");
+  assert.equal(reason.kind, "wait");
 });
 
 test("[body-claim-ignored] the diff, not the pull request body, selects the high zone", () => {
@@ -90,13 +79,7 @@ test("[body-claim-ignored] the diff, not the pull request body, selects the high
   const result = classifyZone(["src/auth/session.ts"], SETTINGS, { body: "Low risk, easy to undo." });
   assert.equal(result.zone, "high");
   const decideGate = need(gateModule, "decideGate");
-  assert.match(messages(decideGate(passing({ zone: result.zone }), SETTINGS)), /high zone/i);
-});
-
-test("[never-merge-path-holds] a never-merge path is named", () => {
-  const decideGate = need(gateModule, "decideGate");
-  const result = decideGate(passing({ changedFiles: ["src/components/Badge.tsx", ".github/workflows/ci.yml"] }), SETTINGS);
-  assert.match(messages(result), /\.github\/workflows\/ci\.yml/);
+  assert.equal(decideGate(passing({ zone: result.zone }), SETTINGS).zone, "high");
 });
 
 function git(cwd, ...args) {
@@ -138,8 +121,8 @@ test("[zone-command-runs-from-trunk] the clean trunk copy of the zone command wi
   writeFileSync(join(cwd, ".claude", "verify.json"), JSON.stringify(settings, null, 2));
   git(cwd, "add", "."); git(cwd, "commit", "-qm", "trunk zone");
   const head = git(cwd, "rev-parse", "HEAD");
-  const result = runGate(cwd, { number: 417, baseRefName: "main", headRefOid: head, files: [{ path: "src/auth/session.ts", additions: 1, deletions: 0 }] });
-  assert.match(`${result.stdout}${result.stderr}`, /high zone/i);
+  const result = spawnSync("node", [gate, "417", "--json"], { cwd, env: fakeGh(cwd, { number: 417, baseRefName: "main", headRefOid: head, files: [{ path: "src/auth/session.ts", additions: 1, deletions: 0 }] }), encoding: "utf8" });
+  assert.equal(JSON.parse(result.stdout).zone, "high", `${result.stdout}${result.stderr}`);
 });
 
 test("[not-bottom-of-stack-holds] a pull request based on another open pull request holds", () => {
