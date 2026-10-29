@@ -34,12 +34,17 @@ if (!["gate", "budget", "tokens"].includes(command)) {
         process.exitCode = 2;
       } else {
         const facts = collectFacts({ cwd: process.cwd(), pr, settings });
-        const result = decideGate(facts, settings);
+        let result = decideGate(facts, settings);
+        // The record is written before the call is printed. If it can't be written, the call is a hold.
+        if (facts.head) {
+          const record = () => writeRecord(process.cwd(), { pr: facts.pr, head: facts.head, patchId: facts.patchId, zone: facts.zone, call: result.call, reasons: result.reasons });
+          try { record(); } catch (error) {
+            facts.missing.push({ fact: "ledger", why: `could not record the call (${error.message})` });
+            result = decideGate(facts, settings);
+          }
+        } else console.error("no record written: the head commit is unknown");
         console.log(result.output);
         process.exitCode = result.exitCode;
-        if (facts.head) {
-          writeRecord(process.cwd(), { pr: facts.pr, head: facts.head, patchId: facts.patchId, zone: facts.zone, call: result.call, reasons: result.reasons });
-        } else console.error("no record written: the head commit is unknown");
       }
     } else if (command === "budget") {
       const profileDirs = options("--claude-dir");
