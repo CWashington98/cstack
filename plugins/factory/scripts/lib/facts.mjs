@@ -47,6 +47,23 @@ export function summarizeChecks(rollup) {
   return pending ? "pending" : "green";
 }
 
+// NUL-separated git output, read as is: no trimming and no Git quoting of odd paths.
+const nul = (text) => text.split("\0").filter(Boolean);
+
+// Changed paths and line counts from git itself: `git diff --numstat --no-renames -z`. Binary files count as 0 lines.
+export function parseNumstat(output) {
+  const files = [];
+  for (const entry of nul(output)) {
+    const first = entry.indexOf("\t"), second = entry.indexOf("\t", first + 1);
+    if (first < 0 || second < 0) return null;
+    const [added, deleted, path] = [entry.slice(0, first), entry.slice(first + 1, second), entry.slice(second + 1)];
+    const binary = added === "-" && deleted === "-";
+    if (!path || (!binary && !(/^\d+$/.test(added) && /^\d+$/.test(deleted)))) return null;
+    files.push({ path, additions: binary ? 0 : Number(added), deletions: binary ? 0 : Number(deleted) });
+  }
+  return files;
+}
+
 export function countLines(files, settings) {
   let codeLines = 0, ignoredLines = 0;
   for (const file of files) {
@@ -110,21 +127,36 @@ export function collectFacts({ cwd, pr, settings, env = process.env }) {
   }
   // The number GitHub reports is the one recorded, not the one typed.
   if (Number.isInteger(data.number)) facts.pr = data.number;
-  const changedFiles = data.files.map((f) => f.path);
+  // gh's list can be cut short and carries no trustworthy counts, so it is only a cross-check. Git supplies the real paths and counts below.
+  const ghFiles = data.files.map((f) => f.path);
+  let changedFiles = ghFiles;
   const head = data.headRefOid;
   const base = data.baseRefName;
   const description = typeof data.body === "string" ? data.body : "";
   const baseAllowed = settings.allowedBases.includes(base);
-  Object.assign(facts, { head, base, baseAllowed, changedFiles, description, draft: data.isDraft === true, ...countLines(data.files, settings) });
+  Object.assign(facts, { head, base, baseAllowed, changedFiles, description, draft: data.isDraft === true });
   if (typeof data.isDraft !== "boolean") lost("draft state", "gh did not say");
   facts.checks = summarizeChecks(data.statusCheckRollup);
 
-  // Review threads.
-  const graphql = run("gh", ["api", "graphql", "-F", "owner={owner}", "-F", "name={repo}", "-F", `number=${pr}`, "-f",
-    "query=query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){reviewThreads(first:100){pageInfo{hasNextPage} nodes{isResolved}}}}}"], { cwd, env });
-  const threads = parseJson(graphql.status === 0 ? graphql.stdout : "")?.data?.repository?.pullRequest?.reviewThreads;
-  if (!threads || !Array.isArray(threads.nodes)) lost("review threads", "gh api graphql gave nothing usable");
-  else facts.unresolvedThreads = threads.pageInfo?.hasNextPage === true || threads.nodes.some((n) => !n.isResolved);
+  // Review threads, every page.
+  const THREAD_PAGES = 20;
+  const threadQuery = "query($owner:String!,$name:String!,$number:Int!,$after:String){repository(owner:$owner,name:$name){pullRequest(number:$number){reviewThreads(first:100,after:$after){pageInfo{hasNextPage endCursor} nodes{isResolved}}}}}";
+  let cursor = null, unresolved = false, pages = 0, threadProblem = null;
+  for (;;) {
+    const graphql = run("gh", ["api", "graphql", "-F", "owner={owner}", "-F", "name={repo}", "-F", `number=${pr}`, ...(cursor ? ["-f", `after=${cursor}`] : []), "-f", `query=${threadQuery}`], { cwd, env });
+    const threads = parseJson(graphql.status === 0 ? graphql.stdout : "")?.data?.repository?.pullRequest?.reviewThreads;
+    if (!threads || !Array.isArray(threads.nodes)) { threadProblem = `gh api graphql gave nothing usable${pages ? ` for page ${pages + 1}` : ""}`; break; }
+    pages += 1;
+    if (threads.nodes.some((n) => !n.isResolved)) { unresolved = true; break; }
+    if (threads.pageInfo?.hasNextPage !== true) break;
+    if (typeof threads.pageInfo.endCursor !== "string" || !threads.pageInfo.endCursor) { threadProblem = "gh gave no cursor for the next page of review threads"; break; }
+    if (pages >= THREAD_PAGES) { threadProblem = `more than ${THREAD_PAGES * 100} review threads, not all read`; break; }
+    cursor = threads.pageInfo.endCursor;
+  }
+  // One unresolved thread is enough to hold, even when a later page can't be read.
+  if (unresolved) facts.unresolvedThreads = true;
+  else if (threadProblem) lost("review threads", threadProblem);
+  else facts.unresolvedThreads = false;
 
   // Stack: the base must not be another open pull request's branch.
   if (baseAllowed) facts.bottomOfStack = true;
@@ -152,10 +184,24 @@ export function collectFacts({ cwd, pr, settings, env = process.env }) {
     const mergeBase = git(cwd, "merge-base", trunk, head);
     if (mergeBase.status !== 0) lost("merge base", "trunk and the pull request share no history");
     else {
-      const moved = git(cwd, "diff", "--name-only", `${mergeBase.stdout.trim()}..${trunk}`);
+      const point = mergeBase.stdout.trim();
+      // The pull request's own diff, from git. Zone, never-merge, runtime surface and size all use it.
+      const own = git(cwd, "diff", "--numstat", "--no-renames", "-z", point, head);
+      const ownFiles = own.status === 0 ? parseNumstat(own.stdout) : null;
+      if (!ownFiles) lost("changed files", "git diff of the pull request failed or could not be read");
+      else {
+        const gitPaths = new Set(ownFiles.map((f) => f.path));
+        const unknown = ghFiles.filter((p) => !gitPaths.has(p));
+        if (unknown.length) lost("changed files", `gh lists ${unknown.slice(0, 3).join(", ")} but git shows no change to it`);
+        changedFiles = [...gitPaths];
+        facts.changedFiles = changedFiles;
+        Object.assign(facts, countLines(ownFiles, settings));
+      }
+      // Trunk's changes since the branch point. Both sides of a rename are listed, and paths are read byte for byte.
+      const moved = git(cwd, "diff", "--name-only", "--no-renames", "-z", point, trunk);
       if (moved.status !== 0) lost("trunk changes", "git diff failed");
       else {
-        const trunkFiles = lines(moved.stdout);
+        const trunkFiles = nul(moved.stdout);
         facts.trunkTouched = changedFiles.filter((p) => trunkFiles.includes(p));
         facts.ciChanged = trunkFiles.some((p) => matchesAny(p, [".github/**"]));
       }
