@@ -121,6 +121,14 @@ function testSettingsProblems(s) {
   return out;
 }
 
+// Problems with the fields the screenshot check in pr-review reads.
+export function screenshotSettingsProblems(s) {
+  const out = [];
+  if (s.userVisible !== undefined && !isList(s.userVisible)) out.push(`"userVisible" must be a list of path patterns.`);
+  if (s.screenshotsRequiredFor !== undefined && !isList(s.screenshotsRequiredFor)) out.push(`"screenshotsRequiredFor" must be a list of account names.`);
+  return out;
+}
+
 const MISSING_BY_NAME = `Add "tests.byName" to .claude/verify.json: the command that runs one scenario's tests by name, with {name} where the name goes. {name} becomes the bracket text a scenario's tests carry, such as [scenario-id] or a longer [area/feature:requirement/scenario-id], brackets included. If your test tool reads the name as a pattern, escape the opening bracket, as in "<your test command> --filter \"\\{name}\"".`;
 
 // The settings the spec compliance check needs, or what is wrong with them.
@@ -148,7 +156,7 @@ export function checkRepoSettings(repoRoot) {
     if (v !== undefined && !(Array.isArray(v) && v.every((x) => typeof x === "string" && x.trim().length >= 3))) out.push(appHold(file, 0, `"${field}" must be a list of text entries, each at least 3 characters long. The guard matches them inside commands, so a short entry would refuse too much.`));
   }
   if (s.protectedBranches !== undefined && !(Array.isArray(s.protectedBranches) && s.protectedBranches.every((x) => typeof x === "string" && x.trim()))) out.push(appHold(file, 0, `"protectedBranches" must be a list of branch names.`));
-  for (const message of testSettingsProblems(s)) out.push(appHold(file, 0, message));
+  for (const message of [...testSettingsProblems(s), ...screenshotSettingsProblems(s)]) out.push(appHold(file, 0, message));
   return out;
 }
 

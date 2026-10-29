@@ -30,7 +30,8 @@ Each is a script. A failure stops the review and goes back to the author.
 
 - For each plan or spec the change adds or edits: `node <plugin>/scripts/verify-plan.mjs <file>`.
 - The `plain` checker on the pull request description file.
-- For a change users can see: `node <plugin>/scripts/evidence.mjs check <run> --full-run --head HEAD` for each evidence run the description cites. A change users can see with no live evidence fails here.
+- Screenshots: `node <plugin>/scripts/screenshots.mjs --base <base> --pr-body <description file> --author <account>`. The account is the pull request's author (`gh pr view <number> --json author -q .author.login`), or, before it opens, the account that will open it (`gh api user -q .login`). It does nothing unless `.claude/verify.json` lists `userVisible` path patterns and a changed file matches one. Then the description needs screenshots of the running app: a Markdown image, an `<img>` tag or a `pr-assets/` link. Images inside comments or code, and buttons that bots add, don't count. A line `Screenshots: not applicable — <reason>` counts too. For an account listed in `screenshotsRequiredFor`, no screenshots is a failure. For anyone else it is a note that they are worth adding, and it never stops the review, because their machine may not run the app. For them a line `Screenshots: not taken — <reason>` is enough. Pass a note on to the author when you report in step 9.
+- For a change users can see: `node <plugin>/scripts/evidence.mjs check <run> --full-run --head HEAD` for each evidence run the description cites. A change users can see with no live evidence fails here. When `userVisible` is set, a change users can see is one the screenshot check matched. Without it, judge from the change.
 
 ## 4. Prepare what the reviewers see
 
@@ -110,7 +111,7 @@ The cold reader is advice: send its real gaps back to the writer, at most twice.
 
 ## 9. Report and post
 
-- Both say ready: say so, with the commit ID and any decisions the comment asks for.
+- Both say ready: say so, with the commit ID, any decisions the comment asks for, and any note from the screenshot check.
 - Either says not ready: list the items to fix. Review again on the new commit.
 - They disagree: the comment says so in "what you need to do". The owner decides.
 
