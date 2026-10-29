@@ -40,13 +40,13 @@ function setup({ files, block = "gate", gate: gateSettings = {}, project = {} })
 }
 
 // A review verdict as `verdict.mjs write` stores it.
-function verdict({ cwd, head }, reviewer, { said = "ready", findings = [], model } = {}) {
+function verdict({ cwd, head }, reviewer, { said = "ready", findings = [], model, date = "2026-10-29T10:00:00.000Z" } = {}) {
   const dir = join(cwd, ".git", "verify", "verdicts");
   mkdirSync(dir, { recursive: true });
   const models = { "claims-auditor": "claude-opus-4-1", codex: "gpt-5.1-codex", "claude-fallback": "claude-sonnet-5-5" };
   writeFileSync(join(dir, `${head}.${reviewer}.json`), JSON.stringify({
     reviewer, model: model ?? models[reviewer], note: reviewer === "claude-fallback" ? "Codex hit its usage limit" : null,
-    head, base: "main", mergeBase: head, patchId: "x", said, verdict: said, summary: "s", findings, date: "2026-10-29T10:00:00.000Z",
+    head, base: "main", mergeBase: head, patchId: "x", said, verdict: said, summary: "s", findings, date,
   }));
 }
 const both = (change, options) => { verdict(change, "claims-auditor", options); verdict(change, "codex"); };
@@ -71,7 +71,7 @@ else process.exit(1);
   chmodSync(join(dir, "bin", "gh"), 0o755);
   const files = git(change.cwd, "diff", "--name-only", "main", change.head).split("\n").map((path) => ({ path, additions: 1, deletions: 0 }));
   const payload = { number: 88, baseRefName: "main", headRefOid: change.head, isDraft: true, body: "", files, ...(noRollup ? {} : { statusCheckRollup: passed }), ...view };
-  const env = { ...process.env, PATH: `${join(dir, "bin")}:${process.env.PATH}`, GH_LOG: log, GH_VIEW: JSON.stringify(payload), GH_GQL: JSON.stringify(threads) };
+  const env = { ...process.env, HOME: dir, PATH: `${join(dir, "bin")}:${process.env.PATH}`, GH_LOG: log, GH_VIEW: JSON.stringify(payload), GH_GQL: JSON.stringify(threads) };
   const result = spawnSync("node", [gate, "88", ...args], { cwd: change.cwd, env, encoding: "utf8" });
   return { ...result, calls: existsSync(log) ? readFileSync(log, "utf8") : "" };
 }
@@ -164,14 +164,14 @@ test("[high-risk-change-needs-reviews] with reviews highRisk a high-risk path wi
   const change = setup({ files: { "plugins/core/scripts/guard.mjs": "export {};\n" }, ...risky });
   const result = runJson(change);
   assert.equal(result.status, 1);
-  assert.ok(result.json.reasons.some((r) => r.kind === "fix" && /verdict/i.test(r.text)), JSON.stringify(result.json.reasons));
+  assert.ok(result.json.reasons.some((r) => r.kind === "fix" && /verdict/i.test(r.text) && /claims-auditor/.test(r.text) && /codex/.test(r.text)), JSON.stringify(result.json.reasons));
 });
 
 test("[reviews-required-by-default] with no reviews setting a README-only change without verdicts is a fix reason", () => {
   const change = setup({ files: { "README.md": "changed\n" } });
   const result = runJson(change);
   assert.equal(result.status, 1);
-  assert.ok(result.json.reasons.some((r) => r.kind === "fix" && /verdict/i.test(r.text)), JSON.stringify(result.json.reasons));
+  assert.ok(result.json.reasons.some((r) => r.kind === "fix" && /verdict/i.test(r.text) && /claims-auditor/.test(r.text) && /codex/.test(r.text)), JSON.stringify(result.json.reasons));
 });
 
 test("[fallback-verdict-accepted] a claude-fallback verdict fills the second review slot", () => {
@@ -184,14 +184,13 @@ test("[fallback-verdict-accepted] a claude-fallback verdict fills the second rev
 });
 
 test("[workflow-change-is-not-held-by-path] a workflow edit is ready and the zone is reported", () => {
-  const change = setup({ files: { ".github/workflows/ci.yml": "on: push\n" } });
+  const change = setup({ files: { ".github/workflows/ci.yml": "on: push\n" }, gate: { zone: { high: [".github/**"] } } });
   both(change);
   const plain = run(change);
   assert.equal(plain.stdout.trim(), "ready", plain.stderr);
   assert.equal(plain.status, 0);
   const json = runJson(change).json;
-  assert.equal(typeof json.zone, "string", JSON.stringify(json));
-  assert.ok(json.zone.length > 0);
+  assert.equal(json.zone, "high", JSON.stringify(json));
 });
 
 test("[old-factory-block-still-read] a factory block with no gate block is read, with a rename warning", () => {
@@ -201,4 +200,74 @@ test("[old-factory-block-still-read] a factory block with no gate block is read,
   assert.equal(result.status, 1);
   assert.ok(result.json.reasons.some((r) => r.kind === "fix" && /200/.test(r.text) && /lines|size|limit/i.test(r.text)), JSON.stringify(result.json.reasons));
   assert.match(result.stderr, /factory.*renamed.*gate/i);
+});
+
+// Holes the slice A review found. Not scenarios of their own; each guards a scenario's promise.
+
+test("a newer fallback verdict does not outvote a Codex not-ready verdict", () => {
+  const change = setup({ files: { "docs/a.md": "a\n" } });
+  verdict(change, "claims-auditor");
+  verdict(change, "codex", { said: "not ready", date: "2026-10-29T10:05:00.000Z" });
+  verdict(change, "claude-fallback", { date: "2026-10-29T10:10:00.000Z" });
+  const result = runJson(change);
+  assert.equal(result.status, 1);
+  assert.ok(result.json.reasons.some((r) => r.kind === "fix" && /codex/.test(r.text)), JSON.stringify(result.json.reasons));
+});
+
+test("a change to the settings file always needs reviews, even with reviews highRisk", () => {
+  const change = setup({ files: { "README.md": "changed\n" }, ...risky });
+  write(change.cwd, ".claude/verify.json", "{}");
+  git(change.cwd, "switch", "-q", "feature");
+  write(change.cwd, ".claude/verify.json", JSON.stringify({ integrationBranch: "main", highRisk: [], gate: { allowedBases: ["main"], reviews: "highRisk" } }));
+  git(change.cwd, "commit", "-qam", "turn reviews off");
+  const moved = { cwd: change.cwd, head: git(change.cwd, "rev-parse", "HEAD") };
+  const result = runJson(moved);
+  assert.equal(result.status, 1);
+  assert.ok(result.json.reasons.some((r) => r.kind === "fix" && /missing: claims-auditor, codex/.test(r.text)), JSON.stringify(result.json.reasons));
+});
+
+test("reviews highRisk with an empty risk list still needs reviews", () => {
+  const change = setup({ files: { "README.md": "changed\n" }, gate: { reviews: "highRisk" }, project: { highRisk: [] } });
+  const result = runJson(change);
+  assert.equal(result.status, 1);
+  assert.ok(result.json.reasons.some((r) => r.kind === "fix" && /missing: claims-auditor, codex/.test(r.text)), JSON.stringify(result.json.reasons));
+});
+
+test("a Codex verdict alone is missing the claims auditor", () => {
+  const change = setup({ files: { "docs/a.md": "a\n" } });
+  verdict(change, "codex");
+  const result = runJson(change);
+  assert.equal(result.status, 1);
+  assert.ok(result.json.reasons.some((r) => r.kind === "fix" && /missing: claims-auditor\)/.test(r.text)), JSON.stringify(result.json.reasons));
+});
+
+test("a change mixing a high-risk path with other files needs reviews", () => {
+  const change = setup({ files: { "README.md": "changed\n", "plugins/core/scripts/guard.mjs": "export {};\n" }, ...risky });
+  const result = runJson(change);
+  assert.equal(result.status, 1);
+  assert.ok(result.json.reasons.some((r) => r.kind === "fix" && /missing: claims-auditor, codex/.test(r.text)), JSON.stringify(result.json.reasons));
+});
+
+test("a decide finding the validator could not reproduce asks the owner nothing", () => {
+  const change = setup({ files: { "docs/a.md": "a\n" } });
+  both(change, { findings: [finding({ claim: "Keep or delete old drafts?", reproduced: false })] });
+  const result = runJson(change);
+  assert.equal(result.status, 0, JSON.stringify(result.json));
+  assert.ok(!result.json.reasons.some((r) => r.kind === "owner"));
+});
+
+test("a runtime change is ready with a verified live run for its head, and not without one", () => {
+  const change = setup({ files: { "src/app.ts": "export {};\n" }, gate: { runtimeSurface: ["src/**"] } });
+  both(change);
+  const without = runJson(change);
+  assert.ok(without.json.reasons.some((r) => r.kind === "fix" && /live proof/.test(r.text)), JSON.stringify(without.json.reasons));
+  const dir = join(change.cwd, ".verify", "runs", "app", "run1");
+  write(dir, "trigger.png", "t"); write(dir, "end.png", "e");
+  write(dir, "run.json", JSON.stringify({ version: 1, app: "app", commit: change.head, dirty: false, status: "verified live", steps: [
+    { kind: "start", ok: true }, { kind: "health", ok: true },
+    { kind: "drive", ok: true, feature: "open", trigger: "trigger.png", end: "end.png", sideEffects: "none: it only reads" },
+    { kind: "cleanup", ok: true },
+  ] }));
+  const result = runJson(change);
+  assert.equal(result.status, 0, JSON.stringify(result.json.reasons));
 });

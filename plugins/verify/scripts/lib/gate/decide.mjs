@@ -32,8 +32,11 @@ export function decideGate(facts, settings) {
   else if (facts.checks !== undefined && facts.checks !== "green") fix(`checks in an unknown state: ${facts.checks}`);
 
   // Verdicts are required unless the project asks for them only on high-risk paths and this change touches none.
-  // A verdict that exists always counts.
-  const reviewsRequired = settings.reviews !== "highRisk" || (facts.changedFiles ?? []).some((p) => matchesAny(p, settings.highRisk));
+  // An empty risk list, or a change to the settings file the gate reads, always needs them: otherwise a change
+  // could switch off its own reviews. A verdict that exists always counts.
+  const changed = facts.changedFiles ?? [];
+  const reviewsRequired = settings.reviews !== "highRisk" || !settings.highRisk.length
+    || changed.includes(".claude/verify.json") || changed.some((p) => matchesAny(p, settings.highRisk));
   const verdicts = facts.verdicts ?? [];
   if (reviewsRequired) {
     const absent = [];
