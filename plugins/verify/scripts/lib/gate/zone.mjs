@@ -29,8 +29,7 @@ export function classifyZone(paths, settings, _pullRequest = {}) {
     const own = ["high", "standard", "low"].find((name) => matchesAny(path, lists[name])) ?? "standard";
     if (ORDER.indexOf(own) > ORDER.indexOf(zone)) zone = own;
   }
-  const neverMerge = paths.filter((path) => matchesAny(path, settings.neverMerge));
-  return { zone: paths.length ? zone : "standard", neverMerge, source: "patterns" };
+  return { zone: paths.length ? zone : "standard", source: "patterns" };
 }
 
 const git = (cwd, ...args) => spawnSync("git", args, { cwd, encoding: "utf8" });

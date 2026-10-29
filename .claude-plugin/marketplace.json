@@ -19,13 +19,13 @@
     {
       "name": "verify",
       "source": "./plugins/verify",
-      "description": "Proves that work works, not only that tests pass: a proof standard, a check that specs and plans name their evidence, one verification skill per app (created by verify-setup, kept honest by verify-upkeep), shared guides for driving web and Expo apps, and the pr-review skill: claims auditor plus Codex verdicts tied to the commit, posted as one plain-English comment."
+      "description": "Proves that work works, not only that tests pass: a proof standard, a check that specs and plans name their evidence, one verification skill per app (created by verify-setup, kept honest by verify-upkeep), shared guides for driving web and Expo apps, the pr-review skill (claims auditor plus Codex verdicts tied to the commit, posted as one plain-English comment), and the ready check (verify gate), which says whether a pull request is ready for the owner to merge and sorts every reason into fix, wait or owner."
     },
     {
       "name": "factory",
       "source": "./plugins/factory",
       "version": "0.1.0",
-      "description": "The merge gate (factory gate), token usage report (factory tokens), budget meter and review routing. Merging without the owner is parked; see LATER.md."
+      "description": "Token usage report (factory tokens), and budget meter with review routing (factory budget). The merge gate moved to verify (verify gate)."
     },
     {
       "name": "agent-browser",
