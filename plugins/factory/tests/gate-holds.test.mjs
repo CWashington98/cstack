@@ -345,7 +345,7 @@ test("the ledger is written before the call is printed", () => {
 
 test("a trunk that is not in the checkout is reported as unreadable", () => {
   const cwd = repo(); const head = branch(cwd, "f", () => write(cwd, "docs/x.md", "x\n"));
-  const { facts, result } = gather(cwd, { head, files: [file("docs/x.md")], view: { baseRefName: "feat/gone" } });
+  const { facts, result } = gather(cwd, { head, files: [file("docs/x.md")], view: { baseRefName: "feat/gone" }, settings: { ...SETTINGS, allowedBases: ["nowhere"] } });
   assert.ok(facts.missing.some((m) => m.fact === "trunk"), JSON.stringify(facts.missing));
   assert.match(text(result), /can't read trunk/);
 });
