@@ -71,6 +71,26 @@ export function parseNumstat(output) {
   return files;
 }
 
+// The same, with renames found (`-M`): a rename is "<added>\t<deleted>\t" followed by the old and new paths as two
+// more fields. Used only for size, so a moved file counts its edited lines, not every line twice.
+export function parseNumstatMoves(output) {
+  const fields = output.split("\0");
+  const files = [];
+  for (let i = 0; i < fields.length; i++) {
+    const entry = fields[i];
+    if (!entry) continue;
+    const first = entry.indexOf("\t"), second = entry.indexOf("\t", first + 1);
+    if (first < 0 || second < 0) return null;
+    const [added, deleted] = [entry.slice(0, first), entry.slice(first + 1, second)];
+    let path = entry.slice(second + 1);
+    if (!path) { path = fields[i + 2]; i += 2; }
+    const binary = added === "-" && deleted === "-";
+    if (!path || (!binary && !(/^\d+$/.test(added) && /^\d+$/.test(deleted)))) return null;
+    files.push({ path, additions: binary ? 0 : Number(added), deletions: binary ? 0 : Number(deleted), binary });
+  }
+  return files;
+}
+
 export function countLines(files, settings) {
   let codeLines = 0, ignoredLines = 0;
   for (const file of files) {
@@ -207,7 +227,9 @@ export function collectFacts({ cwd, pr, settings, env = process.env }) {
         if (unknown.length) lost("changed files", `gh lists ${unknown.slice(0, 3).join(", ")} but git shows no change to it`);
         changedFiles = [...gitPaths];
         facts.changedFiles = changedFiles;
-        Object.assign(facts, countLines(ownFiles, settings));
+        const moves = git(cwd, "diff", "--no-relative", "--numstat", "-M", "-z", point, head);
+        const sizeFiles = moves.status === 0 ? parseNumstatMoves(moves.stdout) : null;
+        Object.assign(facts, countLines(sizeFiles ?? ownFiles, settings));
         for (const f of ownFiles) if (f.binary && !matchesAny(f.path, settings.notCounted)) lost("line count", `git can't count lines in ${f.path}`);
       }
       // Trunk's changes since the branch point. Both sides of a rename are listed, and paths are read byte for byte.

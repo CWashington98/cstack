@@ -56,7 +56,7 @@ codex exec -s read-only -C "$OUT/codex/repo" --ephemeral --output-schema <this s
 
 Confirm the flags with `codex exec --help` first. If it doesn't read the prompt from standard input with `-`, pass the prompt file's contents as the argument instead.
 
-- **When Codex can't run:** if Codex stops with a usage limit or quota message, run a Claude reviewer in its place. Use the Agent tool with `subagent_type` set to `general-purpose` and `model` set to a model other than the claims auditor's, such as `sonnet`. Give it the same prompt, and have it write `OUT/fallback.json`. Its verdict is recorded as `claude-fallback`, with a note quoting Codex's error. Never skip the second verdict.
+- **When Codex can't run:** if Codex stops with a usage limit or quota message, run a Claude reviewer in its place. Use the Agent tool with `subagent_type` set to `general-purpose` and `model` set to a model other than the claims auditor's, such as `sonnet`. Give it the same prompt, and have it write `OUT/fallback.json`. Its verdict is recorded as `claude-fallback`, with a note quoting Codex's error. Never skip the second verdict. A fallback never overrules a Codex "not ready" for the same change: that stands until Codex reviews again or the change is different.
 
 ## 6. Reproduce every finding
 

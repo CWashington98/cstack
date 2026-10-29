@@ -71,7 +71,8 @@ else process.exit(1);
   chmodSync(join(dir, "bin", "gh"), 0o755);
   const files = git(change.cwd, "diff", "--name-only", "main", change.head).split("\n").map((path) => ({ path, additions: 1, deletions: 0 }));
   const payload = { number: 88, baseRefName: "main", headRefOid: change.head, isDraft: true, body: "", files, ...(noRollup ? {} : { statusCheckRollup: passed }), ...view };
-  const env = { ...process.env, HOME: dir, PATH: `${join(dir, "bin")}:${process.env.PATH}`, GH_LOG: log, GH_VIEW: JSON.stringify(payload), GH_GQL: JSON.stringify(threads) };
+  const { CSTACK_VERIFY, ...inherited } = process.env;
+  const env = { ...inherited, HOME: dir, PATH: `${join(dir, "bin")}:${process.env.PATH}`, GH_LOG: log, GH_VIEW: JSON.stringify(payload), GH_GQL: JSON.stringify(threads) };
   const result = spawnSync("node", [gate, "88", ...args], { cwd: change.cwd, env, encoding: "utf8" });
   return { ...result, calls: existsSync(log) ? readFileSync(log, "utf8") : "" };
 }
@@ -204,7 +205,7 @@ test("[old-factory-block-still-read] a factory block with no gate block is read,
 
 // Holes the slice A review found. Not scenarios of their own; each guards a scenario's promise.
 
-test("a newer fallback verdict does not outvote a Codex not-ready verdict", () => {
+test("[fallback-does-not-hide-codex-not-ready] a newer fallback verdict does not outvote a Codex not-ready verdict", () => {
   const change = setup({ files: { "docs/a.md": "a\n" } });
   verdict(change, "claims-auditor");
   verdict(change, "codex", { said: "not ready", date: "2026-10-29T10:05:00.000Z" });
@@ -214,19 +215,19 @@ test("a newer fallback verdict does not outvote a Codex not-ready verdict", () =
   assert.ok(result.json.reasons.some((r) => r.kind === "fix" && /codex/.test(r.text)), JSON.stringify(result.json.reasons));
 });
 
-test("a change to the settings file always needs reviews, even with reviews highRisk", () => {
+test("[settings-change-needs-reviews] a change to the settings file always needs reviews, even with reviews highRisk", () => {
   const change = setup({ files: { "README.md": "changed\n" }, ...risky });
-  write(change.cwd, ".claude/verify.json", "{}");
   git(change.cwd, "switch", "-q", "feature");
-  write(change.cwd, ".claude/verify.json", JSON.stringify({ integrationBranch: "main", highRisk: [], gate: { allowedBases: ["main"], reviews: "highRisk" } }));
-  git(change.cwd, "commit", "-qam", "turn reviews off");
+  write(change.cwd, ".claude/verify.json", JSON.stringify({ integrationBranch: "main", highRisk: ["plugins/core/scripts/**"], gate: { allowedBases: ["main"], reviews: "highRisk", sizeLimit: 9999 } }));
+  git(change.cwd, "commit", "-qam", "loosen the gate");
   const moved = { cwd: change.cwd, head: git(change.cwd, "rev-parse", "HEAD") };
+  git(change.cwd, "switch", "-q", "main");
   const result = runJson(moved);
   assert.equal(result.status, 1);
   assert.ok(result.json.reasons.some((r) => r.kind === "fix" && /missing: claims-auditor, codex/.test(r.text)), JSON.stringify(result.json.reasons));
 });
 
-test("reviews highRisk with an empty risk list still needs reviews", () => {
+test("[empty-risk-list-needs-reviews] reviews highRisk with an empty risk list still needs reviews", () => {
   const change = setup({ files: { "README.md": "changed\n" }, gate: { reviews: "highRisk" }, project: { highRisk: [] } });
   const result = runJson(change);
   assert.equal(result.status, 1);

@@ -58,7 +58,7 @@
 
 ### Requirement: reviews-required-by-risk
 
-The `gate` block of `.claude/verify.json` SHALL accept `reviews`: `"always"` (the default) or `"highRisk"`. With `"highRisk"`, review verdicts SHALL be required only when the change touches a path matching the project's `highRisk` list. Every other rule SHALL still apply.
+The `gate` block of `.claude/verify.json` SHALL accept `reviews`: `"always"` (the default) or `"highRisk"`. With `"highRisk"`, review verdicts SHALL be required only when the change touches a path matching the project's `highRisk` list, with two exceptions that keep a change from switching off its own reviews: verdicts SHALL still be required when the `highRisk` list is empty, and when the change edits `.claude/verify.json`. Every other rule SHALL still apply.
 
 #### Scenario: low-risk-change-needs-no-review
 
@@ -73,6 +73,19 @@ The `gate` block of `.claude/verify.json` SHALL accept `reviews`: `"always"` (th
 - **WHEN** `verify gate --json` runs on it
 - **THEN** it exits 1 with a `fix` reason that names the missing verdicts
 
+#### Scenario: settings-change-needs-reviews
+
+- **GIVEN** `reviews` is `"highRisk"`, `highRisk` lists `plugins/core/scripts/**`, and the change edits only `.claude/verify.json`
+- **AND** it has no review verdicts
+- **WHEN** `verify gate --json` runs on it
+- **THEN** it exits 1 with a `fix` reason that names the missing verdicts
+
+#### Scenario: empty-risk-list-needs-reviews
+
+- **GIVEN** `reviews` is `"highRisk"`, the `highRisk` list is empty, and the change only edits `README.md` with no verdicts
+- **WHEN** `verify gate --json` runs on it
+- **THEN** it exits 1 with a `fix` reason that names the missing verdicts
+
 #### Scenario: reviews-required-by-default
 
 - **GIVEN** no `reviews` setting, and a change that only edits `README.md` with no verdicts
@@ -81,7 +94,13 @@ The `gate` block of `.claude/verify.json` SHALL accept `reviews`: `"always"` (th
 
 ### Requirement: fallback-counts-as-second-review
 
-A `claude-fallback` verdict SHALL fill the second review slot whenever `verdict.mjs check` accepts it there.
+A `claude-fallback` verdict SHALL fill the second review slot whenever `verdict.mjs check` accepts it there. A fallback SHALL NOT replace a Codex verdict of "not ready" for the same change; that verdict stands until Codex reviews again or the change is different.
+
+#### Scenario: fallback-does-not-hide-codex-not-ready
+
+- **GIVEN** a pull request with a `claims-auditor` verdict `READY`, a `codex` verdict "not ready", and a newer `claude-fallback` verdict `READY`, all for its head
+- **WHEN** `verify gate --json` runs on it
+- **THEN** it exits 1 with a `fix` reason naming the Codex verdict
 
 #### Scenario: fallback-verdict-accepted
 

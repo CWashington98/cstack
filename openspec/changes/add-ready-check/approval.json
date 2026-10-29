@@ -2,6 +2,6 @@
   "approvedBy": "owner",
   "approvedOn": "2026-10-29",
   "covers": "specs/**/*.md",
-  "fingerprint": "sha256:51e1778567575dcf5d51545b97b7650b31af555580c957dc79d87ea3c507d944",
-  "note": "The owner approved by merging PR #44 on 2026-10-29 (\"44 merged. next?\"), after answering the three open questions and asking for the cuts that keep skills short."
+  "fingerprint": "sha256:5c538fee3d7f7e06d12f12f4db9d1e0bcaefb62b53df3c9bfaf4cf8c3c02da90",
+  "note": "The owner approved by merging PR #44 on 2026-10-29 (\"44 merged. next?\"), after answering the three open questions and asking for the cuts that keep skills short. Re-approved on 2026-10-29 (\"sure do it\") with three additions from the slice A review: reviews stay required when the highRisk list is empty or the change edits .claude/verify.json, and a fallback never replaces a Codex not-ready verdict for the same change."
 }

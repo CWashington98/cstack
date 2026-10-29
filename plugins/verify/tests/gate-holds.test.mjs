@@ -447,3 +447,10 @@ test("wrong use exits 2", () => {
     assert.equal(spawnSync("node", [gate, ...args], { cwd: repo(), encoding: "utf8" }).status, 2, args.join(" "));
   }
 });
+
+test("a moved file counts its edited lines once, not every line twice", async () => {
+  const { parseNumstatMoves, countLines } = await import("../scripts/lib/gate/facts.mjs");
+  const files = parseNumstatMoves("3\t1\t\0old/a.mjs\0new/a.mjs\0" + "2\t0\tb.mjs\0");
+  assert.deepEqual(files.map((f) => f.path), ["new/a.mjs", "b.mjs"]);
+  assert.equal(countLines(files, { notCounted: [] }).codeLines, 6);
+});

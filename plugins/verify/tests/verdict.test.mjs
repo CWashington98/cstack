@@ -190,6 +190,18 @@ test("an exact fallback verdict for this commit wins over a carried Codex verdic
   assert.equal(r.ok, false);
 });
 
+test("a fallback on the new commit doesn't hide a Codex not-ready carried over from before a rebase", () => {
+  const root = branchRepo();
+  writeVerdict(root, { reviewer: "claims-auditor", report: READY, head: sha(root), base: "main" });
+  writeVerdict(root, { reviewer: "codex", report: NOT_READY, head: sha(root), base: "main", model: "gpt-5.1-codex" });
+  rebaseOntoNewMain(root);
+  writeVerdict(root, { reviewer: "claims-auditor", report: READY, head: sha(root), base: "main" });
+  writeVerdict(root, { reviewer: "claude-fallback", report: READY, head: sha(root), base: "main", note: "Codex usage limit reached", model: "sonnet" });
+  const r = checkVerdicts(root, { base: "main" });
+  assert.equal(r.other.reviewer, "codex");
+  assert.equal(r.ok, false);
+});
+
 test("the newest exact verdict for the commit wins", () => {
   const root = branchRepo();
   const t = (s) => new Date(Date.UTC(2026, 0, 1, 0, 0, s));
