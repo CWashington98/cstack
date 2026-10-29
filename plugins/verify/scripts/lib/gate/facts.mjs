@@ -33,6 +33,13 @@ export function findVerifyScripts(env = process.env) {
   return null;
 }
 
+// Names of the checks that failed, for the reason's text.
+export function failedChecks(rollup) {
+  if (!Array.isArray(rollup)) return [];
+  const bad = (c) => !["", "PENDING", "EXPECTED", "SUCCESS", "NEUTRAL", "SKIPPED"].includes(String(c.conclusion || c.state || "").toUpperCase());
+  return rollup.filter((c) => (!c.status || String(c.status).toUpperCase() === "COMPLETED") && bad(c)).map((c) => c.name || c.context).filter(Boolean);
+}
+
 // "green", "pending", "red", or "none" when GitHub reports no checks at all.
 export function summarizeChecks(rollup) {
   if (!Array.isArray(rollup) || rollup.length === 0) return "none";
@@ -119,7 +126,7 @@ export function collectFacts({ cwd, pr, settings, env = process.env }) {
   const lost = (fact, why) => missing.push({ fact, why });
   const facts = { pr: Number(pr), missing };
 
-  const view = run("gh", ["pr", "view", String(pr), "--json", "number,baseRefName,headRefOid,isDraft,body,files,statusCheckRollup"], { cwd, env });
+  const view = run("gh", ["pr", "view", String(pr), "--json", "number,baseRefName,headRefOid,body,files,statusCheckRollup"], { cwd, env });
   const data = view.status === 0 ? parseJson(view.stdout) : undefined;
   if (!data || typeof data.headRefOid !== "string" || !data.baseRefName || !Array.isArray(data.files)) {
     lost("pull request data", "gh pr view gave nothing usable");
@@ -134,9 +141,12 @@ export function collectFacts({ cwd, pr, settings, env = process.env }) {
   const base = data.baseRefName;
   const description = typeof data.body === "string" ? data.body : "";
   const baseAllowed = settings.allowedBases.includes(base);
-  Object.assign(facts, { head, base, baseAllowed, changedFiles, description, draft: data.isDraft === true });
-  if (typeof data.isDraft !== "boolean") lost("draft state", "gh did not say");
-  facts.checks = summarizeChecks(data.statusCheckRollup);
+  Object.assign(facts, { head, base, baseAllowed, changedFiles, description });
+  if (!Array.isArray(data.statusCheckRollup)) lost("check results", "gh pr view gave no statusCheckRollup");
+  else {
+    facts.checks = summarizeChecks(data.statusCheckRollup);
+    facts.failedChecks = failedChecks(data.statusCheckRollup);
+  }
 
   // Review threads, every page.
   const THREAD_PAGES = 20;
@@ -187,7 +197,7 @@ export function collectFacts({ cwd, pr, settings, env = process.env }) {
     if (mergeBase.status !== 0) lost("merge base", "trunk and the pull request share no history");
     else {
       const point = mergeBase.stdout.trim();
-      // The pull request's own diff, from git. Zone, never-merge, runtime surface and size all use it.
+      // The pull request's own diff, from git. Zone, high-risk paths, runtime surface and size all use it.
       const own = git(cwd, "diff", "--no-relative", "--numstat", "--no-renames", "-z", point, head);
       const ownFiles = own.status === 0 ? parseNumstat(own.stdout) : null;
       if (!ownFiles) lost("changed files", "git diff of the pull request failed or could not be read");
@@ -221,7 +231,6 @@ export function collectFacts({ cwd, pr, settings, env = process.env }) {
   // Zone, from the diff.
   const zone = zoneFor(changedFiles, settings, { cwd, trunk, body: description });
   facts.zone = zone.zone;
-  facts.neverMergePaths = zone.neverMerge;
   if (zone.problem) lost("zone", zone.problem);
 
   facts.runtimeChanged = changedFiles.some((p) => matchesAny(p, settings.runtimeSurface));
@@ -239,6 +248,7 @@ export function collectFacts({ cwd, pr, settings, env = process.env }) {
       facts.patchId = result.patchId;
       facts.verdicts = [result.claimsAuditor, result.other].filter(Boolean).map((v) => ({
         reviewer: v.reviewer, verdict: v.verdict === "ready" ? "READY" : "NOT READY", model: v.model ?? null,
+        findings: (v.findings ?? []).map(({ claim, severity, kind, reproduced }) => ({ claim, severity, kind, reproduced })),
       }));
     }
     if (facts.runtimeChanged) facts.liveProof = liveProofFor(cwd, head, verify);

@@ -5,52 +5,53 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { normalizeSettings, readSettings } from "../scripts/lib/gate/settings.mjs";
 
-test("factory settings default the allowed base to the integration branch", () => {
+test("gate settings default the allowed base to the integration branch", () => {
   const settings = normalizeSettings({}, { integrationBranch: "dev" });
   assert.deepEqual(settings.allowedBases, ["dev"]);
-  assert.deepEqual(settings.merge, { low: "shadow", standard: "shadow", high: "off" });
+  assert.equal(settings.reviews, "always");
+  assert.deepEqual(settings.highRisk, []);
 });
 
-test("factory settings always protect workflow, spec and settings paths", () => {
-  const settings = normalizeSettings({ neverMerge: ["infra/**"] }, { integrationBranch: "main" });
-  for (const path of ["infra/**", ".github/**", "openspec/**", ".claude/verify.json"]) {
-    assert.ok(settings.neverMerge.includes(path), path);
-  }
-});
-
-test("factory settings preserve explicit project values while filling defaults", () => {
+test("gate settings preserve explicit project values while filling defaults", () => {
   const settings = normalizeSettings({
     allowedBases: ["release"],
     zone: { high: ["src/auth/**"] },
     runtimeSurface: ["app/**"],
     flagsRequired: true,
     sizeLimit: 250,
-    merge: { low: "off" },
-  }, { integrationBranch: "dev" });
+    reviews: "highRisk",
+  }, { integrationBranch: "dev", highRisk: ["src/auth/**"] });
   assert.deepEqual(settings.allowedBases, ["release"]);
   assert.deepEqual(settings.zone, { command: null, high: ["src/auth/**"], standard: [], low: [] });
   assert.equal(settings.flagsRequired, true);
   assert.equal(settings.sizeLimit, 250);
-  assert.deepEqual(settings.merge, { low: "off", standard: "shadow", high: "off" });
+  assert.equal(settings.reviews, "highRisk");
+  assert.deepEqual(settings.highRisk, ["src/auth/**"]);
 });
 
-test("factory settings reject unknown merge modes in every zone", () => {
-  for (const zone of ["low", "standard", "high"]) {
-    assert.throws(
-      () => normalizeSettings({ merge: { [zone]: "on" } }, { integrationBranch: "main" }),
-      /merging can't be switched on in this version/i,
-    );
-  }
+test("gate settings reject a reviews value other than always or highRisk", () => {
+  assert.throws(() => normalizeSettings({ reviews: "never" }, {}), /gate\.reviews must be "always" or "highRisk"/);
 });
 
-test("readSettings reads the factory block from the project settings file", () => {
-  const cwd = mkdtempSync(join(tmpdir(), "factory-settings-"));
+test("gate settings ignore the dropped merge and neverMerge fields", () => {
+  const settings = normalizeSettings({ merge: { low: "on" }, neverMerge: ["infra/**"] }, {});
+  assert.equal(settings.merge, undefined);
+  assert.equal(settings.neverMerge, undefined);
+});
+
+function project(block) {
+  const cwd = mkdtempSync(join(tmpdir(), "gate-settings-"));
   mkdirSync(join(cwd, ".claude"));
-  writeFileSync(join(cwd, ".claude", "verify.json"), JSON.stringify({
-    integrationBranch: "dev",
-    factory: { sizeLimit: 300 },
-  }));
-  const settings = readSettings(cwd);
+  writeFileSync(join(cwd, ".claude", "verify.json"), JSON.stringify({ integrationBranch: "dev", ...block }));
+  return cwd;
+}
+
+test("readSettings reads the gate block from the project settings file", () => {
+  const settings = readSettings(project({ gate: { sizeLimit: 300 } }));
   assert.deepEqual(settings.allowedBases, ["dev"]);
   assert.equal(settings.sizeLimit, 300);
+});
+
+test("readSettings prefers the gate block over the old factory block", () => {
+  assert.equal(readSettings(project({ gate: { sizeLimit: 300 }, factory: { sizeLimit: 100 } })).sizeLimit, 300);
 });
