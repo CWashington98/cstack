@@ -4,7 +4,7 @@ Each numbered group after group 1 is one small pull request, merged bottom-up as
 
 ## 1. Acceptance tests, written first and failing
 
-- [ ] 1.1 Add one acceptance test per scenario, 28 in all, each named with its `[scenario-id]`, in three locked files: `plugins/factory/tests/gate.test.mjs`, `budget.test.mjs` and `tokens.test.mjs`. Gate tests feed facts to the decision code, except `zone-command-runs-from-trunk`, `trunk-moved-under-change-holds` and `rerun-replaces-record`. Those build a small git repository in a temporary folder and use a stand-in `gh` on `PATH`. Budget and tokens tests use small fixture files. Verify that all 28 fail by an assertion on the current code (none crash), then commit them as locked. Covers: all. Touches: plugins/factory/tests/**
+- [x] 1.1 Add one acceptance test per scenario, 28 in all, each named with its `[scenario-id]`, in three locked files: `plugins/factory/tests/gate.test.mjs`, `budget.test.mjs` and `tokens.test.mjs`. Gate tests feed facts to the decision code, except `zone-command-runs-from-trunk`, `trunk-moved-under-change-holds` and `rerun-replaces-record`. Those build a small git repository in a temporary folder and use a stand-in `gh` on `PATH`. Budget and tokens tests use small fixture files. Verify that all 28 fail by an assertion on the current code (none crash), then commit them as locked. Covers: all. Touches: plugins/factory/tests/**
 
 ## 2. Plugin and settings
 
