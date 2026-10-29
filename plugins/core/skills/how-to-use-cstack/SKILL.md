@@ -56,7 +56,7 @@ cstack is a library of skills you use in every project, and a fixed way to use t
   - **Claude's own file reads and edits:** not checked. If someone asks why a command was refused, point them to `docs/project-settings.md` in cstack, and to their project's `.claude/verify.json`.
 - **Installing or updating cstack:** run this from the project's folder (in Claude Code, put `!` in front):
   `curl -fsSL https://raw.githubusercontent.com/CWashington98/cstack/main/install.sh | bash`
-- **Picked outside skills** come with the install as pinned pointers: engineering principles and TypeScript practice, simpler code, terse replies, React and web design rules, Vercel deploys, Expo, and React Native. Suggest them by what they do. cstack doesn't copy them.
+- **Picked outside skills** come with the install as pinned pointers: engineering principles and TypeScript practice, simpler code, React and web design rules, Vercel deploys, Expo, and React Native. Suggest them by what they do. cstack doesn't copy them.
 
 ## Coming
 

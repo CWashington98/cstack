@@ -1,7 +1,7 @@
 {
   "name": "factory",
   "version": "0.1.0",
-  "description": "Token usage report (factory tokens). The merge gate, budget meter and review routing are parked; see LATER.md.",
+  "description": "The merge gate (factory gate), token usage report (factory tokens), budget meter and review routing. Merging without the owner is parked; see LATER.md.",
   "author": { "name": "Crishon Washington" },
   "license": "MIT"
 }

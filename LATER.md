@@ -24,13 +24,18 @@ in private notes, not this repo.
 
 - `templates/smb-site/` from client-C's tiered component kit. Expiry: unused 2 quarters → delete.
 
-## Parked: the factory (2026-10-29, owner decision)
+## Parked: the factory's autonomy (2026-10-29, owner decision)
 
-cstack is a portable skill set, not a delivery platform (see the README's "What belongs in cstack"). The coding app already starts agents, makes worktrees, watches pull requests and schedules runs, and the owner merges. So these stop here. Trigger to revisit: the owner decides agents should merge without the owner.
+cstack is a portable skill set, not a delivery platform (see the README's "What belongs in cstack"). The coding app already starts agents, makes worktrees, watches pull requests and schedules runs, and the owner merges. Trigger to revisit: the owner decides agents should merge without the owner.
 
-- **Kept and supported:** `factory tokens`, the token usage report. It measures whether the way we work saves money.
-- **Built, tested, parked:** the shadow merge gate (`factory gate`, `add-factory-gate` groups 1–5, #31–#36 and #40), the subscription budget meter and review routing by capacity. The code stays in `plugins/factory/` with its tests, so `npm test` keeps it working, but nothing in cstack's skills calls it.
-- **Specced, not built, parked:** `add-factory-gate` group 6 (a run on real pull requests), `add-decision-desk`, and the unspecced trigger, morning report, proof station and review-convergence orchestration in the [factory design](docs/specs/2026-10-25-factory-design.md).
+- **Kept and supported:**
+  - The merge gate (`factory gate`). It decides whether a pull request is ready for the owner or stays a draft.
+  - The token usage report (`factory tokens`) and the subscription budget meter.
+  - Review routing by capacity. When Codex is out of quota, the second review falls back to another model.
+- **Parked:**
+  - The gate merging on its own in low-risk areas, which is `add-factory-gate` group 6.
+  - The trigger, morning report, liveness check and proof station in the [factory design](docs/specs/2026-10-25-factory-design.md). None of these has a spec.
+- **Approved spec, to be built later as a skill:** `add-decision-desk`.
 - **Replaced by a smaller change:** `add-factory-run` (`/implement-spec` as a state machine) becomes the `start-change` and `continue-change` skills already listed as coming in `how-to-use-cstack`, plus one small script that checks a slice plan.
 
 ## Explicitly rejected — do not resurrect without new evidence
@@ -39,3 +44,4 @@ cstack is a portable skill set, not a delivery platform (see the README's "What 
 - npm/pip shared packages (units are snippets; the domain math is client IP)
 - Enforced cross-repo testing bar (mature where it matters, premature elsewhere)
 - General project-intake framework (2-3 new projects/yr doesn't amortize it)
+- caveman, the terse reply mode (2026-10-29): `plain` is the one writing standard, and reply length is a small share of token use. To remove an installed copy: `claude plugin uninstall caveman-picks@cstack --scope user`

@@ -32,6 +32,5 @@ Everything written or rewritten here is © Crishon Washington, MIT (see the lice
 | [expo/skills](https://github.com/expo/skills) (Expo) | MIT | `expo-picks`: Expo's own skills, except the feedback skill, whose command breaks when picked by folder |
 | [vojtaholik/good-css](https://github.com/vojtaholik/good-css) | MIT | `good-css-picks` |
 | [mattpocock/skills, in-progress folder](https://github.com/mattpocock/skills/pull/1316) (Matt Pocock) | MIT | `software-factory-picks`: the software-factory skill, pinned to his open pull request until it merges |
-| [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) | Apache 2.0 | `caveman-picks`: caveman and its two stronger modes. cstack used to carry an older copy of this skill, wrongly listed here as our own. |
 
 Licenses were checked through GitHub's license information on 2026-10-09. Check again before copying anything new.

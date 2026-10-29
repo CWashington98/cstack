@@ -1,6 +1,6 @@
 # Proposal: questions mid-work get answered without stopping the work, and the owner sees every answer later
 
-**Status: parked on 2026-10-29 by the owner.** Not to be built unless the owner decides agents should merge without the owner. See `LATER.md`.
+**Status: approved; to be built later as a skill (2026-10-29).** See `LATER.md`.
 
 ## Why
 
