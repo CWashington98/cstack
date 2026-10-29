@@ -24,6 +24,15 @@ in private notes, not this repo.
 
 - `templates/smb-site/` from client-C's tiered component kit. Expiry: unused 2 quarters → delete.
 
+## Parked: the factory (2026-10-29, owner decision)
+
+cstack is a portable skill set, not a delivery platform (see the README's "What belongs in cstack"). The coding app already starts agents, makes worktrees, watches pull requests and schedules runs, and the owner merges. So these stop here. Trigger to revisit: the owner decides agents should merge without the owner.
+
+- **Kept and supported:** `factory tokens`, the token usage report. It measures whether the way we work saves money.
+- **Built, tested, parked:** the shadow merge gate (`factory gate`, `add-factory-gate` groups 1–5, #31–#36 and #40), the subscription budget meter and review routing by capacity. The code stays in `plugins/factory/` with its tests, so `npm test` keeps it working, but nothing in cstack's skills calls it.
+- **Specced, not built, parked:** `add-factory-gate` group 6 (a run on real pull requests), `add-decision-desk`, and the unspecced trigger, morning report, proof station and review-convergence orchestration in the [factory design](docs/specs/2026-10-25-factory-design.md).
+- **Replaced by a smaller change:** `add-factory-run` (`/implement-spec` as a state machine) becomes the `start-change` and `continue-change` skills already listed as coming in `how-to-use-cstack`, plus one small script that checks a slice plan.
+
 ## Explicitly rejected — do not resurrect without new evidence
 
 - Unified one-click deploy layer (audit 2026-07-05: zero live targets)

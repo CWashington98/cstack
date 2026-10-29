@@ -1,5 +1,7 @@
 # Proposal: the factory's first step, a merge gate in shadow mode plus usage meters
 
+**Status: groups 1–5 built and merged; group 6 parked on 2026-10-29 by the owner.** Only `factory tokens` is supported. See `LATER.md`.
+
 ## Why
 
 The factory design ([docs/specs/2026-10-25-factory-design.md](../../../docs/specs/2026-10-25-factory-design.md)) wants agents to merge small, safe pull requests without the owner. That needs two things that don't exist yet:
