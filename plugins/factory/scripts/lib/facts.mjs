@@ -147,6 +147,7 @@ export function collectFacts({ cwd, pr, settings, env = process.env }) {
     const threads = parseJson(graphql.status === 0 ? graphql.stdout : "")?.data?.repository?.pullRequest?.reviewThreads;
     if (!threads || !Array.isArray(threads.nodes)) { threadProblem = `gh api graphql gave nothing usable${pages ? ` for page ${pages + 1}` : ""}`; break; }
     pages += 1;
+    if (typeof threads.pageInfo?.hasNextPage !== "boolean") { threadProblem = "gh gave no usable hasNextPage for review threads"; break; }
     if (threads.nodes.some((n) => !n.isResolved)) { unresolved = true; break; }
     if (threads.pageInfo?.hasNextPage !== true) break;
     if (typeof threads.pageInfo.endCursor !== "string" || !threads.pageInfo.endCursor) { threadProblem = "gh gave no cursor for the next page of review threads"; break; }

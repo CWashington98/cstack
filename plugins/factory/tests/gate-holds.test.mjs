@@ -384,3 +384,11 @@ test("[claims-auditor-r2-1] a binary file inside notCounted is still skipped", (
   assert.deepEqual(facts.missing, []);
   assert.equal(result.call, "would-merge", text(result));
 });
+
+test("[claims-auditor-r2-2] a thread page whose hasNextPage is not a boolean holds as unreadable", () => {
+  const cwd = repo(); const head = branch(cwd, "f", () => write(cwd, "docs/x.md", "x\n"));
+  const page = { data: { repository: { pullRequest: { reviewThreads: { nodes: Array.from({ length: 100 }, () => ({ isResolved: true })) } } } } };
+  const { result } = gather(cwd, { head, files: [file("docs/x.md")], pages: [page] });
+  assert.equal(result.call, "would-hold");
+  assert.match(text(result), /can't read review threads/);
+});
