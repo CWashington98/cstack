@@ -1,6 +1,6 @@
 # Proposal: the factory's first step, a merge gate in shadow mode plus usage meters
 
-**Status: groups 1–5 built and merged; group 6 parked on 2026-10-29 by the owner.** Only `factory tokens` is supported. See `LATER.md`.
+**Status: groups 1–5 built and merged, and supported: the gate decides whether a pull request is ready for the owner. Group 6, the run in merge mode, parked on 2026-10-29 by the owner.** See `LATER.md`.
 
 ## Why
 

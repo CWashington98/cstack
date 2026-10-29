@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 600" width="1280" height="600" role="img" aria-labelledby="diagram-title diagram-desc" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+  <title id="diagram-title">How one approved spec becomes merged code</title>
+  <desc id="diagram-desc">Six steps in a row: approved spec, plan the slices, build one slice, prove it works, two reviews, ready to merge check. A ready slice gets a pull request and the owner merges it, then the next slice starts. A slice that is not ready goes back to build. A slice that needs a decision waits as a draft with the owner's question.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#6c788c"/></marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5ea8ff"/></marker>
+    <marker id="arrow-orange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#f2994a"/></marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#c49bff"/></marker>
+  </defs>
+  <rect x="0" y="0" width="1280" height="600" fill="#0b0f17"/>
+  <text x="40" y="48" fill="#f2f5f9" font-size="24" font-weight="600">How one approved spec becomes merged code</text>
+
+  <g>
+    <rect x="40" y="140" width="170" height="96" rx="10" fill="#151b26" stroke="#5ea8ff" stroke-width="2"/>
+    <text x="125" y="180" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Approved spec</text>
+    <text x="125" y="206" text-anchor="middle" fill="#9aa5b6" font-size="15">you approve it</text>
+  </g>
+  <g>
+    <rect x="246" y="140" width="170" height="96" rx="10" fill="#151b26" stroke="#f2994a" stroke-width="2" stroke-dasharray="6 5"/>
+    <text x="331" y="180" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Plan the slices</text>
+    <text x="331" y="206" text-anchor="middle" fill="#9aa5b6" font-size="15">start-change</text>
+  </g>
+  <g>
+    <rect x="452" y="140" width="170" height="96" rx="10" fill="#151b26" stroke="#5ea8ff" stroke-width="2"/>
+    <text x="537" y="180" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Build one slice</text>
+    <text x="537" y="206" text-anchor="middle" fill="#9aa5b6" font-size="15">tdd, test first</text>
+  </g>
+  <g>
+    <rect x="658" y="140" width="170" height="96" rx="10" fill="#151b26" stroke="#5ea8ff" stroke-width="2"/>
+    <text x="743" y="180" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Prove it works</text>
+    <text x="743" y="206" text-anchor="middle" fill="#9aa5b6" font-size="15">verify</text>
+  </g>
+  <g>
+    <rect x="864" y="140" width="170" height="96" rx="10" fill="#151b26" stroke="#5ea8ff" stroke-width="2"/>
+    <text x="949" y="180" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Two reviews</text>
+    <text x="949" y="206" text-anchor="middle" fill="#9aa5b6" font-size="15">pr-review</text>
+  </g>
+  <g>
+    <rect x="1070" y="140" width="170" height="96" rx="10" fill="#202837" stroke="#3ccbd3" stroke-width="2"/>
+    <text x="1155" y="180" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Ready to merge?</text>
+    <text x="1155" y="206" text-anchor="middle" fill="#9aa5b6" font-size="15">gate: fresh, green</text>
+  </g>
+
+  <line x1="210" y1="188" x2="242" y2="188" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="416" y1="188" x2="448" y2="188" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="622" y1="188" x2="654" y2="188" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="828" y1="188" x2="860" y2="188" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="1034" y1="188" x2="1066" y2="188" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <path d="M1155,140 C1155,84 537,84 537,134" fill="none" stroke="#f2994a" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow-orange)"/>
+  <text x="846" y="92" text-anchor="middle" fill="#f2994a" font-size="15">Not ready: fix it, review again</text>
+
+  <g>
+    <rect x="864" y="380" width="170" height="96" rx="10" fill="#151b26" stroke="#5ea8ff" stroke-width="2"/>
+    <text x="949" y="420" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Open for merge</text>
+    <text x="949" y="446" text-anchor="middle" fill="#9aa5b6" font-size="15">pr skill</text>
+  </g>
+  <g>
+    <rect x="1070" y="380" width="170" height="96" rx="10" fill="#202837" stroke="#c49bff" stroke-width="2"/>
+    <text x="1155" y="420" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Stuck: needs you</text>
+    <text x="1155" y="446" text-anchor="middle" fill="#9aa5b6" font-size="15">draft, one question</text>
+  </g>
+  <g>
+    <rect x="658" y="380" width="170" height="96" rx="10" fill="#202837" stroke="#c49bff" stroke-width="2"/>
+    <text x="743" y="420" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">You merge</text>
+    <text x="743" y="446" text-anchor="middle" fill="#9aa5b6" font-size="15">the only merge step</text>
+  </g>
+  <g>
+    <rect x="452" y="380" width="170" height="96" rx="10" fill="#151b26" stroke="#f2994a" stroke-width="2" stroke-dasharray="6 5"/>
+    <text x="537" y="420" text-anchor="middle" fill="#f2f5f9" font-size="17" font-weight="600">Next slice</text>
+    <text x="537" y="446" text-anchor="middle" fill="#9aa5b6" font-size="15">continue-change</text>
+  </g>
+
+  <line x1="1120" y1="236" x2="990" y2="374" stroke="#5ea8ff" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <text x="1010" y="300" text-anchor="end" fill="#5ea8ff" font-size="15">ready</text>
+  <line x1="1190" y1="236" x2="1190" y2="374" stroke="#c49bff" stroke-width="2" marker-end="url(#arrow-purple)"/>
+  <text x="1200" y="310" fill="#c49bff" font-size="15">only</text>
+  <text x="1200" y="330" fill="#c49bff" font-size="15">you</text>
+  <line x1="864" y1="428" x2="832" y2="428" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="658" y1="428" x2="626" y2="428" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="537" y1="380" x2="537" y2="242" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+  <path d="M1155,476 L1155,510 L331,510 L331,242" fill="none" stroke="#c49bff" stroke-width="2" stroke-dasharray="6 5" marker-end="url(#arrow-purple)"/>
+  <text x="743" y="534" text-anchor="middle" fill="#c49bff" font-size="15">your answer updates the plan</text>
+
+  <g class="legend">
+    <line x1="40" y1="566" x2="72" y2="566" stroke="#5ea8ff" stroke-width="2"/>
+    <text x="82" y="571" fill="#9aa5b6" font-size="14">Blue edge: works today</text>
+    <line x1="260" y1="566" x2="292" y2="566" stroke="#3ccbd3" stroke-width="2"/>
+    <text x="302" y="571" fill="#9aa5b6" font-size="14">Teal edge: built, not wired in</text>
+    <line x1="530" y1="566" x2="562" y2="566" stroke="#f2994a" stroke-width="2" stroke-dasharray="6 5"/>
+    <text x="572" y="571" fill="#9aa5b6" font-size="14">Orange dashes: to build</text>
+    <line x1="770" y1="566" x2="802" y2="566" stroke="#c49bff" stroke-width="2"/>
+    <text x="812" y="571" fill="#9aa5b6" font-size="14">Purple: you decide</text>
+  </g>
+</svg>

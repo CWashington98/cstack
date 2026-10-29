@@ -9,7 +9,7 @@ import { spawnSync } from "node:child_process";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const script = join(root, "install.sh");
 const market = JSON.parse(readFileSync(join(root, ".claude-plugin", "marketplace.json"), "utf8"));
-const EVERYDAY = ["cstack", "plain", "verify", "pstack-picks", "ponytail-picks", "caveman-picks"];
+const EVERYDAY = ["cstack", "plain", "verify", "pstack-picks", "ponytail-picks"];
 const EXPO = ["expo-picks", "rn-callstack-picks", "rn-vercel-picks"];
 
 const which = (tool) => spawnSync("sh", ["-c", `command -v ${tool}`], { encoding: "utf8" }).stdout.trim();
@@ -178,7 +178,7 @@ test("when one plugin fails, the others still run, the failure is named and the 
   const { code, err, calls } = run([], { fail: ["plain"] });
   assert.equal(code, 1);
   assert.match(err, /didn't install or update: plain/);
-  assert.ok(names(calls).includes("caveman-picks"), "plugins after the failure still ran");
+  assert.ok(names(calls).includes("ponytail-picks"), "plugins after the failure still ran");
 });
 
 test("an unknown group stops with exit 2 before calling claude at all", () => {

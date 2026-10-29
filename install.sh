@@ -20,7 +20,7 @@ main() {
   set -euo pipefail
 
   # Each group names plugins from .claude-plugin/marketplace.json. A test checks every name is there.
-  local GROUP_EVERYDAY="cstack plain verify pstack-picks ponytail-picks caveman-picks"
+  local GROUP_EVERYDAY="cstack plain verify pstack-picks ponytail-picks"
   local GROUP_WEB="vercel-react-picks good-css-picks"
   local GROUP_VERCEL="vercel-deploy-picks"
   local GROUP_EXPO="expo-picks rn-callstack-picks rn-vercel-picks"

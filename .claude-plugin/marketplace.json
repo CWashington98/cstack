@@ -25,7 +25,7 @@
       "name": "factory",
       "source": "./plugins/factory",
       "version": "0.1.0",
-      "description": "Token usage report (factory tokens). The merge gate, budget meter and review routing are parked; see LATER.md."
+      "description": "The merge gate (factory gate), token usage report (factory tokens), budget meter and review routing. Merging without the owner is parked; see LATER.md."
     },
     {
       "name": "agent-browser",
@@ -244,22 +244,6 @@
       "strict": false,
       "skills": [
         "./software-factory"
-      ]
-    },
-    {
-      "name": "caveman-picks",
-      "description": "Pinned pointer to caveman (Julius Brussee, Apache 2.0): a terse reply mode that cuts tokens while keeping every technical fact, with its two stronger modes (ultra and wenyan). cstack used to carry an older copy of it.",
-      "source": {
-        "source": "git-subdir",
-        "url": "https://github.com/JuliusBrussee/caveman.git",
-        "path": "skills",
-        "sha": "2e08b9177c07bb7249a8a2d1a6758e5db281d002"
-      },
-      "strict": false,
-      "skills": [
-        "./caveman",
-        "./ultracave",
-        "./megacave"
       ]
     }
   ]

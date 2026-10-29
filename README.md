@@ -17,9 +17,11 @@ It holds three kinds of thing:
 - **Evals:** cases that show a skill still does its job after a change.
 - **Small tested scripts, only where a skill's rule must be checked rather than trusted.** Examples: the guard that refuses production deploys, a review verdict tied to the exact commit it read, the plain-English checker.
 
-It does not run agents, schedule work, watch pull requests or merge. The coding app does those (Claude Code, T3 Code, a terminal), and the owner merges. A new piece earns its place by the rule in [LATER.md](LATER.md): it shows up needed in a third project, or its named trigger fires.
+cstack checks and reports anything that helps the owner decide. It does not start work on its own, schedule work, watch pull requests or merge. The coding app does those (Claude Code, T3 Code, a terminal), and the owner merges. A new piece earns its place by the rule in [LATER.md](LATER.md): it shows up needed in a third project, or its named trigger fires.
 
-The `factory` plugin is parked except for `factory tokens`, the token usage report. Its merge gate, budget meter and review routing are built and tested but not supported; see [LATER.md](LATER.md).
+One rule ties the pieces together: a pull request is marked ready for the owner only when the merge gate says it can merge. If it can't, the agent fixes it, or, when only the owner can decide, it stays a draft with one question at the top. The [delivery loop diagram](docs/diagrams/delivery-loop.svg) shows each step and the skill behind it.
+
+From the `factory` plugin, the merge gate, the token usage report, the budget meter and review routing stay. Merging without the owner, triggers and scheduling are parked; see [LATER.md](LATER.md).
 
 ## Install
 
@@ -31,7 +33,7 @@ curl -fsSL https://raw.githubusercontent.com/CWashington98/cstack/main/install.s
 
 Inside Claude Code, put `!` in front to run it there. Run the same command again later to update.
 
-It installs the everyday set for you, in every project: `cstack`, `plain`, `verify`, `pstack-picks`, `ponytail-picks` and `caveman-picks`. Then it looks at the project's `package.json` files and adds what the project uses, for this project only, so an Expo app's skills don't load in your web projects:
+It installs the everyday set for you, in every project: `cstack`, `plain`, `verify`, `pstack-picks` and `ponytail-picks`. Then it looks at the project's `package.json` files and adds what the project uses, for this project only, so an Expo app's skills don't load in your web projects:
 
 | Group | Added when | Plugins |
 |---|---|---|
@@ -54,7 +56,6 @@ Borrowed skills are pinned pointers, never copies. Install the ones a project ne
 |---|---|---|
 | `pstack-picks` | TypeScript best practices, engineering principles, review and system-building skills | Everywhere |
 | `ponytail-picks` | The simplest change that fully works; call it with `/ponytail` | Everywhere |
-| `caveman-picks` | Terse replies that save tokens | Everywhere |
 | `vercel-react-picks` | React rules, composition patterns, view transitions, web interface review | React web apps |
 | `vercel-deploy-picks` | Deploying to Vercel, its command line, making a deployed app faster | Apps hosted on Vercel |
 | `good-css-picks` | Modern styling techniques | Web apps |
