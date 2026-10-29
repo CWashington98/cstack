@@ -8,11 +8,9 @@ The [delivery loop diagram](../../../docs/diagrams/delivery-loop.svg) shows wher
 
 ```
 plugins/verify/scripts/
-  gate.mjs                verify gate <pr> [--json]        (was factory gate)
-  pr-open.mjs           apply <pr> [--stuck]
+  gate.mjs                verify gate <pr> [--json] [--apply]   (was factory gate)
   evidence.mjs           + publish --pr <n>
-  review-prep.mjs        + --follow-up
-  verdict.mjs            + earlier-finding accounting on write
+  review-prep.mjs        + --since <commit>
   lib/gate/{decide,facts,zone,record,settings}.mjs   (moved from plugins/factory/scripts/lib)
 plugins/verify/skills/pr-open/SKILL.md
 plugins/factory/                 keeps tokens and budget only
@@ -35,15 +33,15 @@ The move is a `git mv` with history, then edits. The gate's tests move with it a
 | pull request is a draft | removed |
 | zone merge mode, never-merge path | removed |
 
-`pr-open.mjs apply --stuck` turns all remaining reasons into one owner question: "Three fix rounds didn't clear: <reasons>. How do you want to handle it?"
+On the third fix round, `--apply` turns all remaining reasons into one owner question: "Three fix rounds didn't clear: <reasons>. How do you want to handle it?"
 
 ## Fix rounds
 
-`pr-open.mjs` records each call in `<git-common-dir>/verify/gate/<pr>.rounds.json`: the head and whether it was ready. A round is a new head that ends not ready with a `fix` reason. The `pr-open` skill reads the count and calls `--stuck` at three. The count is kept outside the branch, so it never lands in a commit.
+The gate already records each call per head in `<git-common-dir>/verify/gate/`. `--apply` counts this pull request's records whose call was not ready with a `fix` reason; the third one is stuck. The records live outside the branch, so they never land in a commit, and no skill has to count.
 
 ## Follow-up reviews
 
-`review-prep.mjs --follow-up` finds the newest verdicts in `<git-common-dir>/verify/verdicts/` whose `head` is an ancestor of the new head on the same branch. Their open findings go first in the packet, with the diff since that head. `verdict.mjs write` checks that a follow-up verdict accounts for every earlier open finding, as `fixed`, `still open` or `no longer applies`. A finding the new review didn't account for can't silently disappear.
+`review-prep.mjs --since <commit>` reads the verdicts for that commit from `<git-common-dir>/verify/verdicts/`, puts their open findings first in the packet, and starts from the diff since that commit. `pr-review` gains one sentence telling the agent to pass `--since` when an earlier verdict exists. Nothing checks that the new verdict mentions each earlier finding; the reviewer sees them first, and the gate reads only the new verdict.
 
 ## Evidence
 
@@ -73,6 +71,10 @@ Links use `https://github.com/<owner>/<repo>/blob/verify-evidence/<path>?raw=tru
 cstack defines what a proof run is (`.verify/runs/<app>/<stamp>-<sha>/run.json`: commit, steps, status, files), how it gets into the pull request (`evidence.mjs publish`), and how the gate reads it. How a project captures proof stays in that project's app skill, which `verify-setup` writes: a branch preview for a web dashboard, the simulator for a mobile app, a terminal for a script. cstack never learns a project's hosts, accounts or devices.
 
 Hermes adopts this in its own pull request. Its `ui:evidence` script keeps its capture: changed pages, the branch preview, the test sign-in, hiding that identity, and failing on console errors or leaked secrets. It writes what it captured as a `verify` run and hands the upload to `evidence.mjs publish`. Its old `ui-evidence` branch stays, so links in past pull requests keep working.
+
+## Skills stay short
+
+The scripts decide and the skills point to them. `pr-open` is three sentences: open as a draft with the `plain` layout; after each push, publish proof and run `verify gate <pr> --apply`; do what it prints. `pr-review` gains one sentence. The scenarios test the scripts, not the skills' wording.
 
 ## Names
 
