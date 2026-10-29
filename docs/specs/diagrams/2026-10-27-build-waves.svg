@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 560" width="1240" height="560" role="img" aria-labelledby="diagram-title diagram-desc" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif">
+<title id="diagram-title">Four build waves and what runs in parallel</title>
+<desc id="diagram-desc">Four columns, left to right. Wave 0 runs one step at a time: merge spec visuals, pick and apply the name, fix the price table. Wave 1 runs three lanes at once: the rest of the gate, the review loop limits, and the prototype harvest. Wave 2 runs two lanes at once: the decision desk and the trigger. The Project B pilot follows the trigger. Wave 3 comes after Project A's database milestone: the proof station and Project A in shadow.</desc>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#6c788c"/></marker></defs>
+<rect x="0" y="0" width="1240" height="560" fill="#0b0f17"/>
+<text x="40" y="52" fill="#f2f5f9" font-size="24" font-weight="600">Four build waves and what runs in parallel</text>
+<rect x="40" y="84" width="270" height="420" rx="14" fill="#202837" stroke="#6c788c" stroke-width="2"/>
+<text x="60" y="118" fill="#c49bff" font-size="20" font-weight="600">Wave 0</text>
+<text x="60" y="141" fill="#9aa5b6" font-size="15">one at a time, now</text>
+<rect x="58" y="166" width="234" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="175" y="196" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Merge spec visuals</text>
+<text x="175" y="220" text-anchor="middle" fill="#9aa5b6" font-size="15">four pull requests</text>
+<path d="M175,236 V274" fill="none" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="58" y="276" width="234" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="175" y="306" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Pick and apply name</text>
+<text x="175" y="330" text-anchor="middle" fill="#9aa5b6" font-size="15">one commit, re-approve</text>
+<path d="M175,346 V384" fill="none" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="58" y="386" width="234" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="175" y="416" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Fix price table</text>
+<text x="175" y="440" text-anchor="middle" fill="#9aa5b6" font-size="15">add the 5.5 models</text>
+<path d="M310,294 H334" fill="none" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="336" y="84" width="270" height="420" rx="14" fill="#202837" stroke="#6c788c" stroke-width="2"/>
+<text x="356" y="118" fill="#5ea8ff" font-size="20" font-weight="600">Wave 1</text>
+<text x="356" y="141" fill="#9aa5b6" font-size="15">three lanes at once</text>
+<rect x="354" y="166" width="234" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="471" y="196" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Finish the gate</text>
+<text x="471" y="220" text-anchor="middle" fill="#9aa5b6" font-size="15">zone, facts, ledger</text>
+<rect x="354" y="276" width="234" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="471" y="306" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Review loop limits</text>
+<text x="471" y="330" text-anchor="middle" fill="#9aa5b6" font-size="15">plus saving the model</text>
+<rect x="354" y="386" width="234" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="471" y="416" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Prototype harvest</text>
+<text x="471" y="440" text-anchor="middle" fill="#9aa5b6" font-size="15">new skill only</text>
+<path d="M606,294 H630" fill="none" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="632" y="84" width="270" height="420" rx="14" fill="#202837" stroke="#6c788c" stroke-width="2"/>
+<text x="652" y="118" fill="#3ccbd3" font-size="20" font-weight="600">Wave 2</text>
+<text x="652" y="141" fill="#9aa5b6" font-size="15">two lanes, then pilot</text>
+<rect x="650" y="166" width="234" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="767" y="196" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Decision desk</text>
+<text x="767" y="220" text-anchor="middle" fill="#9aa5b6" font-size="15">questions without stopping</text>
+<rect x="650" y="276" width="234" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="767" y="306" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Trigger</text>
+<text x="767" y="330" text-anchor="middle" fill="#9aa5b6" font-size="15">run, wake, lock, pause</text>
+<path d="M767,346 V384" fill="none" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="650" y="386" width="234" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="767" y="416" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Project B pilot</text>
+<text x="767" y="440" text-anchor="middle" fill="#9aa5b6" font-size="15">open pull requests, shadow</text>
+<path d="M902,294 H926" fill="none" stroke="#6c788c" stroke-width="2" marker-end="url(#arrow)"/>
+<rect x="928" y="84" width="270" height="420" rx="14" fill="#202837" stroke="#6c788c" stroke-width="2"/>
+<text x="948" y="118" fill="#f2994a" font-size="20" font-weight="600">Wave 3</text>
+<text x="948" y="141" fill="#9aa5b6" font-size="15">after Project A milestone</text>
+<rect x="946" y="166" width="234" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="1063" y="196" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Proof station</text>
+<text x="1063" y="220" text-anchor="middle" fill="#9aa5b6" font-size="15">Mac runs simulators</text>
+<rect x="946" y="276" width="234" height="70" rx="10" fill="#151b26" stroke="#6c788c" stroke-width="2"/>
+<text x="1063" y="306" text-anchor="middle" fill="#f2f5f9" font-size="18" font-weight="600">Project A in shadow</text>
+<text x="1063" y="330" text-anchor="middle" fill="#9aa5b6" font-size="15">two weeks, then low zone</text>
+<text x="40" y="540" fill="#9aa5b6" font-size="14">Boxes stacked with no arrow between them run at the same time. Last checked against the build plan on 27 October 2026.</text>
+</svg>

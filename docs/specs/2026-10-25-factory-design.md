@@ -365,6 +365,8 @@ If this works inside these limits, it works anywhere with more room. That makes 
 
 Each step adds one new trigger and is its own OpenSpec change in cstack.
 
+The current state of every piece, and which pieces are built at the same time, is in [the build plan](2026-10-27-factory-build-plan.md).
+
 | Step | Adds | Owner still merges |
 |---|---|---|
 | 0a | `add-spec-visuals`: worked examples on every scenario, a dated diagram in every change, and a freshness check | Everything |
