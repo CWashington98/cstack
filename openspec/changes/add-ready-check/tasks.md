@@ -9,11 +9,11 @@ Four slices, each one pull request, in order A, B, C, D. B and C don't depend on
 | C. Evidence | 5 | screenshots appear in the pull request | all in `verify/evidence-publish` |
 | D. Pull request step | 6, 7 | a draft turns ready only when the check passes, or asks one question | all in `verify/pr-open` |
 
-Verify every slice with `npm test` and `node plugins/plain/scripts/plain-check.mjs` on every changed skill or doc. Slice A is high risk under cstack's own list once group 7 lands, so it gets both reviews; so do B and D, which change the review and verdict scripts.
+Verify every slice with `npm test` and `node plugins/plain/scripts/plain-check.mjs` on every changed skill or doc. Slice A is high risk under cstack's own list once group 7 lands, so it gets both reviews; so do B and D, which change the review and gate scripts.
 
 ## 1. Acceptance tests, written first and failing
 
-- [ ] 1.1 Add one test per scenario, 24 in all, each named with its `[scenario-id]`: `plugins/verify/tests/gate.test.mjs`, `pr-open.test.mjs`, `evidence-publish.test.mjs`, `review-follow-up.test.mjs`. Use the gate tests' stand-in `gh` on `PATH` and temporary git repositories. Verify all 24 fail by an assertion, not a crash, then commit them as locked. Each slice commits only its own file's tests. Covers: all. Touches: plugins/verify/tests/**
+- [ ] 1.1 Add one test per scenario, 23 in all, each named with its `[scenario-id]`: `plugins/verify/tests/gate-reasons.test.mjs`, `gate-apply.test.mjs`, `evidence-publish.test.mjs`, `review-follow-up.test.mjs`. Use the gate tests' stand-in `gh` on `PATH` and temporary git repositories. Verify all 23 fail by an assertion, not a crash, then commit them as locked. Each slice commits only its own file's tests. Covers: all. Touches: plugins/verify/tests/**
 
 ## 2. Move the gate (slice A)
 
@@ -27,8 +27,7 @@ Verify every slice with `npm test` and `node plugins/plain/scripts/plain-check.m
 
 ## 4. Follow-up reviews (slice B)
 
-- [ ] 4.1 `review-prep.mjs --follow-up`: find earlier verdicts on the branch, write findings first plus both diffs, fall back on a rewritten branch. Covers: follow-up-packet-has-findings-and-delta, rewritten-branch-falls-back-to-full. Touches: plugins/verify/scripts/review-prep.mjs, plugins/verify/scripts/lib/**
-- [ ] 4.2 `verdict.mjs write` refuses a follow-up verdict that leaves out an earlier open finding; `pr-review` SKILL.md uses `--follow-up` when earlier verdicts exist. Covers: follow-up-verdict-accounts-for-earlier-findings. Touches: plugins/verify/scripts/verdict.mjs, plugins/verify/scripts/lib/verdict.mjs, plugins/verify/skills/pr-review/SKILL.md
+- [ ] 4.1 `review-prep.mjs --since <commit>`: earlier open findings first, the diff since that commit, the full diff available, and a full packet when the commit isn't an ancestor. Add one sentence to `pr-review` SKILL.md. Covers: all in `verify/review-follow-up`. Touches: plugins/verify/scripts/review-prep.mjs, plugins/verify/scripts/lib/**, plugins/verify/skills/pr-review/SKILL.md
 
 ## 5. Evidence in the pull request (slice C)
 
@@ -36,8 +35,8 @@ Verify every slice with `npm test` and `node plugins/plain/scripts/plain-check.m
 
 ## 6. The pull request step (slice D)
 
-- [ ] 6.1 `pr-open.mjs apply [--stuck]` and its rounds record. Covers: all in `verify/pr-open`. Touches: plugins/verify/scripts/pr-open.mjs
-- [ ] 6.2 `pr-open` SKILL.md: open as a draft with `plain`'s layout, `evidence.mjs publish`, `pr-open.mjs apply`, then fix, wait, or stop at three rounds. Update `how-to-use-cstack`. Verify with `plain-check`. Touches: plugins/verify/skills/pr-open/**, plugins/core/skills/how-to-use-cstack/SKILL.md
+- [ ] 6.1 `verify gate <pr> --apply`: set draft or ready and the description's first line, and count fix rounds from the gate's records. Covers: all in `verify/pr-open`. Touches: plugins/verify/scripts/gate.mjs, plugins/verify/scripts/lib/gate/**
+- [ ] 6.2 `pr-open` SKILL.md, three sentences as in the design. Update `how-to-use-cstack`. Verify with `plain-check`. Touches: plugins/verify/skills/pr-open/**, plugins/core/skills/how-to-use-cstack/SKILL.md
 
 ## 7. Settings and docs (slice D)
 

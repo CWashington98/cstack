@@ -32,8 +32,8 @@ The owner, who should open a pull request only when the only thing left is to me
   - accepts the Claude fallback in place of Codex;
   - can require reviews only for changes that touch high-risk paths, set per project;
   - drops merge modes and never-merge paths, because the owner merges everything.
-- **The pull request step** (`pr-open` skill plus a small script). It opens a draft with the layout from `plain`, publishes the proof and runs the ready check. Then it does one of three things: marks the pull request ready; keeps it a draft and goes back to fixing; or keeps it a draft with the owner's question on top. A new commit on a ready pull request turns it back into a draft. After three fix rounds without becoming ready, it stops and asks the owner.
-- **Follow-up reviews.** When a pull request already has a review of an earlier commit, `pr-review` starts from that review's findings and the diff since that commit. The new verdict is still for the exact new commit, and it says which earlier findings are fixed.
+- **The pull request step.** `verify gate <pr> --apply` sets the pull request's state from the gate's call. It marks the pull request ready, keeps it a draft so the agent goes back to fixing, or keeps it a draft with the owner's question on top. A new commit on a ready pull request turns it back into a draft. On the third fix round without becoming ready, it asks the owner. The `pr-open` skill is three sentences: open as a draft, run that after each push, do what it prints.
+- **Follow-up reviews.** `review-prep.mjs --since <commit>` starts a review from the earlier review's open findings and the diff since that commit. `pr-review` gains one sentence. The new verdict is still for the exact new commit.
 - **Evidence in the pull request** (`evidence.mjs publish`). It copies a run's screenshots and recordings to a separate `verify-evidence` branch and writes a "Proof it works" section into the pull request's description. Hermes's `ui:evidence` script is the model.
 - **Names.** Skills in a family start with the family name (`pr-open`, `pr-review`), and commands are `<plugin> <noun>`. The README's naming section gets this rule.
 - **cstack's own settings.** cstack's `.claude/verify.json` lists its high-risk paths: the guard, the review and verdict scripts, the ready check and `install.sh`. Reviews are required only when a change touches them.
@@ -61,6 +61,6 @@ The owner, who should open a pull request only when the only thing left is to me
 
 ## Impact
 
-- Code: `plugins/factory/scripts/lib/{gate,facts,zone,ledger,settings}.mjs` move to `plugins/verify/scripts/lib/`, with their tests. New `plugins/verify/scripts/gate.mjs` and `pr-open.mjs`. Changes to `evidence.mjs`, `review-prep.mjs`, `verdict.mjs`.
+- Code: `plugins/factory/scripts/lib/{gate,facts,zone,ledger,settings}.mjs` move to `plugins/verify/scripts/lib/`, with their tests. New `plugins/verify/scripts/gate.mjs`. Changes to `evidence.mjs` and `review-prep.mjs`.
 - Skills: new `pr-open`; changes to `pr-review`, `verify` and `how-to-use-cstack`.
 - Settings: `.claude/verify.json` gains a `gate` block, which replaces the `factory` block; `docs/project-settings.md` documents it. Old `factory` blocks are still read, with a warning.
