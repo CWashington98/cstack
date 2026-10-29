@@ -47,12 +47,12 @@
     },
     {
       "name": "pstack-picks",
-      "description": "Pinned pointer to Lauren Tan's pstack skills (pstack 0.15.13, MIT). Coding: TypeScript best practices and her engineering principles (simplicity, types, boundaries, testing behavior, root causes). Review and design: architect, blast radius, correct, interrogate, how, why, no comments. Building the system itself: swarm, arena, reflect, figure it out, benchmark checklist, recall, show your work, never block on the human, encode lessons in structure. Also unslop and her two verification tools. Most principles are invoked by name, not loaded automatically.",
+      "description": "Pinned pointer to Lauren Tan's pstack skills (pstack 0.15.36, MIT). Coding: TypeScript best practices and her engineering principles (simplicity, types, boundaries, testing behavior, root causes). Review and design: architect, blast radius, correct, interrogate, how, why, no comments. Building the system itself: swarm, arena, reflect, figure it out, benchmark checklist, recall, show your work, never block on the human, encode lessons in structure. Also unslop and her verification tools, including formal verification and statechart, which checks a model of a flow for every order of events and draws it as a chart. Most principles are invoked by name, not loaded automatically.",
       "source": {
         "source": "git-subdir",
         "url": "https://github.com/cursor/plugins.git",
         "path": "pstack/skills",
-        "sha": "e5a8186d7b43be8d6ac4452440fbead5f1a51c70"
+        "sha": "1ba91fc25c0977741dd0e267849e6234b037ed0a"
       },
       "strict": false,
       "skills": [
@@ -97,7 +97,10 @@
         "./reflect",
         "./figure-it-out",
         "./benchmark-checklist",
-        "./recall"
+        "./recall",
+        "./statechart",
+        "./create-formal-verification-skill",
+        "./maintain-formal-verification-skill"
       ]
     },
     {
