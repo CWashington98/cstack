@@ -37,6 +37,7 @@ cstack is a library of skills you use in every project, and a fixed way to use t
 | Write or fix a pull request, issue, spec or page so a newcomer can follow it | `plain:plain` | Rules and a checker for plain English, run before anything is posted |
 | Test whether a text makes sense to someone with no context | `plain:cold-reader` | Gives the text to a blank reader and reports what confused it |
 | Explain something with a diagram | `plain:to-diagram` | Builds a dark, accessible diagram with plain-English labels, and checks it |
+| Show something as a page, or put decisions in front of the owner | `plain:to-page` | Turns a short brief into a simple local page: decision cards with answer buttons, tables, flows and diagrams, plus a "Copy answers" button. A script builds the page, so no model writes HTML |
 
 ### Code and setup
 
