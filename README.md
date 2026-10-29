@@ -100,6 +100,8 @@ The hold does nothing until a repository opts in with `.claude/plain.json` (shar
 
 It also has to-diagram, a skill that draws a diagram in plain English. Diagrams are always dark, use a fixed palette that passes accessibility contrast rules, and are proved by a checker. Details: `plugins/plain/skills/to-diagram/SKILL.md`.
 
+And to-page, a skill that turns a short brief into a simple local page for someone to read or decide on: decision cards with answer buttons, tables, flows and diagrams, and a "Copy answers" button. A script builds the page, so no model writes HTML. Details: `plugins/plain/skills/to-page/SKILL.md`.
+
 ## Keeping skills current
 
 Run the `upkeep` skill monthly, or `node plugins/core/scripts/upkeep.mjs`. It checks every Claude account on this machine and the repositories listed in `~/.config/cstack/upkeep.json`. It reports deprecated or outdated plugins, stale catalogs, changed upstream skills behind our pinned pointers, and skill copies inside repositories, with the command that fixes each one. It only reports; you choose what to apply.

@@ -1,0 +1,38 @@
+{
+  "title": "Pull request checks are getting slow: two decisions",
+  "subtitle": "A sample page. Every pull request in this project runs automatic checks before it can merge.",
+  "intro": "Every pull request runs automatic checks (formatting, type checks and tests) on a shared build server before it can merge. All the checks run one after another, in one batch with a 25-minute time limit. If a batch runs past the limit, the server stops it and the pull request shows as failed, even when nothing is wrong with the code.",
+  "sections": [
+    {
+      "kind": "decision",
+      "title": "How should we keep the checks under the 25-minute limit?",
+      "body": "**What changed.** Last week we added a new check. It builds the phone app and confirms each library is included only once, because a library included twice made the app show raw text keys instead of words. It takes about 3 minutes, and it runs only on pull requests that change the app's libraries.\n\n**Why it matters.** On a slow day the batch already takes 21 minutes, so the new check can push it past 25. The pull request then fails for no reason, and someone has to rerun it.",
+      "table": { "caption": "The last four batches", "headers": ["Day", "Time taken"], "rows": [["Monday", "21 m 14 s"], ["Tuesday", "19 m 7 s"], ["Wednesday", "15 m 3 s"], ["Thursday", "13 m 25 s"]] },
+      "options": [
+        { "label": "A. Run the new check separately, at the same time as the batch", "detail": "Nobody waits longer. It costs about 3 more minutes of server time, only on the few pull requests that change libraries.", "value": "A: run the new check separately, in parallel" },
+        { "label": "B. Raise the time limit to 35 minutes", "detail": "The simplest change. Nothing gets faster, and a slow day can mean a 24-minute wait.", "value": "B: raise the limit to 35 minutes" }
+      ],
+      "recommendation": "A. It keeps every wait under 25 minutes instead of allowing longer ones.",
+      "short": "A: run it separately",
+      "noAnswer": "Nothing changes, and some pull requests will fail on slow days until someone reruns them."
+    },
+    {
+      "kind": "decision",
+      "title": "Should we spend one more day trying a smaller install method?",
+      "body": "**Background.** Each copy of the project on a developer's machine downloads its libraries again, using about 3.9 GB. A different install tool, pnpm, shares one copy and would use about 0.2 GB. Our first trial failed: the app showed raw text keys instead of words. Three pnpm settings that target that exact failure haven't been tried.",
+      "options": [
+        { "label": "Yes, one day, then decide", "detail": "It passes only if the app shows real words and every test passes. If not, we stop.", "value": "yes: one-day trial" },
+        { "label": "No, stop now", "detail": "We save the day. Disk use stays at about 3.9 GB per copy.", "value": "no: stop" }
+      ],
+      "recommendation": "Yes. A day is small next to the disk it would save.",
+      "noAnswer": "The trial stays on hold."
+    },
+    {
+      "kind": "info",
+      "title": "How a pull request's checks run today",
+      "flow": [{ "label": "Pull request opened" }, { "label": "Install libraries", "note": "about 2 minutes" }, { "label": "Run every check, one after another", "note": "13 to 21 minutes" }, { "label": "Ready to merge", "arrow": "if all pass" }]
+    },
+    { "kind": "fyi", "title": "Other items", "list": ["The error tracker records every app error twice. Nobody has looked into why yet."] },
+    { "kind": "close", "title": "You can close", "list": ["The pull request that added the new check has merged."] }
+  ]
+}
