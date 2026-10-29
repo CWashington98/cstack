@@ -1,0 +1,7 @@
+{
+  "approvedBy": "owner",
+  "approvedOn": "2026-10-29",
+  "covers": "specs/**/*.md",
+  "fingerprint": "sha256:51e1778567575dcf5d51545b97b7650b31af555580c957dc79d87ea3c507d944",
+  "note": "The owner approved by merging PR #44 on 2026-10-29 (\"44 merged. next?\"), after answering the three open questions and asking for the cuts that keep skills short."
+}
