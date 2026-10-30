@@ -1,16 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { summarize } from "../scripts/lib/compliance.mjs";
+import { tempDir } from "../../../tests/helpers.mjs";
 
 const plainCheck = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "plain", "scripts", "plain-check.mjs");
 
 function passesPlainCheck(text) {
-  const file = join(mkdtempSync(join(tmpdir(), "summary-")), "summary.md");
+  const file = join(tempDir("summary"), "summary.md");
   writeFileSync(file, text);
   const r = spawnSync("node", [plainCheck, file], { encoding: "utf8" });
   return { ok: r.status === 0, out: `${r.stdout}${r.stderr}` };

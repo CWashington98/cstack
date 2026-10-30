@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { makeRepo, git } from "../../../tests/helpers.mjs";
+import { makeRepo, git, tempDir } from "../../../tests/helpers.mjs";
 import { runCompliance, withBaseTree, runCommand, readRun, whyNotRun, checkScope, summarize } from "../scripts/lib/compliance.mjs";
 
 const CH = "add-export";
@@ -73,8 +73,6 @@ test("a real assertion failure on the old code is still proven", () => {
 // ---- 3. The reviewer's count is filled in by the review step, never invented ----
 
 import { spawnSync } from "node:child_process";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const RECORD = fileURLToPath(new URL("../scripts/record-review.mjs", import.meta.url));
@@ -87,7 +85,7 @@ test("a new record leaves the reviewer's mismatches empty, with a note on who fi
 });
 
 test("record-review writes the count of partly and missing verdicts and the reviewer's time into the record", () => {
-  const dir = mkdtempSync(join(tmpdir(), "record-review-"));
+  const dir = tempDir("record-review");
   const reportFile = join(dir, "compliance.json");
   writeFileSync(reportFile, JSON.stringify({ change: "x", reviewer: { mismatches: null, timeMs: null, note: "later" }, timeMs: { trace: 1 } }));
   const reviewFile = join(dir, "spec-match.json");
@@ -105,7 +103,7 @@ test("record-review writes the count of partly and missing verdicts and the revi
 });
 
 test("record-review refuses an answer with no scenario verdicts", () => {
-  const dir = mkdtempSync(join(tmpdir(), "record-review-"));
+  const dir = tempDir("record-review");
   writeFileSync(join(dir, "compliance.json"), "{}");
   writeFileSync(join(dir, "spec-match.json"), JSON.stringify({ verdict: "ready" }));
   const r = spawnSync("node", [RECORD, "--spec-match", join(dir, "spec-match.json"), "--report", join(dir, "compliance.json")], { encoding: "utf8" });

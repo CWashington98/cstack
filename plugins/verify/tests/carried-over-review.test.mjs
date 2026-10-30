@@ -1,11 +1,11 @@
 // Review fixes for guard scenarios: a crash is not a catch, carried-over compares every bullet in full, and `$&` in code stays literal.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { brokeByAssertion, readRun, readScenarios } from "../scripts/lib/compliance.mjs";
 import { breakGuard } from "../scripts/lib/breaks.mjs";
+import { tempDir } from "../../../tests/helpers.mjs";
 
 const entry = { id: "guard-a", tests: [], tokens: ["[guard-a]"] };
 
@@ -28,7 +28,7 @@ test("an assertion word in another test's block does not count", () => {
 });
 
 function project(change, living) {
-  const root = mkdtempSync(join(tmpdir(), "carried-"));
+  const root = tempDir("carried");
   for (const [p, c] of Object.entries({ "openspec/specs/x/spec.md": living, "openspec/changes/c/specs/x/spec.md": change })) {
     mkdirSync(dirname(join(root, p)), { recursive: true });
     writeFileSync(join(root, p), c);
@@ -56,7 +56,7 @@ test("scenarios with no steps are never carried over", () => {
 });
 
 test("breakGuard keeps `$&` in code literal", () => {
-  const dir = mkdtempSync(join(tmpdir(), "guard-"));
+  const dir = tempDir("guard");
   mkdirSync(join(dir, "src"));
   writeFileSync(join(dir, "src/a.mjs"), 'export const c = (n) => n >= 18 && "$&";\n');
   let seen;

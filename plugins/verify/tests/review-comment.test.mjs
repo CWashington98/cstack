@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { writeFileSync, mkdtempSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { checkWriter, renderReview, extractItems } from "../scripts/lib/review-comment.mjs";
+import { tempDir } from "../../../tests/helpers.mjs";
 
 const script = join(dirname(fileURLToPath(import.meta.url)), "..", "scripts", "verdict.mjs");
 const HEAD = "a".repeat(40);
@@ -151,7 +151,7 @@ test("rendering refuses a writer that fails the check, and verdicts for differen
 });
 
 test("the review command prints the comment, or the problems and exit 1", () => {
-  const dir = mkdtempSync(join(tmpdir(), "review-"));
+  const dir = tempDir("review");
   const put = (name, v) => { const p = join(dir, name); writeFileSync(p, JSON.stringify(v)); return p; };
   const k = put("k.json", record("claims-auditor", [finding("claims-auditor-1")]));
   const o = put("o.json", record("codex"));
@@ -171,7 +171,7 @@ test("a realistic comment passes the plain-English checker", () => {
     item(["claims-auditor-1"], { title: "Should a second discount be allowed on the same item?", what_goes_wrong: "The spec allows it today, but then a shopper can pay less than the store's lowest price. No test covers it.", fix: undefined, options: [{ label: "A", text: "Allow one discount per item. About ten lines.", recommended: true }, { label: "B", text: "Keep both, and decide later.", recommended: false }] }),
     item(["claims-auditor-2", "codex-1"], { title: "Removing an item leaves the old total on screen", what_goes_wrong: "A shopper who removes an item still sees the old total until they reload the page. They pay the right amount, but the screen is wrong.", fix: "Recount the total after every removal." }),
   ]);
-  const dir = mkdtempSync(join(tmpdir(), "review-plain-"));
+  const dir = tempDir("review-plain");
   const file = join(dir, "comment.md");
   writeFileSync(file, renderReview({ claimsAuditor, other: codex, writer: w }));
   const r = spawnSync(process.execPath, [plainCheck, file], { encoding: "utf8" });
@@ -280,7 +280,7 @@ test("an item can only wait for findings in other items, and never for itself", 
 });
 
 test("the items command prints the packets as JSON", () => {
-  const dir = mkdtempSync(join(tmpdir(), "items-"));
+  const dir = tempDir("items");
   const md = renderReview({ claimsAuditor: record("claims-auditor", [finding("claims-auditor-1")]), other: record("codex"), writer: writer([item(["claims-auditor-1"])]) });
   const f = join(dir, "comment.md"); writeFileSync(f, md);
   const r = spawnSync(process.execPath, [script, "items", f], { encoding: "utf8" });
@@ -301,7 +301,7 @@ test("an old verdict saved under the name karen renders as the claims auditor's"
 });
 
 test("the review command takes the claims auditor's verdict with --claims-auditor", () => {
-  const dir = mkdtempSync(join(tmpdir(), "review-"));
+  const dir = tempDir("review");
   const put = (name, v) => { const p = join(dir, name); writeFileSync(p, JSON.stringify(v)); return p; };
   const args = (flag) => [script, "review", flag, put("k.json", record("karen")), "--other", put("o.json", record("codex")), "--writer", put("w.json", writer())];
   const ok = spawnSync(process.execPath, args("--claims-auditor"), { encoding: "utf8" });

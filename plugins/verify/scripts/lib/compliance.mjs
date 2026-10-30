@@ -368,8 +368,8 @@ export function whyNotRun(entry, r) {
 export function withBaseTree(root, base, acceptance, fn, { shared = [] } = {}) {
   const holder = mkdtempSync(join(tmpdir(), "compliance-base-"));
   const tree = join(holder, "tree");
-  git(root, "worktree", "add", "--detach", "--quiet", tree, base);
   try {
+    git(root, "worktree", "add", "--detach", "--quiet", tree, base);
     for (const file of git(root, "ls-tree", "-r", "--name-only", "-z", "HEAD").split("\0").filter(Boolean)) {
       if (!matchesAny(file, acceptance)) continue;
       const bytes = execFileSync("git", ["show", `HEAD:${file}`], { cwd: root, maxBuffer: 64 * 1024 * 1024 });

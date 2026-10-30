@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { candidateBreaks, changedLines, dirtyFiles } from "../scripts/lib/breaks.mjs";
+import { tempDir } from "../../../tests/helpers.mjs";
 
 const texts = (line) => candidateBreaks(line).map((b) => b.text);
 
@@ -28,7 +28,7 @@ test("a line with a written reason is not broken", () => {
 });
 
 test("changed lines are numbered from 1 in the new file; uncommitted work is seen", () => {
-  const dir = mkdtempSync(join(tmpdir(), "breaks-"));
+  const dir = tempDir("breaks");
   const g = (...a) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...a], { cwd: dir, stdio: "pipe" });
   g("init", "-q");
   writeFileSync(join(dir, "a.txt"), "one\ntwo\n");

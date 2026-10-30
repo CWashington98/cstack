@@ -1,11 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { writeFileSync, mkdtempSync, rmSync, readdirSync } from "node:fs";
+import { writeFileSync, rmSync, readdirSync } from "node:fs";
 import { join, dirname, basename } from "node:path";
-import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { makeRepo, git } from "../../../tests/helpers.mjs";
+import { makeRepo, git, tempDir } from "../../../tests/helpers.mjs";
 import { writeVerdict, checkVerdicts, effectiveVerdict, mergeValidation, validateReport } from "../scripts/lib/verdict.mjs";
 import { prepare } from "../scripts/review-prep.mjs";
 
@@ -145,7 +144,7 @@ test("a verdict must name the reviewed commit by its full commit ID", () => {
 
 test("a verdict written after a new commit still lands on the reviewed commit", () => {
   const root = branchRepo();
-  const meta = prepare({ repo: root, base: "main", copies: [], out: join(mkdtempSync(join(tmpdir(), "review-")), "r") });
+  const meta = prepare({ repo: root, base: "main", copies: [], out: join(tempDir("review"), "r") });
   writeFileSync(join(root, "b.txt"), "changed after the review\n");
   git(root, "commit", "-qam", "commit B, made after the review started");
   writeVerdict(root, { reviewer: "claims-auditor", report: READY, head: meta.head, base: "main", meta });
@@ -157,7 +156,7 @@ test("a verdict written after a new commit still lands on the reviewed commit", 
 
 test("the write command takes the reviewed commit from meta.json and refuses a mismatch", () => {
   const root = branchRepo();
-  const out = join(mkdtempSync(join(tmpdir(), "review-")), "r");
+  const out = join(tempDir("review"), "r");
   prepare({ repo: root, base: "main", copies: [], out });
   writeFileSync(join(root, "report.json"), JSON.stringify(READY));
   const run = (...a) => spawnSync("node", [script, "write", "--reviewer", "claims-auditor", "--report", "report.json", ...a], { cwd: root, encoding: "utf8" });
@@ -238,13 +237,13 @@ test("an exact verdict for this commit beats a newer one carried from an identic
 
 test("write refuses a meta.json whose change is not the one at that commit", () => {
   const root = branchRepo();
-  const meta = prepare({ repo: root, base: "main", copies: [], out: join(mkdtempSync(join(tmpdir(), "review-")), "r") });
+  const meta = prepare({ repo: root, base: "main", copies: [], out: join(tempDir("review"), "r") });
   assert.throws(() => writeVerdict(root, { reviewer: "claims-auditor", report: READY, head: meta.head, base: "main", meta: { ...meta, patchId: "0".repeat(40) } }), /does not match the reviewed change/);
 });
 
 test("the write command names a --head or --base that is not the reviewed one", () => {
   const root = branchRepo();
-  const out = join(mkdtempSync(join(tmpdir(), "review-")), "r");
+  const out = join(tempDir("review"), "r");
   prepare({ repo: root, base: "main", copies: [], out });
   writeFileSync(join(root, "report.json"), JSON.stringify(READY));
   git(root, "branch", "other", "main");

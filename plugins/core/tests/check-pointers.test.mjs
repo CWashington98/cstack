@@ -3,10 +3,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { mkdtempSync, mkdirSync, writeFileSync, copyFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, copyFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { missingSkills, githubTree, isLive, findMarketplace } from "../scripts/check-pointers.mjs";
+import { tempDir } from "../../../tests/helpers.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const market = JSON.parse(readFileSync(join(root, ".claude-plugin", "marketplace.json"), "utf8"));
@@ -55,7 +56,7 @@ test("in a cstack checkout, the marketplace file is found three folders up", () 
 });
 
 test("in an installed plugin, the marketplace file is found in the profile's copy of the cstack catalog", () => {
-  const profile = mkdtempSync(join(tmpdir(), "cstack-profile-"));
+  const profile = tempDir("cstack-profile");
   const scripts = join(profile, "plugins", "cache", "cstack", "cstack", "2.1.0", "scripts");
   const catalog = join(profile, "plugins", "marketplaces", "cstack", ".claude-plugin");
   mkdirSync(scripts, { recursive: true });
@@ -65,7 +66,7 @@ test("in an installed plugin, the marketplace file is found in the profile's cop
 });
 
 test("run from an installed plugin with no argument, the command finds the catalog and exits 0", () => {
-  const profile = mkdtempSync(join(tmpdir(), "cstack-profile-"));
+  const profile = tempDir("cstack-profile");
   const scripts = join(profile, "plugins", "cache", "cstack", "cstack", "2.1.0", "scripts");
   const catalog = join(profile, "plugins", "marketplaces", "cstack", ".claude-plugin");
   mkdirSync(scripts, { recursive: true });
@@ -77,7 +78,7 @@ test("run from an installed plugin with no argument, the command finds the catal
 });
 
 test("with no marketplace file anywhere, the command says so and exits 2 instead of crashing", () => {
-  const lonely = mkdtempSync(join(tmpdir(), "cstack-lonely-"));
+  const lonely = tempDir("cstack-lonely");
   copyFileSync(script, join(lonely, "check-pointers.mjs"));
   let code = 0, err = "";
   try { execFileSync("node", [join(lonely, "check-pointers.mjs")], { encoding: "utf8", stdio: "pipe" }); }
@@ -87,7 +88,7 @@ test("with no marketplace file anywhere, the command says so and exits 2 instead
 });
 
 test("an installed plugin whose profile has no copy of the catalog exits 2 with a message", () => {
-  const profile = mkdtempSync(join(tmpdir(), "cstack-profile-"));
+  const profile = tempDir("cstack-profile");
   const scripts = join(profile, "plugins", "cache", "cstack", "cstack", "2.1.0", "scripts");
   mkdirSync(scripts, { recursive: true });
   copyFileSync(script, join(scripts, "check-pointers.mjs"));
@@ -107,7 +108,7 @@ test("a marketplace path that doesn't exist exits 2 with a message, not a crash"
 });
 
 test("live: a pick that doesn't exist makes the command exit 1", { skip: !isLive() }, () => {
-  const dir = mkdtempSync(join(tmpdir(), "cstack-bad-"));
+  const dir = tempDir("cstack-bad");
   const bad = structuredClone(market);
   bad.plugins.find((p) => p.name === "good-css-picks").skills = ["./good-css", "./not-a-real-skill"];
   writeFileSync(join(dir, "marketplace.json"), JSON.stringify(bad));

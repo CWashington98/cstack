@@ -5,7 +5,7 @@ import { join, dirname } from "node:path";
 import { tmpdir, homedir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { makeRepo, git } from "../../../tests/helpers.mjs";
+import { makeRepo, git, tempDir } from "../../../tests/helpers.mjs";
 import { decide, mask, unwrap, programName, refuseOnError } from "../scripts/guard.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -168,7 +168,7 @@ test("a deploy inside a shell script the command runs is found by reading the sc
 
 test("a script written and run in the same command is read from what was written", () => {
   const dir = project();
-  const tmp = mkdtempSync(join(tmpdir(), "guard-write-"));
+  const tmp = tempDir("guard-write");
   refused(dir, `cat > ${tmp}/x.sh <<'EOF'\nnpx convex deploy\nEOF\nbash ${tmp}/x.sh`, /convex deploy/);
   refused(dir, `tee ${tmp}/y.sh <<'EOF'\nvercel --prod\nEOF\nchmod +x ${tmp}/y.sh && ${tmp}/y.sh`, /Vercel/);
   allowed(dir, `cat > ${tmp}/z.sh <<'EOF'\necho hi\nEOF\nbash ${tmp}/z.sh`);
@@ -359,7 +359,7 @@ test("pushes to protected branches and force pushes are refused; feature branche
   refused(dir, "git push --all origin", /every branch/);
   refused(dir, "git push --mirror origin", /every branch/);
   refused(dir, "git push --branches origin", /every branch/);
-  refused(mkdtempSync(join(tmpdir(), "guard-elsewhere-")), `git -C ${dir} push origin staging`, /"staging"/);
+  refused(tempDir("guard-elsewhere"), `git -C ${dir} push origin staging`, /"staging"/);
   refused(dir, "for b in feat/a main; do git push origin $b; done", /"main"/);
   refused(dir, "git push origin $GUARD_TEST_UNSET_BRANCH", /can't tell which branch/);
 });
@@ -449,7 +449,7 @@ test("workflows that deploy or release are refused; other workflows are not", ()
 
 test("recursive deletes are allowed inside the repository and temporary folders, and refused everywhere else", () => {
   const dir = project();
-  const tmp = mkdtempSync(join(tmpdir(), "guard-rm-"));
+  const tmp = tempDir("guard-rm");
   allowed(dir, "rm -rf node_modules dist");
   allowed(dir, "rm -rf packages/api/.cache/*");
   allowed(dir, "rm -rf *.tsbuildinfo ./*.egg-info");
@@ -520,7 +520,7 @@ test("a worktree without its own settings file uses the main checkout's", () => 
   writeFileSync(join(dir, ".claude", "verify.json"), JSON.stringify(SETTINGS));
   git(dir, "add", ".gitignore", "package.json");
   git(dir, "commit", "-q", "-m", "init");
-  const wt = join(mkdtempSync(join(tmpdir(), "guard-wt-")), "wt");
+  const wt = join(tempDir("guard-wt"), "wt");
   git(dir, "worktree", "add", "-q", wt);
   assert.equal(existsSync(join(wt, ".claude", "verify.json")), false);
   refused(wt, "npx convex data users --deployment-name prod-backend-9", /agentsNeverTouch/);
@@ -577,7 +577,7 @@ test("when the guard itself fails, it refuses commands that look guarded or name
 
 test("the hook refuses with exit 2 and a reason, allows with exit 0, fails closed, and logs each refusal", () => {
   const dir = project();
-  const logFile = join(mkdtempSync(join(tmpdir(), "guard-log-")), "log.jsonl");
+  const logFile = join(tempDir("guard-log"), "log.jsonl");
   const hook = (input) => spawnSync("node", [script], { input: typeof input === "string" ? input : JSON.stringify(input), encoding: "utf8", env: { ...process.env, CSTACK_GUARD_LOG: logFile } });
   const bash = (command, cwd = dir) => hook({ tool_name: "Bash", tool_input: { command }, cwd });
   const no = bash("GH_TOKEN=ghp_secret123 bunx convex deploy");
@@ -850,7 +850,7 @@ test("round 4: tool-server calls that use a never entry are refused; file tools 
 
 test("round 4: the hook checks tool-server calls end to end", () => {
   const dir = project();
-  const logFile = join(mkdtempSync(join(tmpdir(), "guard-log-")), "log.jsonl");
+  const logFile = join(tempDir("guard-log"), "log.jsonl");
   const hook = (input) => spawnSync("node", [script], { input: JSON.stringify(input), encoding: "utf8", env: { ...process.env, CSTACK_GUARD_LOG: logFile } });
   const no = hook({ tool_name: "mcp__plugin_convex_convex__envSet", tool_input: { deploymentSelector: selector({ kind: "deploymentName", deploymentName: "prod-backend-9" }), name: "API_KEY", value: "sk_live_abcdef123456" }, cwd: dir });
   assert.equal(no.status, 2);
@@ -936,7 +936,7 @@ test("round 4: when the guard itself fails, it refuses every word the full rules
 
 test("round 4: a script written with echo or printf and run in the same command is read", () => {
   const dir = project();
-  const tmp = mkdtempSync(join(tmpdir(), "guard-echo-"));
+  const tmp = tempDir("guard-echo");
   refused(dir, `echo 'npx convex deploy' > ${tmp}/a.sh && bash ${tmp}/a.sh`, /convex deploy/);
   refused(dir, `printf '#!/bin/sh\\nvercel --prod\\n' > ${tmp}/b.sh; chmod +x ${tmp}/b.sh; ${tmp}/b.sh`, /Vercel/);
   refused(dir, `printf '%s\\n' 'git push origin main' >> ${tmp}/c.sh && sh ${tmp}/c.sh`, /"main"/);
@@ -959,7 +959,7 @@ test("round 4: aws s3 sync --delete to a bucket is a deploy", () => {
 
 test("round 4: a command that moves through more folders than the guard can check in time is refused", () => {
   const dir = project();
-  const base = mkdtempSync(join(tmpdir(), "guard-cd-"));
+  const base = tempDir("guard-cd");
   for (let i = 0; i < 201; i++) mkdirSync(join(base, `d${i}`));
   const visit = (n) => Array.from({ length: n }, (_, i) => `cd ${base}/d${i}`).join(" && ");
   // 200 folders is the limit; the folder the command starts in doesn't count.
@@ -1000,7 +1000,7 @@ test("round 4: a never entry is matched in a tool call's input as written, not o
 
 test("round 4: when the guard fails on a tool call, it matches never entries in the input as written", () => {
   const dir = project({}, { integrationBranch: "main", agentsNeverTouch: ['bun run release --env "prod"'] });
-  const logFile = join(mkdtempSync(join(tmpdir(), "guard-log-")), "log.jsonl");
+  const logFile = join(tempDir("guard-log"), "log.jsonl");
   // A cwd the guard can't use makes it fail inside; the settings then come from the folder the hook runs in.
   const hook = (tool_input) => spawnSync("node", [script], { cwd: dir, input: JSON.stringify({ tool_name: "mcp__runner__run", tool_input, cwd: 42 }), encoding: "utf8", env: { ...process.env, CSTACK_GUARD_LOG: logFile } });
   const no = hook({ command: 'bun run release --env "prod"' });
@@ -1028,7 +1028,7 @@ test("round 5: a Convex tool-server call aimed at production is refused; develop
 
 test("round 5: the hook refuses a production Convex selector end to end, and fails closed on it", () => {
   const dir = project();
-  const hook = (input, cwd = dir, tool = "data") => spawnSync("node", [script], { cwd: dir, input: JSON.stringify({ tool_name: `mcp__plugin_convex_convex__${tool}`, tool_input: input, cwd }), encoding: "utf8", env: { ...process.env, CSTACK_GUARD_LOG: join(mkdtempSync(join(tmpdir(), "guard-log-")), "log.jsonl") } });
+  const hook = (input, cwd = dir, tool = "data") => spawnSync("node", [script], { cwd: dir, input: JSON.stringify({ tool_name: `mcp__plugin_convex_convex__${tool}`, tool_input: input, cwd }), encoding: "utf8", env: { ...process.env, CSTACK_GUARD_LOG: join(tempDir("guard-log"), "log.jsonl") } });
   assert.equal(hook({ deploymentSelector: selector({ kind: "prod" }), tableName: "users" }).status, 0);
   const no = hook({ deploymentSelector: selector({ kind: "prod" }), tableName: "users" }, dir, "envSet");
   assert.equal(no.status, 2);
