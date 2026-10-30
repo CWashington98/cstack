@@ -25,7 +25,7 @@ function publish(root, pr) {
   const view = JSON.parse(execFileSync("gh", ["pr", "view", pr, "--json", "headRefOid,body,url"], { cwd: root, encoding: "utf8" }));
   const head = view.headRefOid;
   const found = newestRunFor(root, head);
-  if (!found) return fail(`no run matches the head ${head.slice(0, 7)} of pull request ${pr}. Run the live check on that commit first. Nothing was published.`);
+  if (!found) return fail(`no run matches the head ${head.slice(0, 7)} of pull request ${pr}. Run the live check on that commit, with nothing uncommitted, first. Nothing was published.`);
   const { files, outside, missing } = runFiles(found.dir, found.run);
   if (outside.length) return fail(`the run names files outside its folder: ${outside.join(", ")}. Nothing was published.`);
   if (missing.length) return fail(`the run's evidence is missing: ${missing.join(", ")}. Nothing was published.`);
