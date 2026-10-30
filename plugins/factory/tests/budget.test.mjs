@@ -1,10 +1,10 @@
 // Locked acceptance tests for add-factory-gate. Change only with a Spec-Change commit.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { tempDir } from "../../../tests/helpers.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 let budget = {};
@@ -51,7 +51,7 @@ test("[stale-reading-is-lean] a reading older than twelve hours is marked stale 
 
 test("[backup-folders-skipped] automatic discovery ignores backup Claude profiles", () => {
   const discoverClaudeAccounts = need("discoverClaudeAccounts");
-  const home = mkdtempSync(join(tmpdir(), "factory-budget-"));
+  const home = tempDir("factory-budget");
   for (const name of [".claude-work", ".claude-work.bak-2026-08-21"]) {
     const dir = join(home, name); mkdirSync(dir);
     writeFileSync(join(dir, ".claude.json"), JSON.stringify({ cachedUsageUtilization: { fetchedAtMs: NOW } }));

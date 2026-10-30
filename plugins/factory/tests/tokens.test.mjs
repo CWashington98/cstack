@@ -1,10 +1,10 @@
 // Locked acceptance tests for add-factory-gate. Change only with a Spec-Change commit.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, chmodSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync, chmodSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { tempDir } from "../../../tests/helpers.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 let tokens = {};
@@ -24,7 +24,7 @@ function assistant(id, { model = "claude-opus-4-1", input = 0, output = 0, cache
 }
 
 function fixture() {
-  const root = mkdtempSync(join(tmpdir(), "factory-tokens-"));
+  const root = tempDir("factory-tokens");
   const projectsDir = join(root, "projects"); mkdirSync(projectsDir);
   return { root, projectsDir };
 }
