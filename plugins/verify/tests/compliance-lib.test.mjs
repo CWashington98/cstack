@@ -7,9 +7,9 @@ import { proseLines } from "../scripts/lib/markdown.mjs";
 import { testsInText, findTests, globToRegExp, matchesAny, isTestFile, parseTasks, readRun, withBaseTree, judgeFirstRun, checkLocks, checkScope, checkApproval, fingerprintOf } from "../scripts/lib/compliance.mjs";
 import { createHash } from "node:crypto";
 import { complianceSettings, checkRepoSettings } from "../scripts/lib/app-skill.mjs";
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { makeRepo, git } from "../../../tests/helpers.mjs";
+import { makeRepo, git, tempDir } from "../../../tests/helpers.mjs";
 
 const SPEC = [
   "## ADDED Requirements", "",
@@ -182,6 +182,16 @@ test("withBaseTree checks out the starting commit with the latest acceptance tes
   assert.doesNotMatch(git(dir, "worktree", "list"), /compliance-base/);
   assert.equal(readFileSync(join(dir, "src/a.txt"), "utf8"), "new\n");
   assert.equal(readFileSync(join(dir, "src/dirty.txt"), "utf8"), "uncommitted\n");
+});
+
+test("withBaseTree leaves no folder behind when the starting commit cannot be checked out", () => {
+  const dir = makeRepo({ "a.txt": "x" });
+  git(dir, "add", "."); git(dir, "commit", "-qm", "start");
+  const scratch = tempDir("compliance-scratch"), before = process.env.TMPDIR;
+  process.env.TMPDIR = scratch;
+  try { assert.throws(() => withBaseTree(dir, "no-such-commit", [], () => assert.fail("must not run")), /no-such-commit|invalid reference|not a valid/i); }
+  finally { if (before === undefined) delete process.env.TMPDIR; else process.env.TMPDIR = before; }
+  assert.deepEqual(readdirSync(scratch), []);
 });
 
 test("withBaseTree removes the checkout even when the run throws", () => {
