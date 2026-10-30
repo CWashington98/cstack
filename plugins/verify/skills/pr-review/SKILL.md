@@ -5,144 +5,25 @@ description: Review a pull request with two independent verdicts, from the claim
 
 # Reviewing a pull request
 
-Every pull request gets two verdicts: one from the claims auditor, our independent reviewer agent on Claude, which checks what was built against what was claimed, and one from Codex, OpenAI's coding agent. Models from different companies catch different mistakes. Both verdicts are required.
+Get two independent verdicts on the exact commit, one from the claims auditor and one from Codex, and turn them into one comment the owner can read in two minutes. Scale the review to the change: a small low-risk change needs the two verdicts and little else; say in the comment what you skipped.
 
-Below, `<plugin>` means this skill's folder followed by `/../..`, which is the plugin's root folder.
+`<plugin>` below means this skill's folder followed by `/../..`.
 
-## 1. The rules
+## Hard rules
 
-- The claims auditor and Codex see only the change since the branch point, the spec and the pull request description. The spec-match reviewer sees the specs, task list, change, tests and compliance report, and never the description. No reviewer sees the author's reasoning: a reviewer who sees the argument tends to accept it.
-- Each reviewer works in its own private copy of the code, so a review can never touch the author's working folder.
-- Cheap checks run first. Scripts are fast and certain; model reviews are slow.
-- Correctness only: no style comments, nothing that existed before the change, nothing a linter catches.
-- One comment per review, written for a reader who hasn't seen the pull request. It says what to do first, then what the change does and its merge risk. Then come the findings, in three groups: "your decision", "must fix" and "worth fixing later". Only "must fix" blocks a merge.
-- Every finding is reproduced by a separate check, or it is dropped.
-- Verdicts carry the commit ID, and a new commit clears them. After a rebase, a verdict carries over only when the change itself is identical.
-- Review before the pull request opens, and again on the final commit before merge.
-
-## 2. Pick the base and the risk
-
-The base is `origin/<integrationBranch>`, taking the branch name from `.claude/verify.json`. For an existing pull request, use its base branch. The risk is high when any changed file matches a `highRisk` pattern in the same settings file.
-
-## 3. Cheap checks first
-
-Each is a script. A failure stops the review and goes back to the author.
-
-- For each plan or spec the change adds or edits: `node <plugin>/scripts/verify-plan.mjs <file>`.
-- The `plain` checker on the pull request description file.
-- For a change users can see: `node <plugin>/scripts/evidence.mjs check <run> --full-run --head HEAD` for each evidence run the description cites. A change users can see with no live evidence fails here.
-
-## 4. Prepare what the reviewers see
-
-Make `OUT` a new, empty folder in the scratch directory, then:
-
-```sh
-node <plugin>/scripts/review-prep.mjs --base <base> --spec <spec file> --pr-body <description file> --out "$OUT"
-```
-
-It writes the change, the file list, the spec and the description into `OUT`, and one private copy of the code each for the claims auditor, Codex and the validator. Each copy has only two commits, "base" and "change under review", so no commit message from the author travels with it. It prints `meta.json`, which holds the head commit.
-
-On the normal and high-risk lanes, when the change has a folder under `openspec/changes/`, also add the spec-match reviewer's copy with `--copies claims-auditor,codex,validator,spec-match` and `--tasks <the change's tasks.md>`. That makes `OUT/spec-match/`, the reviewer's own input folder: the specs you passed with `--spec` in `spec/`, `tasks.md`, `change.patch` and its private copy of the code in `repo/`. It never holds the pull request description. Then run `node <plugin>/scripts/spec-compliance.mjs <change-name> --lane <normal|high-risk>` and copy the `compliance.json` it reports into `OUT/spec-match/`.
-
-## 5. Run the reviewers at the same time
-
-- **Claims auditor:** use the Agent tool with `subagent_type` set to `claims-auditor` (or `cstack:claims-auditor` when it comes from the plugin, which needs the core plugin at version 3.0.0 or later; before that it was called `karen`), on the most capable model. Give it `claims-auditor-brief.md` from this folder, with its values filled in. It writes `OUT/claims-auditor.json`.
-- **Spec-match reviewer** (normal and high-risk lanes, for a change with a spec): use the Agent tool with `subagent_type` set to `general-purpose` and the most capable model. Give it `spec-match-brief.md` from this folder with its values filled in, and nothing else: no `pr.md`, and no word from the author about why the change is right. It checks each scenario's tests against its THEN lines and reads only `OUT/spec-match/` and writes `OUT/spec-match.json`. Note the time (`date +%s`) just before you start it and just after it ends. Its findings carry a severity of high, medium or low, set by the owner's rule: highs are always fixed, mediums only if the fix is cheap or the code is on a high-risk path, and lows are listed, not filed.
-- **Codex:** fill in `codex-prompt.md` and save it as `OUT/codex-prompt.md`. Keep the skeptic angle always. Add the architect angle for changes over about 100 lines, the minimalist angle for changes over about 300 lines, and the security angle when the risk is high. Then run, in the background:
-
-```sh
-codex exec -s read-only -C "$OUT/codex/repo" --ephemeral --output-schema <this skill's folder>/codex-schema.json -o "$OUT/codex.json" - < "$OUT/codex-prompt.md"
-```
-
-Confirm the flags with `codex exec --help` first. If it doesn't read the prompt from standard input with `-`, pass the prompt file's contents as the argument instead.
-
-- **When Codex can't run:** if Codex stops with a usage limit or quota message, run a Claude reviewer in its place. Use the Agent tool with `subagent_type` set to `general-purpose` and `model` set to a model other than the claims auditor's, such as `sonnet`. Give it the same prompt, and have it write `OUT/fallback.json`. Its verdict is recorded as `claude-fallback`, with a note quoting Codex's error. Never skip the second verdict. A fallback never overrules a Codex "not ready" for the same change: that stands until Codex reviews again or the change is different.
-
-## 6. Reproduce every finding
-
-First fold the spec-match reviewer's answer into the claims auditor's, since a verdict has two reviewers. Add its findings to `OUT/claims-auditor.json` and map the severities: high becomes `blocking`; medium becomes `blocking` when the fix is cheap or the code is on a high-risk path, otherwise `decide`; low becomes `note`. A finding of kind `spec-wrong` always becomes `decide`: the spec looks wrong, so it goes back to the spec approval step for the owner, and not to the build. A builder cannot fix a spec by changing code. Put the scenario verdicts (matches, partly or missing) into `checked`, one line each.
-
-Then record the reviewer's result in the compliance record, which has left the reviewer's mismatch count empty on purpose. Run `node <plugin>/scripts/record-review.mjs --spec-match "$OUT/spec-match.json" --report <the compliance.json path that spec-compliance.mjs printed> --time-ms <milliseconds the reviewer took>`. It writes the number of scenarios marked partly or missing, and the time, into that file.
-
-Combine the findings from both answers into `OUT/findings.json`, keeping only `id`, `claim`, `file`, `line`, `trigger` and `how_to_reproduce`. Give that file to the validator: a fresh agent (the Agent tool, `subagent_type` set to `general-purpose`) with `validator-brief.md` filled in. It writes `OUT/validation.json`.
-
-Then merge its results into each answer:
-
-```sh
-node <plugin>/scripts/verdict.mjs merge --report "$OUT/claims-auditor.json" --validation "$OUT/validation.json" --out "$OUT/claims-auditor.final.json"
-node <plugin>/scripts/verdict.mjs merge --report "$OUT/codex.json" --validation "$OUT/validation.json" --out "$OUT/codex.final.json"
-```
-
-Only reproduced blocking findings can make a verdict "not ready". Findings marked "decide" become questions for the owner, and notes become "worth fixing later". Findings the validator couldn't reproduce are dropped, and the comment's technical detail lists them.
-
-## 7. Record the verdicts
+- Two verdicts, from models of different companies: the claims auditor (`cstack:claims-auditor`, most capable model) and Codex. If Codex stops with a usage limit, a Claude reviewer on a different model stands in, recorded as `claude-fallback` with Codex's error as the note. A fallback never overrules a Codex "not ready" for the same change.
+- Reviewers never see the author's reasoning. Build what they see with `node <plugin>/scripts/review-prep.mjs --base <base> --out "$OUT"` (add `--spec` and `--pr-body`); each gets its own private copy of the code. If this branch has a verdict for an earlier commit, run `review-prep.mjs` with `--since` that commit, so the review starts from the open findings and the new diff.
+- Run the cheap script checks (`verify-plan.mjs`, `plain-check`, `evidence.mjs check`) before any model review.
+- Correctness only. Every finding is reproduced by a separate check, or it is dropped (`verdict.mjs merge` with a validator's answer, using `validator-brief.md`). Only reproduced blocking findings make a verdict "not ready"; "decide" findings become questions for the owner.
+- For a change with an OpenSpec folder on the normal or high-risk lane, a spec-match reviewer also runs, with `spec-match-brief.md` and never the description. A finding that the spec looks wrong goes back to the spec approval step for the owner, never to the build.
+- Record each verdict on the commit the reviewers saw:
 
 ```sh
 node <plugin>/scripts/verdict.mjs write --reviewer claims-auditor --report "$OUT/claims-auditor.final.json" --meta "$OUT/meta.json"
 node <plugin>/scripts/verdict.mjs write --reviewer codex --report "$OUT/codex.final.json" --meta "$OUT/meta.json"
-node <plugin>/scripts/verdict.mjs check --base <base> --head "$(node -p "require('$OUT/meta.json').head")"
 ```
 
-Each verdict lands on the commit in `meta.json`, the one the reviewers actually saw, even if someone commits while the review runs. `write` refuses a `--head` or `--base` that doesn't match it. It prints the path of the verdict file it wrote; the next step needs both paths.
+- A new commit clears the verdicts, unless the change is identical. Run `verdict.mjs check --base <base>` on the final commit before merge.
+- The comment is built by `verdict.mjs review` from the verdicts and a writer's text (`writer-brief.md`), and must pass `plain-check` before anyone sees it. Post it on the owner's own pull requests; for a teammate's, show the owner the draft first and never add reviewers they didn't ask for.
 
-For a fallback reviewer, write `--reviewer claude-fallback --note "<Codex's error>" --model <model>`. Verdicts are stored in the repository's git folder as `<commit>.<reviewer>.json`. They are never committed. Verdicts saved before the claims auditor got its name are stored as `<commit>.karen.json`, and still count as the claims auditor's.
-
-## 8. Write the comment
-
-Both verdicts become one comment. Use the Agent tool with `subagent_type` set to `general-purpose` and `model` set to `sonnet`, and give it `writer-brief.md` from this folder with its values filled in: the two verdict file paths from step 7. It writes `OUT/writer.json`, the plain sentences, and runs the `review` command until the text passes its check. Then render the comment yourself:
-
-```sh
-node <plugin>/scripts/verdict.mjs review --claims-auditor <the claims auditor's verdict file> --other <the other verdict file> --writer "$OUT/writer.json" > "$OUT/comment.md"
-```
-
-The script builds the layout, the numbering, the headline, "what you need to do" and the technical detail from the verdicts. It refuses a writer's text that leaves out a confirmed finding, adds one, rates the merge risk lower than a reviewer did, or puts code in the plain part. The writer can't change a verdict.
-
-Then run both plain-English checks on the comment, and send any problem back to the writer to fix in `writer.json`:
-
-```sh
-node <the plain plugin>/scripts/plain-check.mjs "$OUT/comment.md"
-node <the plain plugin>/skills/cold-reader/scripts/cold-read.mjs "$OUT/comment.md" --json
-```
-
-The plain-English checker must pass before the comment is posted or shown. The technical detail turns each item into a work packet: the files, the command that shows the problem, the check that proves it's fixed, the suggested fix, and which items must come first. A hidden copy at the end of the comment lets an agent split the review into separate fixes: `node <plugin>/scripts/verdict.mjs items "$OUT/comment.md"` prints one packet per item.
-
-The cold reader is advice: send its real gaps back to the writer, at most twice. It skips code names in the technical detail. It sometimes flags a term the comment already explains, such as a reviewer's name. Don't chase those; note them for the cold reader's own upkeep.
-
-## 9. Report and post
-
-- Both say ready: say so, with the commit ID and any decisions the comment asks for.
-- Either says not ready: list the items to fix. Review again on the new commit.
-- They disagree: the comment says so in "what you need to do". The owner decides.
-
-For the owner's own pull requests, post the comment:
-
-```sh
-gh api repos/{owner}/{repo}/issues/<number>/comments -F body=@"$OUT/comment.md"
-```
-
-Before the pull request exists, keep the comment, and post it when it opens.
-
-## 10. Before merge
-
-Run `node <plugin>/scripts/verdict.mjs check --base <base>` on the final commit. If it fails because the head moved, review again. A verdict from an earlier commit carries over only when the change is identical.
-
-## 11. Teammates' pull requests
-
-Fetch the head with `git fetch origin pull/<number>/head:review/<number>`, and use `review/<number>` as the head. On top of the rules above:
-
-- Prove each fix by watching its test fail without the fix and pass with it, in the claims auditor's copy.
-- Check that mirror pull requests are byte-identical, by comparing `verdict.mjs patch-id` for each.
-- Draft the comment the same way, in the same layout, and show it to the owner. Post it only after they approve.
-- Never add reviewers the owner didn't ask for.
-
-## 12. Clean up
-
-```sh
-node <plugin>/scripts/review-prep.mjs --remove "$OUT"
-```
-
-Verdict files stay in the repository's git folder.
-
-## 13. Learning loop
-
-When a finding keeps coming back, propose an automatic check for it. When a bug gets past review, add it to this skill's `evals/evals.json` as a new case.
+The briefs in this folder (`claims-auditor-brief.md`, `codex-prompt.md`, `codex-schema.json`, `spec-match-brief.md`, `validator-brief.md`, `writer-brief.md`) say what each reviewer gets and returns. Clean up with `review-prep.mjs --remove "$OUT"`. When a bug gets past review, add it to `evals/evals.json`.
