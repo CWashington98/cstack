@@ -1,7 +1,13 @@
 {
   "integrationBranch": "main",
   "highRisk": [],
-  "protectedBranches": ["main"],
+  "protectedBranches": [
+    "main"
+  ],
   "agentsMayDeployTo": [],
-  "agentsNeverTouch": []
+  "agentsNeverTouch": [],
+  "gate": {
+    "reviews": "always",
+    "sizeLimit": 400
+  }
 }

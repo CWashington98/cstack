@@ -181,6 +181,9 @@ claims that work is done, `check-pointers` checks pinned pointers. The descripti
 says when to use it. The `bootstrap-agents` skill and its agent template follow the same
 rule. A test fails if an agent file's name doesn't match the name inside it.
 
+Skills in a family share a prefix, so they sort together: `pr-open` and `pr-review`. A
+script run as a command is called `<plugin> <noun>`, such as `verify gate`.
+
 ## Layout
 
 ```

@@ -24,6 +24,22 @@ commands, ignoring capital letters. Use full names: an entry like `prod` would
 refuse every command that contains those four letters. `verify` refuses entries
 shorter than 3 characters there. `protectedBranches` holds exact branch names.
 
+## Settings for the ready check
+
+`verify gate <pr>` (the script `plugins/verify/scripts/gate.mjs`) decides whether a pull request is ready for the owner to merge. It sorts every reason it isn't into `fix` (an agent can clear it), `wait` (checks still running) or `owner` (only the owner can, with a question). With `--apply` it also keeps the pull request a draft until it's ready, and puts the owner's question in the description's first line. It never merges. Its settings go in a `gate` block; all are optional.
+
+| Field | What it holds |
+|---|---|
+| `gate.reviews` | `"always"` (the default): every pull request needs both review verdicts. `"highRisk"`: only changes that touch a `highRisk` path, or this settings file, need them. An empty `highRisk` list means every change needs them. |
+| `gate.sizeLimit` | The most changed code lines a pull request may have, 400 by default. Moved files count once. |
+| `gate.notCounted` | Path patterns left out of the size, such as tests and lock files. |
+| `gate.allowedBases` | Branches a pull request may target. Leave it out to use `integrationBranch`. |
+| `gate.zone` | The risk zone: `high`, `standard` and `low` path lists, or a `command` that prints the zone. |
+| `gate.runtimeSurface` | Path patterns for code users run. |
+| `gate.flagsRequired` | `true` when a change to `gate.runtimeSurface` must name its feature flag on a `Flag:` line in the description. |
+
+The block used to be called `factory`. That name is still read, with a warning.
+
 ## Settings for the spec compliance check
 
 The spec compliance check in `verify` proves a change does what its approved OpenSpec spec says. `verify:pr-review` runs it whenever a change has a folder under `openspec/changes/`. It needs only `tests.byName`; the rest are optional.

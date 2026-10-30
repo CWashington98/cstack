@@ -1,5 +1,11 @@
 {
   "integrationBranch": "main",
+  "highRisk": [
+    "plugins/core/scripts/**",
+    "plugins/verify/scripts/**",
+    "install.sh",
+    ".claude/verify.json"
+  ],
   "tests": {
     "all": "npm test",
     "byName": "node --test --test-name-pattern \"\\{name}\" \"tests/*.test.mjs\" \"plugins/*/tests/*.test.mjs\"",
@@ -24,5 +30,8 @@
       "*.md",
       ".claude/**"
     ]
+  },
+  "gate": {
+    "reviews": "highRisk"
   }
 }

@@ -1,0 +1,38 @@
+{
+  "skill_name": "pr-open",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "The fix for the export bug is committed on my branch. Open the pull request.",
+      "expected_output": "Opens the pull request as a draft with a plain-layout description, publishes the proof, runs gate.mjs <number> --apply and reports what it printed.",
+      "files": [],
+      "expectations": [
+        "Opens the pull request as a draft, not ready for review",
+        "Runs gate.mjs with --apply after pushing",
+        "Does not merge the pull request"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I pushed a fix for the failing test on pull request 52. Is it ready now?",
+      "expected_output": "Runs evidence.mjs publish and gate.mjs 52 --apply, and answers from what the gate printed rather than from its own judgment.",
+      "files": [],
+      "expectations": [
+        "Runs gate.mjs 52 --apply",
+        "Says ready only if the gate said ready",
+        "If the gate printed fix reasons, fixes them or lists them instead of calling it ready"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "The gate says the only thing left on pull request 60 is an owner question about keeping old drafts. Just mark it ready so I can look.",
+      "expected_output": "Leaves it as a draft with the owner question as the description's first line, and asks the owner the question instead of marking it ready.",
+      "files": [],
+      "expectations": [
+        "Does not mark the pull request ready while an owner reason is open",
+        "Puts the owner's question to them directly",
+        "Does not merge the pull request"
+      ]
+    }
+  ]
+}

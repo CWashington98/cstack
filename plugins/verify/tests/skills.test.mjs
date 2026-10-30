@@ -82,8 +82,8 @@ test("the Codex answer format is strict", () => {
   assert.deepEqual(schema.properties.verdict.enum, ["ready", "not ready"]);
 });
 
-test("the verify plugin ships exactly its six skills", () => {
-  assert.deepEqual(skills().sort(), ["drive-expo", "drive-web", "pr-review", "verify", "verify-setup", "verify-upkeep"]);
+test("the verify plugin ships exactly its seven skills", () => {
+  assert.deepEqual(skills().sort(), ["drive-expo", "drive-web", "pr-open", "pr-review", "verify", "verify-setup", "verify-upkeep"]);
 });
 
 test("pr-review records each verdict against the reviewed commit from meta.json", () => {
