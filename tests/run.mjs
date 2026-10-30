@@ -4,10 +4,11 @@
 // The tests think their temp folder is the machine's ($TMPDIR on macOS and Linux), so a leak shows up
 // as something left behind in the private folder. Starting empty means the count needs no "before" number,
 // and other programs using the real temp folder at the same time cannot cause a false alarm.
-import { mkdtempSync, readdirSync, realpathSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
+import { removeTree } from "./helpers.mjs";
 
 const DEFAULT_TESTS = ["tests/*.test.mjs", "plugins/*/tests/*.test.mjs"];
 const SHOWN = 20;
@@ -21,7 +22,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => child.kill(
 
 child.on("exit", (status, signal) => {
   const left = readdirSync(scratch).sort();
-  rmSync(scratch, { recursive: true, force: true });
+  try { removeTree(scratch); } catch (error) { console.error(`Could not delete ${scratch}: ${error.message}`); }
   if (left.length) {
     const names = left.slice(0, SHOWN).join(", ") + (left.length > SHOWN ? `, and ${left.length - SHOWN} more` : "");
     console.error(`\nTemp folder check FAILED: the tests left ${left.length} entr${left.length === 1 ? "y" : "ies"} behind: ${names}`);

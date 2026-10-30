@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync, lstatSync, chmodSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -12,10 +12,24 @@ export function git(dir, ...args) {
   return execFileSync("git", args, { cwd: dir, encoding: "utf8", env: { ...process.env, ...identity } });
 }
 
+// Deletes a folder and everything in it, including folders a test made read-only.
+export function removeTree(path) {
+  try { rmSync(path, { recursive: true, force: true }); return; } catch { /* a read-only folder inside: open it up and try again */ }
+  const openUp = (entry) => {
+    let stat;
+    try { stat = lstatSync(entry); } catch { return; }
+    if (!stat.isDirectory()) return;
+    chmodSync(entry, 0o700);
+    for (const name of readdirSync(entry)) openUp(join(entry, name));
+  };
+  openUp(path);
+  rmSync(path, { recursive: true, force: true });
+}
+
 const made = new Set();
 process.on("exit", () => {
   for (const dir of made) {
-    try { rmSync(dir, { recursive: true, force: true }); } catch (error) { console.error(`tempDir: could not delete ${dir}: ${error.message}`); }
+    try { removeTree(dir); } catch (error) { console.error(`tempDir: could not delete ${dir}: ${error.message}`); }
   }
 });
 
