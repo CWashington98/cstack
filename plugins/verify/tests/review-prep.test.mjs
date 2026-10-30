@@ -70,3 +70,13 @@ test("the spec-match reviewer gets its own input folder with the spec, tasks, ch
   assert.ok(!existsSync(join(out, "claims-auditor", "pr.md")));
   assert.match(readFileSync(join(mine, "change.patch"), "utf8"), /\+two/);
 });
+
+test("--since a commit that isn't in the repository builds a full packet and says why", () => {
+  const root = branchRepo();
+  const out = join(mkdtempSync(join(tmpdir(), "review-")), "r");
+  const warnings = [];
+  const meta = prepare({ repo: root, base: "main", since: "0123456789abcdef0123456789abcdef01234567", copies: [], out, warn: (m) => warnings.push(m) });
+  assert.match(meta.followUp.fallback, /not in this repository/);
+  assert.match(warnings.join("\n"), /can't be followed up/);
+  assert.ok(existsSync(join(out, "change.patch")));
+});
