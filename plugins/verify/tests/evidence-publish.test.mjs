@@ -3,19 +3,18 @@
 // local bare repository, with a stand-in `gh` on PATH that logs every call.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, chmodSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, chmodSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { tmpdir } from "node:os";
 import { spawnSync, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { makeRepo, git } from "../../../tests/helpers.mjs";
+import { makeRepo, git, tempDir } from "../../../tests/helpers.mjs";
 
 const script = resolve(fileURLToPath(import.meta.url), "../../scripts/evidence.mjs");
 const START = "<!-- verify-evidence:start -->";
 const END = "<!-- verify-evidence:end -->";
 
 function project({ settings } = {}) {
-  const origin = mkdtempSync(join(tmpdir(), "evidence-origin-"));
+  const origin = tempDir("evidence-origin");
   execFileSync("git", ["init", "-q", "--bare", origin]);
   const root = makeRepo({ "app.txt": "v1\n", ".gitignore": ".verify/\n", ...(settings ? { ".claude/verify.json": JSON.stringify(settings) } : {}) });
   git(root, "checkout", "-qb", "feat");
@@ -38,7 +37,7 @@ function saveRun(root, commit, { name = "20261029T100000Z", status = "verified l
 }
 
 function publish(p, { body = "## What changed\nA fix.\n" } = {}) {
-  const dir = mkdtempSync(join(tmpdir(), "evidence-gh-"));
+  const dir = tempDir("evidence-gh");
   mkdirSync(join(dir, "bin"));
   const log = join(dir, "calls.log");
   const out = join(dir, "body.md");

@@ -3,11 +3,11 @@
 // that logs every call and saves any new description.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, chmodSync, existsSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync, readFileSync, chmodSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { tempDir } from "../../../tests/helpers.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const gate = join(here, "..", "scripts", "gate.mjs");
@@ -24,7 +24,7 @@ function write(cwd, path, content) {
 
 // A repository with a trunk, and a branch editing `files` (path -> content). Settings go in the named block.
 function setup({ files, block = "gate", gate: gateSettings = {}, project = {} }) {
-  const cwd = mkdtempSync(join(tmpdir(), "gate-reasons-"));
+  const cwd = tempDir("gate-reasons");
   git(cwd, "init", "-q", "-b", "main");
   git(cwd, "config", "user.email", "t@example.com");
   git(cwd, "config", "user.name", "T");
@@ -56,7 +56,7 @@ const passed = [{ __typename: "CheckRun", status: "COMPLETED", conclusion: "SUCC
 const threads = { data: { repository: { pullRequest: { reviewThreads: { pageInfo: { hasNextPage: false, endCursor: null }, nodes: [] } } } } };
 
 function apply(change, { view = {} } = {}) {
-  const dir = mkdtempSync(join(tmpdir(), "gate-apply-gh-"));
+  const dir = tempDir("gate-apply-gh");
   const log = join(dir, "calls.log");
   const out = join(dir, "body.md");
   mkdirSync(join(dir, "bin"));

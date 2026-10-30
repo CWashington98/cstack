@@ -3,12 +3,11 @@
 // written where verdict.mjs keeps them.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync, mkdirSync, mkdtempSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { makeRepo, git } from "../../../tests/helpers.mjs";
+import { makeRepo, git, tempDir } from "../../../tests/helpers.mjs";
 
 const script = resolve(fileURLToPath(import.meta.url), "../../scripts/review-prep.mjs");
 
@@ -43,7 +42,7 @@ test("[follow-up-packet-has-findings-and-delta] the packet lists the earlier blo
   ]);
   commit(root, "b.txt", "fix\n", "fix f1");
   const head = commit(root, "c.txt", "more\n", "second fix");
-  const out = join(mkdtempSync(join(tmpdir(), "follow-")), "r");
+  const out = join(tempDir("follow"), "r");
 
   const r = prep(root, "--since", reviewed, "--head", head, "--copies", "claims-auditor", "--out", out);
   assert.equal(r.status, 0, r.stderr);
@@ -70,7 +69,7 @@ test("[rewritten-branch-falls-back-to-full] when the earlier commit is no longer
   saveVerdict(root, reviewed, "claims-auditor", [{ id: "f1", claim: "two is never checked", severity: "blocking", reproduced: true }]);
   git(root, "reset", "-q", "--hard", "main");
   commit(root, "a.txt", "one\nTWO\n", "rewritten change");
-  const out = join(mkdtempSync(join(tmpdir(), "follow-")), "r");
+  const out = join(tempDir("follow"), "r");
 
   const r = prep(root, "--since", reviewed, "--copies", "claims-auditor", "--out", out);
   assert.equal(r.status, 0, r.stderr);
