@@ -2,8 +2,7 @@
 // gate.test.mjs is locked, so these live in their own file.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, chmodSync, existsSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync, readFileSync, readdirSync, chmodSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -11,6 +10,7 @@ import { decideGate } from "../scripts/lib/gate/decide.mjs";
 import { collectFacts, countLines, summarizeChecks } from "../scripts/lib/gate/facts.mjs";
 import { classifyZone, zoneFor } from "../scripts/lib/gate/zone.mjs";
 import { writeRecord } from "../scripts/lib/gate/record.mjs";
+import { tempDir } from "../../../tests/helpers.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const gate = join(here, "..", "scripts", "gate.mjs");
@@ -109,7 +109,7 @@ function write(cwd, path, content) {
   writeFileSync(join(cwd, path), content);
 }
 function repo() {
-  const cwd = mkdtempSync(join(tmpdir(), "factory-holds-"));
+  const cwd = tempDir("factory-holds");
   git(cwd, "init", "-q", "-b", "main");
   git(cwd, "config", "user.email", "t@example.com");
   git(cwd, "config", "user.name", "T");
@@ -122,7 +122,7 @@ const commit = (cwd, message = "c") => { git(cwd, "add", "."); git(cwd, "commit"
 
 // A stub gh and a stub verify plugin.
 function tools() {
-  const dir = mkdtempSync(join(tmpdir(), "factory-tools-"));
+  const dir = tempDir("factory-tools");
   mkdirSync(join(dir, "bin")); mkdirSync(join(dir, "verify"));
   writeFileSync(join(dir, "bin", "gh"), `#!/usr/bin/env node
 const a = process.argv.slice(2), e = process.env;
@@ -266,7 +266,7 @@ function zoneRepo(marker) {
   const settings = { ...SETTINGS, zone: { command: "node scripts/zone.mjs", high: [], standard: [], low: ["**"] } };
   return { cwd, head, settings, files: [file("scripts/zone.mjs", 1, 1), file("docs/x.md")] };
 }
-const markerPath = () => join(mkdtempSync(join(tmpdir(), "factory-marker-")), "ran");
+const markerPath = () => join(tempDir("factory-marker"), "ran");
 
 test("the zone command beats the patterns, and a PR copy of the script is ignored", () => {
   const marker = markerPath(); const z = zoneRepo(marker);

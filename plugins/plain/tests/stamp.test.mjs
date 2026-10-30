@@ -1,11 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, existsSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join, dirname, basename } from "node:path";
+import { existsSync } from "node:fs";
+import { join, dirname } from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { makeRepo, git } from "../../../tests/helpers.mjs";
+import { makeRepo, git, tempDir } from "../../../tests/helpers.mjs";
 import { writeStamp, hasStamp, stampStatus, plainDir, logOverride, fingerprint } from "../scripts/plain-stamp.mjs";
 import { CHECKER_VERSION } from "../scripts/lib/version.mjs";
 import { READER_VERSION } from "../skills/cold-reader/scripts/version.mjs";
@@ -19,14 +18,14 @@ test("a stamp matches only the exact same text, and every worktree shares it", (
   writeStamp(dir, "Hello there.\n", { pass: true });
   assert.equal(hasStamp(dir, "Hello there."), true);
   assert.equal(hasStamp(dir, "Hello there!"), false);
-  const worktree = join(dirname(dir), `${basename(dir)}-wt`);
+  const worktree = join(tempDir("plain-test-wt"), "wt");
   git(dir, "worktree", "add", "-q", worktree);
   assert.equal(hasStamp(worktree, "Hello there."), true);
 });
 
 test("outside git, stamps go to the cache folder", () => {
-  const dir = mkdtempSync(join(tmpdir(), "plain-nogit-"));
-  process.env.XDG_CACHE_HOME = mkdtempSync(join(tmpdir(), "plain-cache-"));
+  const dir = tempDir("plain-nogit");
+  process.env.XDG_CACHE_HOME = tempDir("plain-cache");
   writeStamp(dir, "Some text.", { pass: true });
   assert.ok(plainDir(dir).startsWith(process.env.XDG_CACHE_HOME));
   assert.equal(hasStamp(dir, "Some text."), true);

@@ -1,10 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, chmodSync, realpathSync, symlinkSync, existsSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, chmodSync, realpathSync, symlinkSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { tempDir } from "./helpers.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const script = join(root, "install.sh");
@@ -33,7 +34,7 @@ function toolbox(dir, reader) {
 // `home` makes the project folder the home folder. `shoutPwd` hands bash the folder's name in
 // capitals, as a shell on a case-blind disk can after `cd` with the wrong case.
 function run(args = [], { pkgs = {}, files = [], list = [], fail = [], piped = false, repo = false, cwd = "", reader = "node", home = false, shoutPwd = false } = {}) {
-  const dir = mkdtempSync(join(tmpdir(), "cstack-install-"));
+  const dir = tempDir("cstack-install");
   const bin = join(dir, "bin"), project = join(dir, "project"), log = join(dir, "calls.log");
   const whereLog = join(dir, "where.log"), openLog = join(dir, "open-input.log");
   mkdirSync(bin); mkdirSync(project);

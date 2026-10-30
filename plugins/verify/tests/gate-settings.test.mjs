@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { normalizeSettings, readSettings } from "../scripts/lib/gate/settings.mjs";
+import { tempDir } from "../../../tests/helpers.mjs";
 
 test("gate settings default the allowed base to the integration branch", () => {
   const settings = normalizeSettings({}, { integrationBranch: "dev" });
@@ -40,7 +40,7 @@ test("gate settings ignore the dropped merge and neverMerge fields", () => {
 });
 
 function project(block) {
-  const cwd = mkdtempSync(join(tmpdir(), "gate-settings-"));
+  const cwd = tempDir("gate-settings");
   mkdirSync(join(cwd, ".claude"));
   writeFileSync(join(cwd, ".claude", "verify.json"), JSON.stringify({ integrationBranch: "dev", ...block }));
   return cwd;

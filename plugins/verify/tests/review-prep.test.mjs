@@ -1,9 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, writeFileSync, existsSync, rmSync, mkdtempSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
-import { makeRepo, git } from "../../../tests/helpers.mjs";
+import { makeRepo, git, tempDir } from "../../../tests/helpers.mjs";
 import { prepare } from "../scripts/review-prep.mjs";
 
 function branchRepo() {
@@ -20,7 +19,7 @@ function branchRepo() {
 
 test("prepare writes the change, the spec, the description and one copy per reviewer", () => {
   const root = branchRepo();
-  const out = join(mkdtempSync(join(tmpdir(), "review-")), "r");
+  const out = join(tempDir("review"), "r");
   writeFileSync(join(root, "pr.md"), "## What changed and why\nAdds two.\n");
   const meta = prepare({ repo: root, base: "main", head: "HEAD", specs: [join(root, "spec.md")], prBody: join(root, "pr.md"), copies: ["claims-auditor", "codex"], out });
   assert.match(readFileSync(join(out, "change.patch"), "utf8"), /\+two/);
@@ -33,7 +32,7 @@ test("prepare writes the change, the spec, the description and one copy per revi
 
 test("each copy holds the head code with the base as its only history, and no author messages", () => {
   const root = branchRepo();
-  const out = join(mkdtempSync(join(tmpdir(), "review-")), "r");
+  const out = join(tempDir("review"), "r");
   const meta = prepare({ repo: root, base: "main", head: "HEAD", copies: ["claims-auditor"], out });
   const copy = meta.copies["claims-auditor"];
   assert.deepEqual(git(copy, "log", "--format=%s").trim().split("\n"), ["change under review", "base"]);
@@ -45,21 +44,21 @@ test("each copy holds the head code with the base as its only history, and no au
 
 test("prepare refuses to write into a folder that already has files", () => {
   const root = branchRepo();
-  const out = mkdtempSync(join(tmpdir(), "review-"));
+  const out = tempDir("review");
   writeFileSync(join(out, "keep.txt"), "x");
   assert.throws(() => prepare({ repo: root, base: "main", out }), /already has files/);
 });
 
 test("by default prepare makes copies for the claims auditor, Codex and the validator", () => {
   const root = branchRepo();
-  const out = join(mkdtempSync(join(tmpdir(), "review-")), "r");
+  const out = join(tempDir("review"), "r");
   const meta = prepare({ repo: root, base: "main", out });
   assert.deepEqual(Object.keys(meta.copies), ["claims-auditor", "codex", "validator"]);
 });
 
 test("the spec-match reviewer gets its own input folder with the spec, tasks, change and report, and no description", () => {
   const root = branchRepo();
-  const out = join(mkdtempSync(join(tmpdir(), "review-")), "r");
+  const out = join(tempDir("review"), "r");
   writeFileSync(join(root, "pr.md"), "## What changed and why\nAdds two.\n");
   writeFileSync(join(root, "tasks.md"), "- [x] 1.1 One\n");
   writeFileSync(join(root, "compliance.json"), "{}\n");
@@ -73,7 +72,7 @@ test("the spec-match reviewer gets its own input folder with the spec, tasks, ch
 
 test("--since a commit that isn't in the repository builds a full packet and says why", () => {
   const root = branchRepo();
-  const out = join(mkdtempSync(join(tmpdir(), "review-")), "r");
+  const out = join(tempDir("review"), "r");
   const warnings = [];
   const meta = prepare({ repo: root, base: "main", since: "0123456789abcdef0123456789abcdef01234567", copies: [], out, warn: (m) => warnings.push(m) });
   assert.match(meta.followUp.fallback, /not in this repository/);

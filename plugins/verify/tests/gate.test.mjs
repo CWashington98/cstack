@@ -1,11 +1,11 @@
 // Locked acceptance tests for add-factory-gate. Change only with a Spec-Change commit.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, chmodSync, existsSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync, readFileSync, readdirSync, chmodSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
+import { tempDir } from "../../../tests/helpers.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const gate = join(here, "..", "scripts", "gate.mjs");
@@ -89,7 +89,7 @@ function git(cwd, ...args) {
 }
 
 function repo() {
-  const cwd = mkdtempSync(join(tmpdir(), "factory-gate-"));
+  const cwd = tempDir("factory-gate");
   git(cwd, "init", "-q", "-b", "main");
   git(cwd, "config", "user.email", "test@example.com");
   git(cwd, "config", "user.name", "Test");

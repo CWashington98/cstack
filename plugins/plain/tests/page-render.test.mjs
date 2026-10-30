@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderPage, inline } from "../scripts/page-render.mjs";
+import { tempDir } from "../../../tests/helpers.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const script = join(here, "..", "scripts", "page-render.mjs");
@@ -86,7 +86,7 @@ test("the page loads nothing from the internet", () => {
 });
 
 test("the command line writes the page, reads diagrams beside the brief, and exits 1 on a bad brief", () => {
-  const dir = mkdtempSync(join(tmpdir(), "to-page-"));
+  const dir = tempDir("to-page");
   writeFileSync(join(dir, "d.svg"), "<svg><title>d</title></svg>");
   writeFileSync(join(dir, "good.json"), JSON.stringify({ title: "t", sections: [{ title: "D", diagram: "d.svg" }] }));
   writeFileSync(join(dir, "bad.json"), JSON.stringify({ title: "t", sections: [{ kind: "decision", title: "x" }] }));
@@ -100,7 +100,7 @@ test("the command line writes the page, reads diagrams beside the brief, and exi
 });
 
 test("the command line still runs when the script is reached through a symlink", () => {
-  const dir = mkdtempSync(join(tmpdir(), "to-page-link-"));
+  const dir = tempDir("to-page-link");
   symlinkSync(dirname(script), join(dir, "scripts"));
   writeFileSync(join(dir, "b.json"), JSON.stringify({ title: "t", sections: [] }));
   const run = spawnSync(process.execPath, [join(dir, "scripts", "page-render.mjs"), join(dir, "b.json"), join(dir, "b.html")], { encoding: "utf8" });

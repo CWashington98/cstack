@@ -1,13 +1,13 @@
 // Small unit tests for breaking what a guard protects.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { breakGuard, definitionRanges, identifiersIn } from "../scripts/lib/breaks.mjs";
+import { tempDir } from "../../../tests/helpers.mjs";
 
 function tree(files) {
-  const dir = mkdtempSync(join(tmpdir(), "guard-"));
+  const dir = tempDir("guard");
   for (const [p, c] of Object.entries(files)) { mkdirSync(join(dir, p, ".."), { recursive: true }); writeFileSync(join(dir, p), c); }
   return dir;
 }

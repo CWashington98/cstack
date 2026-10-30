@@ -1,15 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { findProfiles, staleCatalogs, compareInstalled, duplicateInstalls, pointerChanges, repoCopies, formatReport } from "../scripts/upkeep.mjs";
+import { tempDir } from "../../../tests/helpers.mjs";
 
 const day = 24 * 60 * 60 * 1000;
 const now = Date.parse("2026-10-06T00:00:00Z");
 
 test("profiles are the Claude config folders that have installed plugins, skipping backups", () => {
-  const home = mkdtempSync(join(tmpdir(), "upkeep-home-"));
+  const home = tempDir("upkeep-home");
   for (const d of [".claude-work", ".claude-personal", ".claude-work.bak-2026-08-21", ".claude-shared"]) mkdirSync(join(home, d, "plugins"), { recursive: true });
   for (const d of [".claude-work", ".claude-personal", ".claude-work.bak-2026-08-21"]) writeFileSync(join(home, d, "plugins", "installed_plugins.json"), "{}");
   assert.deepEqual(findProfiles(home).map((p) => p.name), [".claude-personal", ".claude-work"]);
