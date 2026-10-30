@@ -1,6 +1,6 @@
 // Evidence runs: one folder per live check, with a run.json that records each step,
 // so anyone can check later that the proof was real, complete and still there.
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, realpathSync, mkdtempSync, rmSync, cpSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, realpathSync, mkdtempSync, rmSync, copyFileSync } from "node:fs";
 import { join, resolve, relative, isAbsolute, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
@@ -147,7 +147,8 @@ export const EVIDENCE_BRANCH = "verify-evidence";
 export const SECTION_START = "<!-- verify-evidence:start -->";
 export const SECTION_END = "<!-- verify-evidence:end -->";
 
-// The newest finished run for a commit, or null.
+// The newest finished run recorded on a clean copy of a commit, or null. A run on uncommitted
+// changes proves no commit, so it is never published.
 export function newestRunFor(root, head) {
   const runsDir = join(root, ".verify", "runs");
   if (!existsSync(runsDir)) return null;
@@ -158,7 +159,7 @@ export function newestRunFor(root, head) {
       if (!existsSync(join(dir, "run.json"))) continue;
       let run;
       try { run = load(dir); } catch { continue; }
-      if (run.commit === head && run.status) found.push({ dir, run, name: `${app.name}/${r.name}` });
+      if (run.commit === head && run.status && !run.dirty) found.push({ dir, run, name: `${app.name}/${r.name}` });
     }
   }
   const when = (x) => `${x.run.finishedAt ?? x.run.startedAt ?? ""} ${x.name}`;
@@ -226,7 +227,7 @@ export function pushEvidence(root, { pr, head, dir, files }) {
     rmSync(dest, { recursive: true, force: true });
     for (const f of files) {
       mkdirSync(dirname(join(dest, f)), { recursive: true });
-      cpSync(join(dir, f), join(dest, f));
+      copyFileSync(join(dir, f), join(dest, f));
     }
     sh(tmp, "add", "-A");
     sh(tmp, ...bot, "commit", "-qm", `evidence for pull request ${pr} at ${head.slice(0, 7)}`, "--allow-empty");
