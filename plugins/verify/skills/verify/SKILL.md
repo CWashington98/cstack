@@ -40,6 +40,8 @@ Each pull request gets exactly one status, tied to its latest commit. A new comm
 
 "Inconclusive" counts as failed. So does a check run on the wrong surface, such as a unit test for a screen change.
 
+To put the proof in the pull request, run `node <this skill's folder>/../../scripts/evidence.mjs publish --pr <number>`. It adds the newest finished run for the pull request's head, with its screenshots, to the description.
+
 Live checks run through the app's verification skill (`.claude/skills/verify-<app>/`). If the app has none, create one with `verify-setup` first.
 
 ## Sizing the checks to the risk

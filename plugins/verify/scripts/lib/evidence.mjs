@@ -1,7 +1,8 @@
 // Evidence runs: one folder per live check, with a run.json that records each step,
 // so anyone can check later that the proof was real, complete and still there.
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, realpathSync, mkdtempSync, rmSync, cpSync } from "node:fs";
+import { join, resolve, relative, isAbsolute, dirname } from "node:path";
+import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 
 export const STATUSES = ["verified live", "verified by tests", "type check only", "blocked", "failed"];
@@ -138,3 +139,103 @@ export function finishRun(dir, status, now = new Date()) {
   save(dir, run);
   return run;
 }
+
+// ---- Publishing a run's evidence to a pull request ----
+// Files go to an orphan branch that holds only evidence, so they never mix with the code.
+
+export const EVIDENCE_BRANCH = "verify-evidence";
+export const SECTION_START = "<!-- verify-evidence:start -->";
+export const SECTION_END = "<!-- verify-evidence:end -->";
+
+// The newest finished run for a commit, or null.
+export function newestRunFor(root, head) {
+  const runsDir = join(root, ".verify", "runs");
+  if (!existsSync(runsDir)) return null;
+  const found = [];
+  for (const app of readdirSync(runsDir, { withFileTypes: true }).filter((d) => d.isDirectory())) {
+    for (const r of readdirSync(join(runsDir, app.name), { withFileTypes: true }).filter((d) => d.isDirectory())) {
+      const dir = join(runsDir, app.name, r.name);
+      if (!existsSync(join(dir, "run.json"))) continue;
+      let run;
+      try { run = load(dir); } catch { continue; }
+      if (run.commit === head && run.status) found.push({ dir, run, name: `${app.name}/${r.name}` });
+    }
+  }
+  const when = (x) => `${x.run.finishedAt ?? x.run.startedAt ?? ""} ${x.name}`;
+  return found.sort((a, b) => when(a).localeCompare(when(b))).at(-1) ?? null;
+}
+
+// Every file the run names, and any that resolve outside its folder, following links.
+export function runFiles(dir, run) {
+  const top = realpathSync(dir);
+  const inside = (p) => { const rel = relative(top, p); return rel && !rel.startsWith("..") && !isAbsolute(rel); };
+  const names = [...new Set(run.steps.flatMap((s) => [s.trigger, s.end, ...(s.artifacts ?? [])]).filter(Boolean))];
+  const outside = names.filter((f) => isAbsolute(f) || !inside(resolve(top, f)) || (existsSync(join(top, f)) && !inside(realpathSync(join(top, f)))));
+  const missing = names.filter((f) => !outside.includes(f) && !existsSync(join(top, f)));
+  return { files: names.filter((f) => !outside.includes(f) && !missing.includes(f)), outside, missing };
+}
+
+const IMAGE = /\.(png|jpe?g|gif|webp|svg)$/i;
+
+export function proofSection({ run, name, head, links }) {
+  const lines = [SECTION_START, "## Proof it works", "", `**${run.status}** on commit \`${head.slice(0, 7)}\`, from the run \`${name}\`.`, ""];
+  for (const { file, url } of links) lines.push(IMAGE.test(file) ? `![${file}](${url})` : `- [${file}](${url})`);
+  if (!links.length) lines.push("The run saved no screenshots or recordings.");
+  lines.push(SECTION_END);
+  return lines.join("\n");
+}
+
+// The description with the section put in place of the old one, or added at the end.
+export function withSection(body, section) {
+  const text = body ?? "";
+  const start = text.indexOf(SECTION_START);
+  const end = text.indexOf(SECTION_END, start);
+  if (start !== -1 && end !== -1) return text.slice(0, start) + section + text.slice(end + SECTION_END.length);
+  return `${text.replace(/\s*$/, "")}${text.trim() ? "\n\n" : ""}${section}\n`;
+}
+
+export function evidenceProtected(root) {
+  const local = join(root, ".claude", "verify.json");
+  const common = git(root, "rev-parse", "--path-format=absolute", "--git-common-dir");
+  const file = existsSync(local) ? local : common && join(dirname(common), ".claude", "verify.json");
+  if (!file || !existsSync(file)) return false;
+  const listed = JSON.parse(readFileSync(file, "utf8")).protectedBranches ?? [];
+  return [listed].flat().includes(EVIDENCE_BRANCH);
+}
+
+const sh = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+const bot = ["-c", "user.name=verify-evidence", "-c", "user.email=verify-evidence@localhost"];
+
+// Copies the files to pr-<n>/<head>/ on the evidence branch and pushes only that branch.
+export function pushEvidence(root, { pr, head, dir, files }) {
+  const tmp = mkdtempSync(join(tmpdir(), "verify-evidence-"));
+  const scratch = `verify-evidence-${process.pid}-${Date.now()}`;
+  let orphan = false;
+  try {
+    let existing = true;
+    try { sh(root, "fetch", "-q", "origin", `+refs/heads/${EVIDENCE_BRANCH}:refs/remotes/origin/${EVIDENCE_BRANCH}`); } catch { existing = false; }
+    if (existing) sh(root, "worktree", "add", "-q", "--detach", tmp, `refs/remotes/origin/${EVIDENCE_BRANCH}`);
+    else {
+      sh(root, "worktree", "add", "-q", "--detach", tmp, "HEAD");
+      sh(tmp, "checkout", "-q", "--orphan", scratch);
+      orphan = true;
+      sh(tmp, "rm", "-rqf", "--ignore-unmatch", ".");
+      sh(tmp, "clean", "-fdxq");
+    }
+    const dest = join(tmp, `pr-${pr}`, head);
+    rmSync(dest, { recursive: true, force: true });
+    for (const f of files) {
+      mkdirSync(dirname(join(dest, f)), { recursive: true });
+      cpSync(join(dir, f), join(dest, f));
+    }
+    sh(tmp, "add", "-A");
+    sh(tmp, ...bot, "commit", "-qm", `evidence for pull request ${pr} at ${head.slice(0, 7)}`, "--allow-empty");
+    sh(tmp, "push", "-q", "origin", `HEAD:refs/heads/${EVIDENCE_BRANCH}`);
+  } finally {
+    try { sh(root, "worktree", "remove", "--force", tmp); } catch { rmSync(tmp, { recursive: true, force: true }); sh(root, "worktree", "prune"); }
+    if (orphan) try { sh(root, "branch", "-D", scratch); } catch { /* never made */ }
+  }
+}
+
+export const evidenceUrl = (prUrl, pr, head, file) =>
+  `${prUrl.replace(/\/pull\/\d+.*$/, "")}/blob/${EVIDENCE_BRANCH}/pr-${pr}/${head}/${file.split("/").map(encodeURIComponent).join("/")}?raw=true`;
