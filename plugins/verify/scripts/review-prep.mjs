@@ -68,6 +68,12 @@ export function prepare({ repo, base, head = "HEAD", since = null, specs = [], p
   if (existsSync(out) && readdirSync(out).length) throw new Error(`${out} already has files. Use a new folder for each review.`);
   const headSha = git(repo, "rev-parse", `${head}^{commit}`).trim();
   const mergeBase = git(repo, "merge-base", base, headSha).trim();
+  let sinceSha = null;
+  let fallback = null;
+  if (since) {
+    try { sinceSha = git(repo, "rev-parse", "--verify", "-q", `${since}^{commit}`).trim(); } catch { fallback = `${since} is not in this repository`; }
+    if (sinceSha && !isAncestor(repo, sinceSha, headSha)) fallback = `${sinceSha.slice(0, 7)} is not an ancestor of ${headSha.slice(0, 7)}, so the branch was rebased or rewritten`;
+  }
   mkdirSync(out, { recursive: true });
   writeFileSync(join(out, "change.patch"), git(repo, "diff", mergeBase, headSha));
   writeFileSync(join(out, "files.txt"), git(repo, "diff", "--name-status", mergeBase, headSha));
@@ -88,13 +94,10 @@ export function prepare({ repo, base, head = "HEAD", since = null, specs = [], p
     if (compliance) copyFileSync(compliance, join(mine, "compliance.json"));
   }
   const meta = { base, mergeBase, head: headSha, patchId: patchId(repo, mergeBase, headSha), copies: {} };
-  if (since) {
-    const sinceSha = git(repo, "rev-parse", `${since}^{commit}`).trim();
-    if (isAncestor(repo, sinceSha, headSha)) meta.followUp = followUp(repo, sinceSha, headSha, out);
-    else {
-      meta.followUp = { since: sinceSha, fallback: `${sinceSha.slice(0, 7)} is not an ancestor of ${headSha.slice(0, 7)}, so the branch was rebased or rewritten` };
-      warn(`review-prep: the earlier review of ${sinceSha.slice(0, 7)} can't be followed up: ${meta.followUp.fallback}. Built a full review packet.`);
-    }
+  if (since && !fallback) meta.followUp = followUp(repo, sinceSha, headSha, out);
+  else if (since) {
+    meta.followUp = { since: sinceSha ?? since, fallback };
+    warn(`review-prep: the earlier review of ${(sinceSha ?? since).slice(0, 7)} can't be followed up: ${fallback}. Built a full review packet.`);
   }
   for (const name of copies) {
     const dest = join(out, name, "repo");
