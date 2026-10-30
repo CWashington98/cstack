@@ -28,6 +28,8 @@ Each numbered group after group 1 is one small pull request, merged bottom-up as
 
 ## 6. Docs and a real run
 
+> Replaced by `add-ready-check`: the gate moved to `verify gate`, and its settings, docs and pull request step are done there. The tasks below are kept for history.
+
 - [ ] 6.0 Make `verify`'s `pr-review` skill save the Codex verdict with `--model` set to the model Codex reports it used, and say so in the skill. Verify on one real review that the saved verdict names an OpenAI model. Setup: the gate needs the model to trust a Codex verdict. Touches: plugins/verify/skills/pr-review/SKILL.md
 - [ ] 6.1 Document the `factory` block in `docs/project-settings.md`. Add `skills/factory/SKILL.md`, and move the new commands into "Available now" in `how-to-use-cstack`. Draft both projects' `factory` blocks into this change's `evidence/` folder for the owner's approval: Project A's from its guardrails document, Project B's using its zone command. Verify that all docs pass the plain-English check. Setup: documentation and draft settings. Touches: docs/project-settings.md, plugins/factory/skills/factory/SKILL.md, plugins/core/skills/how-to-use-cstack/SKILL.md, openspec/changes/add-factory-gate/evidence/**
 - [ ] 6.2 On local clones only, using the drafted settings and writing the record to a temporary folder:
