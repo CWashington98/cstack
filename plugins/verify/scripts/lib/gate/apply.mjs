@@ -57,6 +57,13 @@ function setDescription(cwd, pr, body) {
   } finally { rmSync(tmp, { recursive: true, force: true }); }
 }
 
+// The description without an earlier "What you need to do" line, so a draft never says "review and merge".
+export function withoutFirstLine(body) {
+  const lines = (body ?? "").split("\n");
+  if (!lines[0].startsWith(LEAD)) return body ?? "";
+  return lines.slice(1).join("\n").replace(/^\n/, "");
+}
+
 // Returns the lines to print: what it did, then what the agent does next.
 export function applyResult(cwd, pr, result) {
   const view = JSON.parse(gh(cwd, ["pr", "view", String(pr), "--json", "isDraft,body"]));
@@ -75,6 +82,7 @@ export function applyResult(cwd, pr, result) {
     for (const r of reasons) done.push(`owner - ${r.question ?? r.text}`);
   } else {
     toDraft();
+    if ((view.body ?? "").startsWith(LEAD)) setDescription(cwd, pr, withoutFirstLine(view.body));
     const waiting = reasons.every((r) => r.kind !== "fix");
     done.push(waiting
       ? "Kept as a draft. Next: wait for the checks to finish, then run verify gate --apply again."

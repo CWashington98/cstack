@@ -3,6 +3,7 @@
   "highRisk": [
     "plugins/core/scripts/**",
     "plugins/verify/scripts/**",
+    "plugins/*/hooks/**",
     "install.sh",
     ".claude/verify.json"
   ],
