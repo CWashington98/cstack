@@ -837,8 +837,8 @@ class Checker {
     if (typeof body !== "string") return false;
     // A script's result depends only on its own text and on whether the command
     // that runs it names an allowed target, so each pair is checked once.
-    // Inside a listed script the levels past the limit are skipped, so how much of a body was read depends on the depth.
-    const key = `${pkg}#${name}#${this.namesAllowed(ctx.here)}#${this.inListed > 0 ? depth : "-"}`;
+    // Inside a listed script the levels past the limit are skipped, so how much of a body was read depends on the allowance left.
+    const key = `${pkg}#${name}#${this.namesAllowed(ctx.here)}#${this.inListed > 0 ? this.listedFrom + MAX_DEPTH - depth : "-"}`;
     if (this.running.has(key) || this.checked.has(key)) return true;
     this.running.add(key);
     this.checked.add(key);
@@ -884,9 +884,15 @@ class Checker {
         if (e.code !== "ENOENT") log({ decision: "error", error: `unreadable ${deepScriptsFile()}: ${e.message}` });
       }
     }
-    const common = gitOut(dirname(full), "rev-parse", "--path-format=absolute", "--git-common-dir");
-    if (!common) return false;
-    const identity = real(dirname(common));
+    // Most people have no list, and every script file read would otherwise cost a call to git.
+    if (!Object.keys(this.deepRepos).length) return false;
+    if (!this.deepIdentity) this.deepIdentity = new Map();
+    if (!this.deepIdentity.has(project.root)) {
+      const common = gitOut(dirname(full), "rev-parse", "--path-format=absolute", "--git-common-dir");
+      this.deepIdentity.set(project.root, common ? real(dirname(common)) : null);
+    }
+    const identity = this.deepIdentity.get(project.root);
+    if (!identity) return false;
     const path = relative(project.root, full).split(sep).join("/");
     return Object.entries(this.deepRepos).some(([repo, list]) => {
       if (real(repo.replace(/^~(?=\/|$)/, homedir())) !== identity || !Array.isArray(list)) return false;
