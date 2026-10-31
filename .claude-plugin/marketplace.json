@@ -1,5 +1,6 @@
 {
   "name": "cstack",
+  "description": "Crishon's Claude Code skills, a few hooks that keep agents safe, and pinned pointers to other people's skills.",
   "owner": {
     "name": "Crishon Washington",
     "email": "crishonw@gmail.com"

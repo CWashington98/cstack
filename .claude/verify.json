@@ -1,11 +1,10 @@
 {
   "integrationBranch": "main",
   "highRisk": [
-    "plugins/core/scripts/**",
-    "plugins/verify/scripts/**",
-    "plugins/*/hooks/**",
-    "install.sh",
-    ".claude/verify.json"
+    "plugins/core/scripts/guard.mjs",
+    "plugins/core/scripts/lib/**",
+    "plugins/plain/scripts/plain-hold.mjs",
+    "plugins/*/hooks/**"
   ],
   "tests": {
     "all": "npm test",

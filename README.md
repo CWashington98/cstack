@@ -187,6 +187,14 @@ rule. A test fails if an agent file's name doesn't match the name inside it.
 Skills in a family share a prefix, so they sort together: `pr-open` and `pr-review`. A
 script run as a command is called `<plugin> <noun>`, such as `verify gate`.
 
+## Checking a change
+
+cstack is mostly markdown, so checks are light:
+
+- `npm run validate` runs Claude Code's own manifest check (`claude plugin validate --strict`) on the catalog and each plugin.
+- `npm test` runs the tests for the hooks and scripts, plus checks that the guide and the catalog list what is on disk.
+- Only the guard, the `plain` hold and the hook files need the two independent review verdicts (`highRisk` in `.claude/verify.json`). Skills, guides and docs do not.
+
 ## Layout
 
 ```
