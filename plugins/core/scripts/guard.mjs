@@ -11,6 +11,9 @@
 //   - recursive deletes outside the repository and temporary folders, of a whole
 //     repository, or of its history
 //   - anything that uses an entry on the project's "never" list
+//   - a recursive delete Claude Code would stop and ask a person about: its path
+//     comes from a variable, a substitution or a glob, or it is chained with
+//     other commands. Unattended workers wait for hours on that prompt.
 // Ordinary merges are not guarded: agents merge when the owner says so.
 //
 // It also runs before every call to a tool server (a tool whose name starts
@@ -29,6 +32,14 @@
 //                      plus integrationBranch
 //   agentsMayReadProduction  true (the default) lets agents read from the Convex
 //                      production deployment; false refuses those reads too
+//
+// One refusal can be lifted for named scripts: the one for commands nested more
+// than MAX_DEPTH levels deep. The owner lists the scripts in a file in the user's
+// own Claude configuration folder (cstack/deep-scripts.json, next to the log),
+// never in a repository: the guard reads no such list from .claude/verify.json
+// or from anywhere else inside a repository, so nothing an agent changes in a
+// repository can widen it. See docs/project-settings.md. A missing or unreadable
+// file lists nothing.
 //
 // Each deploy is judged on its own: the target has to be named in the same
 // command, in a variable or env file that feeds it, or in the command that ran
@@ -54,6 +65,8 @@ import { extractHeredocs, substitutions, segments, tokenize } from "./lib/shell.
 
 const SETTINGS = join(".claude", "verify.json");
 const MAX_DEPTH = 8;
+// The owner's list of scripts agents may run past MAX_DEPTH, kept outside every repository.
+const deepScriptsFile = () => process.env.CSTACK_GUARD_DEEP_SCRIPTS || join(process.env.CLAUDE_CONFIG_DIR || join(homedir(), ".claude"), "cstack", "deep-scripts.json");
 // The most commands one hook call checks. A command past this is refused, so a
 // tangle of scripts can't run the guard past its time limit, which would let
 // the command through.
@@ -173,6 +186,25 @@ export function mask(text) {
     .replace(/\|[A-Za-z0-9+/=_-]{16,}/g, "|<hidden>")
     .replace(/(?<![\w/.-])(?=[A-Za-z0-9_-]*\d)(?=[A-Za-z0-9_-]*[A-Za-z])[A-Za-z0-9_-]{24,}(?![\w/.-])/g, "<hidden>")
     .slice(0, 400);
+}
+
+// A simple glob as a regular expression: ** matches across folders, * and ?
+// stay inside one folder name.
+function globToRegExp(glob) {
+  let out = "";
+  for (let i = 0; i < glob.length; i++) {
+    const c = glob[i];
+    if (c === "*" && glob[i + 1] === "*") {
+      i++;
+      if (glob[i + 1] === "/") {
+        i++;
+        out += "(?:.*/)?";
+      } else out += ".*";
+    } else if (c === "*") out += "[^/]*";
+    else if (c === "?") out += "[^/]";
+    else out += c.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+  }
+  return new RegExp(`^${out}$`);
 }
 
 function gitOut(dir, ...args) {
@@ -431,6 +463,8 @@ class Checker {
     this.running = new Set();
     this.checked = new Set();
     this.steps = 0;
+    // How many listed deep scripts the command being read is inside.
+    this.inListed = 0;
   }
 
   refuse(rule, reason) {
@@ -513,6 +547,8 @@ class Checker {
   }
 
   check(command, dir, depth, ctx) {
+    // Inside a script the owner lists, what nests deeper than this is not read, and not refused.
+    if (depth > MAX_DEPTH && this.inListed > 0) return;
     if (depth > MAX_DEPTH) return this.refuse("complex", `It runs scripts nested more than ${MAX_DEPTH} levels deep, which the guard doesn't check. Run the inner command directly.`);
     if (++this.steps > MAX_STEPS) return this.refuse("complex", "It runs more scripts than the guard can check in time. Run the parts separately.");
     const { text, heredocs, live, incomplete, unterminated } = extractHeredocs(command);
@@ -520,12 +556,16 @@ class Checker {
     if (incomplete || (unterminated && !ctx.fragment)) return this.refuse("complex", "It is too complex to read safely: a quote, a $( ) pair or a heredoc in it never closes, so the guard can't tell where the commands after it start. Run the parts separately.");
     for (const [k, v] of heredocs) this.heredocs.set(k, v);
     // The shell runs the $( ) and backtick commands in a heredoc whose tag has no quotes.
-    for (const k of live) for (const inner of substitutions(heredocs.get(k), { quotes: false })) this.check(inner, dir, depth + 1, { ...ctx, here: undefined, fragment: true });
-    for (const inner of substitutions(text)) this.check(inner, dir, depth + 1, { ...ctx, here: undefined, fragment: true });
+    for (const k of live) for (const inner of substitutions(heredocs.get(k), { quotes: false })) this.check(inner, dir, depth + 1, { ...ctx, here: undefined, fragment: true, chained: true });
+    const inners = substitutions(text);
+    for (const inner of inners) this.check(inner, dir, depth + 1, { ...ctx, here: undefined, fragment: true, chained: true });
+    // Whether other commands run beside this one, which makes a recursive rm wait for approval.
+    const all = segments(text);
+    const chained = Boolean(ctx.chained) || inners.length > 0 || all.length > 1;
     const vars = new Map(ctx.vars);
     const loops = new Map(ctx.loops ?? []);
     let local = ctx.context;
-    for (const segment of segments(text)) {
+    for (const segment of all) {
       const words = tokenize(segment);
       // `for NAME in a b c` gives NAME each of those values in the commands after it.
       if (words[0] === "for" && words[2] === "in") {
@@ -535,7 +575,7 @@ class Checker {
       if (!words.length || BLOCK_ONLY.has(words[0])) continue;
       const heredoc = words.includes("<<HEREDOC") ? this.heredocs.get(words[words.indexOf("<<HEREDOC") + 1]) ?? "" : null;
       const plain = words.filter((w, i) => w !== "<<HEREDOC" && words[i - 1] !== "<<HEREDOC");
-      const segCtx = { ...ctx, vars, loops, dir, here: `${local}\n${segment}` };
+      const segCtx = { ...ctx, vars, loops, dir, here: `${local}\n${segment}`, chained };
       // A line of NAME=value words only sets variables for the commands after it.
       const bare = plain.filter((w) => !KEYWORDS.has(w));
       const assigns = bare[0] && ["export", "local", "readonly", "declare"].includes(bare[0]) ? bare.slice(1).filter((w) => !w.startsWith("-")) : bare;
@@ -795,7 +835,8 @@ class Checker {
     if (typeof body !== "string") return false;
     // A script's result depends only on its own text and on whether the command
     // that runs it names an allowed target, so each pair is checked once.
-    const key = `${pkg}#${name}#${this.namesAllowed(ctx.here)}`;
+    // Inside a listed script the levels past the limit are skipped, so how much of a body was read depends on the depth.
+    const key = `${pkg}#${name}#${this.namesAllowed(ctx.here)}#${this.inListed > 0 ? depth : "-"}`;
     if (this.running.has(key) || this.checked.has(key)) return true;
     this.running.add(key);
     this.checked.add(key);
@@ -814,7 +855,40 @@ class Checker {
     const full = real(file);
     const body = this.written.get(full) ?? readText(full);
     if (body === null) return;
-    this.check(body, dir, depth + 1, { ...ctx, scriptDir: dirname(full) });
+    const deep = this.listsDeepScript(full);
+    if (deep) this.inListed++;
+    try {
+      this.check(body, dir, depth + 1, { ...ctx, scriptDir: dirname(full) });
+    } finally {
+      if (deep) this.inListed--;
+    }
+  }
+
+  // True when the owner's list names this script for its repository. The repository is
+  // known by the real path of its main checkout, so every worktree of it shares one
+  // entry. The script's path is the real one, so a link counts for what it points at.
+  // A missing or unreadable file, a repository with no entry, and an entry that
+  // isn't a plain relative path all list nothing.
+  listsDeepScript(full) {
+    const project = projectFor(dirname(full), this.cache);
+    if (!project.root || !inside(full, project.root)) return false;
+    if (this.deepRepos === undefined) {
+      this.deepRepos = {};
+      try {
+        const repos = JSON.parse(readFileSync(deepScriptsFile(), "utf8"))?.repos;
+        if (repos && typeof repos === "object" && !Array.isArray(repos)) this.deepRepos = repos;
+      } catch (e) {
+        if (e.code !== "ENOENT") log({ decision: "error", error: `unreadable ${deepScriptsFile()}: ${e.message}` });
+      }
+    }
+    const common = gitOut(dirname(full), "rev-parse", "--path-format=absolute", "--git-common-dir");
+    if (!common) return false;
+    const identity = real(dirname(common));
+    const path = relative(project.root, full).split(sep).join("/");
+    return Object.entries(this.deepRepos).some(([repo, list]) => {
+      if (real(repo.replace(/^~(?=\/|$)/, homedir())) !== identity || !Array.isArray(list)) return false;
+      return list.some((p) => typeof p === "string" && /[A-Za-z0-9_]/.test(p) && !p.startsWith("/") && !p.endsWith("/") && !p.split("/").includes("..") && globToRegExp(p).test(path));
+    });
   }
 
   // Runs a package script the way npm, pnpm, yarn and bun do: with its pre and
@@ -1101,6 +1175,12 @@ class Checker {
     if (!flags.some((f) => f === "--recursive" || (/^-[a-zA-Z]+$/.test(f) && /[rR]/.test(f)))) return;
     const ends = w.indexOf("--");
     const paths = w.slice(1).filter((x, k) => x !== "--" && ((ends !== -1 && k + 1 > ends) || !x.startsWith("-")));
+    // Claude Code asks a person about these, even when it is told not to ask.
+    // Scripts the command runs are not shown to it, so only the command itself counts.
+    if (!ctx.indirect) {
+      const why = paths.some((p) => /[$`*?[]/.test(p)) ? "its path comes from a variable, a command substitution or a wildcard" : ctx.chained ? "it is chained with other commands" : null;
+      if (why) this.refuse("stall", `This recursive rm would stop and wait for a person to approve it, because ${why}. Unattended workers can sit on that prompt for hours. Run the delete as its own Bash call with the literal path written out, for example: rm -rf /tmp/my-scratch/tree . Then run the rest of the commands in a separate call.`);
+    }
     this.checkPaths(paths.flatMap((p) => this.variants(p, ctx)), dir, ctx, "");
   }
 
@@ -1245,6 +1325,8 @@ export function refuseOnError(command, cwd, { tool = false } = {}) {
 }
 
 export function message(refusals, tool = null) {
+  // Nothing here is the owner's to run: the agent only has to send the same delete another way.
+  if (refusals.length > 0 && refusals.every((r) => r.rule === "stall")) return ["The cstack guard refused this command, because it would stall on a permission prompt.", ...refusals.map((r) => `- ${r.reason}`)].join("\n");
   return [
     tool ? "The cstack guard refused this tool call. Only the owner does this." : "The cstack guard refused this command. Only the owner runs it.",
     ...refusals.map((r) => `- ${r.reason}`),
