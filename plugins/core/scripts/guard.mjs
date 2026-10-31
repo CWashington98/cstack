@@ -465,6 +465,8 @@ class Checker {
     this.steps = 0;
     // How many listed deep scripts the command being read is inside.
     this.inListed = 0;
+    // The depth at which the outermost listed script being read starts.
+    this.listedFrom = 0;
   }
 
   refuse(rule, reason) {
@@ -547,9 +549,9 @@ class Checker {
   }
 
   check(command, dir, depth, ctx) {
-    // Inside a script the owner lists, what nests deeper than this is not read, and not refused.
-    if (depth > MAX_DEPTH && this.inListed > 0) return;
-    if (depth > MAX_DEPTH) return this.refuse("complex", `It runs scripts nested more than ${MAX_DEPTH} levels deep, which the guard doesn't check. Run the inner command directly.`);
+    // Inside a script the owner lists, MAX_DEPTH levels are counted from where that script starts. Past those, nothing is read, and nothing is refused.
+    if (this.inListed > 0 && depth > this.listedFrom + MAX_DEPTH) return;
+    if (depth > MAX_DEPTH && this.inListed === 0) return this.refuse("complex", `It runs scripts nested more than ${MAX_DEPTH} levels deep, which the guard doesn't check. Run the inner command directly.`);
     if (++this.steps > MAX_STEPS) return this.refuse("complex", "It runs more scripts than the guard can check in time. Run the parts separately.");
     const { text, heredocs, live, incomplete, unterminated } = extractHeredocs(command);
     // The body of a heredoc in a $( ) pair is in the text around the pair, so only a whole command must end its heredocs.
@@ -856,6 +858,7 @@ class Checker {
     const body = this.written.get(full) ?? readText(full);
     if (body === null) return;
     const deep = this.listsDeepScript(full);
+    if (deep && this.inListed === 0) this.listedFrom = depth;
     if (deep) this.inListed++;
     try {
       this.check(body, dir, depth + 1, { ...ctx, scriptDir: dirname(full) });

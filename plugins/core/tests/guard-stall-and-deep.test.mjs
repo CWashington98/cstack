@@ -294,3 +294,12 @@ test("the hook, run as the agent would run it, honours the owner's file and refu
   assert.equal(refusal.status, 2);
   assert.match(refusal.stderr, DEEP);
 });
+
+test("the depth allowance is counted from where the listed script starts, so wrapper scripts can't use it up", () => {
+  const files = { "scripts/listed.sh": "git push origin staging\n" };
+  for (let i = 0; i < 8; i++) files[`scripts/w${i}.sh`] = i === 7 ? "bash scripts/listed.sh\n" : `bash scripts/w${i + 1}.sh\n`;
+  const dir = repo(files);
+  owner({ [dir]: ["scripts/listed.sh"] });
+  refused(dir, "bash scripts/listed.sh", /protected branch/);
+  refused(dir, "bash scripts/w0.sh", /protected branch/);
+});
