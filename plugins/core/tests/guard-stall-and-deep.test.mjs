@@ -303,3 +303,32 @@ test("the depth allowance is counted from where the listed script starts, so wra
   refused(dir, "bash scripts/listed.sh", /protected branch/);
   refused(dir, "bash scripts/w0.sh", /protected branch/);
 });
+
+test("a package script read under one listed script is read again under another that starts shallower", () => {
+  // A and B both run package script p at the same depth, but A started deeper in the chain, so it has less allowance left.
+  const files = { "package.json": JSON.stringify({ scripts: { p: "bash scripts/p1.sh" } }), "scripts/p1.sh": "bash scripts/p2.sh\n", "scripts/p2.sh": "bash scripts/p3.sh\n", "scripts/p3.sh": "bash scripts/p4.sh\n", "scripts/p4.sh": "bash scripts/p5.sh\n", "scripts/p5.sh": "git push origin staging\n", "scripts/A.sh": "bash scripts/a1.sh\n", "scripts/a1.sh": "bash scripts/a2.sh\n", "scripts/a2.sh": "npm run p\n", "scripts/B.sh": "npm run p\n", "scripts/w0.sh": "bash scripts/w1.sh\n", "scripts/w1.sh": "bash scripts/B.sh\n" };
+  const dir = repo(files);
+  owner({ [dir]: ["scripts/A.sh", "scripts/B.sh"] });
+  allowed(dir, "bash scripts/A.sh"); // the push is past A's allowance
+  refused(dir, "bash scripts/w0.sh", /protected branch/);
+  refused(dir, "bash scripts/A.sh && bash scripts/w0.sh", /protected branch/);
+  refused(dir, "bash scripts/w0.sh && bash scripts/A.sh", /protected branch/);
+});
+
+test("a listed script run from inside another listed script keeps the outer allowance", () => {
+  const files = { "scripts/outer.sh": "bash scripts/inner.sh\ngit push origin staging\n", "scripts/inner.sh": "echo hi\n" };
+  const dir = repo(files);
+  owner({ [dir]: ["scripts/outer.sh", "scripts/inner.sh"] });
+  refused(dir, "bash scripts/outer.sh", /protected branch/);
+});
+
+test("with no list file, reading script files does not ask git about each one", () => {
+  const files = {};
+  for (let i = 0; i < 150; i++) files[`scripts/s${i}.sh`] = "echo hi\n";
+  files["scripts/all.sh"] = Array.from({ length: 150 }, (_, i) => `bash scripts/s${i}.sh`).join("\n") + "\n";
+  const dir = repo(files);
+  noList();
+  const start = Date.now();
+  allowed(dir, "bash scripts/all.sh");
+  assert.ok(Date.now() - start < 3000, `took ${Date.now() - start} ms`);
+});
