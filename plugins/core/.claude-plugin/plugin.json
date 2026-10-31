@@ -1,6 +1,6 @@
 {
   "name": "cstack",
-  "version": "3.4.0",
+  "version": "3.5.0",
   "description": "Crishon's own Claude Code skills (how-to-use-cstack, deslop, write-a-skill, bootstrap-agents, upkeep), the claims-auditor agent, which checks finished work against what was claimed, and the guard, which refuses production deploys, protected-branch pushes and anything on a project's never list before a shell command runs, and refuses tool-server calls that use anything on that list or point a Convex tool at production. Borrowed skills are pinned pointers listed below, not copies.",
   "author": {
     "name": "Crishon Washington"
