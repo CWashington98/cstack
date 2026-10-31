@@ -50,6 +50,16 @@ test("tempDir makes a folder with the prefix and removes it when the process end
   assert.equal(existsSync(made), false);
 });
 
+test("tempDir still removes the folder when the process stops early with process.exit", () => {
+  // process.exit() skips "beforeExit", so cleanup must hang off "exit" for a test that exits on its own.
+  const script = `import { tempDir } from ${JSON.stringify(join(here, "helpers.mjs"))}; console.log(tempDir("exit-test")); process.exit(0);`;
+  const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], { encoding: "utf8", env: env(tempDir("temp-check")) });
+  const made = result.stdout.trim();
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(made, /exit-test-[A-Za-z0-9]{6}$/);
+  assert.equal(existsSync(made), false);
+});
+
 test("removeTree deletes a folder that holds a read-only folder", () => {
   const dir = tempDir("remove-tree");
   mkdirSync(join(dir, "sub"));
