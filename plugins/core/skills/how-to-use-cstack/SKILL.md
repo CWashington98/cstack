@@ -52,7 +52,7 @@ cstack is a library of skills you use in every project, and a fixed way to use t
 ### Running in the background
 
 - **The guard** runs on its own. There's nothing to call. What it checks:
-  - **Shell commands:** it refuses production deploys, releases, pushes to protected branches, recursive deletes outside the repository and temporary folders, and anything that uses an entry on the project's "never" list.
+  - **Shell commands:** it refuses production deploys, releases, pushes to protected branches, recursive deletes outside the repository and temporary folders, and anything that uses an entry on the project's "never" list. It also refuses a recursive `rm` that Claude Code would stop and ask about (a variable or wildcard in the path, or chained with other commands): run it alone with the path written out.
   - **Tool-server calls** (tools named `mcp__…`, such as a hosting or database tool): checked only against the "never" list. A tool that deploys to production without naming anything on that list isn't stopped.
   - **Claude's own file reads and edits:** not checked. If someone asks why a command was refused, point them to `docs/project-settings.md` in cstack, and to their project's `.claude/verify.json`.
 - **Installing or updating cstack:** run this from the project's folder (in Claude Code, put `!` in front):

@@ -451,12 +451,11 @@ test("recursive deletes are allowed inside the repository and temporary folders,
   const dir = project();
   const tmp = tempDir("guard-rm");
   allowed(dir, "rm -rf node_modules dist");
-  allowed(dir, "rm -rf packages/api/.cache/*");
-  allowed(dir, "rm -rf *.tsbuildinfo ./*.egg-info");
+  allowed(dir, "rm -rf packages/api/.cache");
   allowed(dir, `rm -rf ${tmp}/out`);
   allowed(dir, "rm -rf /tmp/guard-test-x");
   allowed(dir, "rm notes.txt ../outside.txt");
-  allowed(dir, `cd ${tmp} && rm -rf out`);
+  allowed(dir, `rm -rf ${tmp}/out/build`);
   refused(dir, "rm -rf ~/Documents", /outside this repository/);
   refused(dir, "rm -rf /", /holds one/);
   refused(dir, "rm -rf ./*", /whole repository/);
@@ -483,17 +482,18 @@ test("deletes from a folder that isn't a repository allow only temporary folders
 });
 
 test("variables in a delete are followed when the command or script sets them", () => {
-  const dir = project({ "scripts/build.sh": 'OUT="$(dirname "$0")/../dist"\nrm -rf "$OUT"\n', "scripts/wipe.sh": 'OUT="$(dirname "$0")/../.."\nrm -rf "$OUT"\n' });
-  allowed(dir, 'tmp=$(mktemp -d) && cp x "$tmp" && rm -rf "$tmp"');
-  allowed(dir, 'D=dist; rm -rf "$D"');
-  allowed(dir, 'rm -rf "${GUARD_TEST_UNSET_VARIABLE:-/tmp}/guard-x"');
+  const dir = project({ "scripts/build.sh": 'OUT="$(dirname "$0")/../dist"\nrm -rf "$OUT"\n', "scripts/wipe.sh": 'OUT="$(dirname "$0")/../.."\nrm -rf "$OUT"\n', "scripts/tmp.sh": 'tmp=$(mktemp -d) && cp x "$tmp" && rm -rf "$tmp"\nD=dist; rm -rf "$D"\nrm -rf "${GUARD_TEST_UNSET_VARIABLE:-/tmp}/guard-x"\n', "scripts/loop.sh": 'for d in dist build; do rm -rf "$d"; done\n', "scripts/loop-out.sh": 'for d in dist ~/old; do rm -rf "$d"; done\n' });
+  // A variable in a top-level delete is refused for a different reason (see guard-stall-and-deep.test.mjs);
+  // inside a script the guard still follows it.
+  allowed(dir, "bash scripts/tmp.sh");
   allowed(dir, "bash scripts/build.sh");
   allowed(dir, "bun run clean");
   refused(dir, "bash scripts/wipe.sh", /holds one/);
   refused(dir, "D=/opt/x; rm -rf $D", /outside/);
   refused(dir, "rm -rf $GUARD_TEST_UNSET_VARIABLE/x", /can't tell where/);
-  allowed(dir, 'for d in dist build; do rm -rf "$d"; done');
+  allowed(dir, "bash scripts/loop.sh");
   refused(dir, 'for d in dist ~/old; do rm -rf "$d"; done', /outside/);
+  refused(dir, "bash scripts/loop-out.sh", /outside/);
 });
 
 test("find and xargs deletes are judged too", () => {
@@ -616,7 +616,7 @@ test("round 2: a branch named through a variable is followed to the checked-out 
   git(dir, "checkout", "-q", "-b", "feat/y");
   allowed(dir, 'BRANCH=$(git branch --show-current); git push -u origin "$BRANCH"');
   allowed(dir, "BRANCH=$(git rev-parse --abbrev-ref HEAD) && git push origin $BRANCH");
-  allowed(dir, 'rm -rf "$(git rev-parse --show-toplevel)/dist"');
+  refused(dir, 'rm -rf "$(git rev-parse --show-toplevel)/dist"', /literal path/);
   refused(dir, 'cd ~ && rm -rf "$PWD/Documents"', /outside/);
   refused(dir, 'rm -rf "$(git rev-parse --show-toplevel)"', /whole repository/);
 });
@@ -797,7 +797,7 @@ test("round 3: rules the breakage tests showed were unpinned", () => {
   refused(dir, "npx nx run api:deploy", /`nx deploy`/);
   refused(dir, "turbo run rootship", /convex deploy/);
   allowed(dir, "bun build ./x.ts --outdir dist");
-  allowed(dir, 'rm -rf "$(pwd)/dist"');
+  refused(dir, 'rm -rf "$(pwd)/dist"', /literal path/);
   refused(dir, 'rm -rf "$(pwd)"', /whole repository/);
   for (const c of ["sam sync", "prisma migrate deploy", "gh api -X DELETE x"]) assert.equal(refuseOnError(c, dir), true, c);
   refused(dir, "gh workflow run --json deploy.yml", /deploy\.yml/);

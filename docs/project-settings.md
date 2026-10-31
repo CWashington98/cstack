@@ -112,7 +112,16 @@ shell commands it refuses:
   temporary folders count as safe;
 - any command that uses an entry from `agentsNeverTouch`, including inside an env
   file it loads or a heredoc it feeds to a program. Commands that only mention a
-  name, such as a search, a commit message or a pull request comment, are allowed.
+  name, such as a search, a commit message or a pull request comment, are allowed;
+- a recursive `rm` that Claude Code would stop and ask a person about, even in
+  full-access mode. That is a `rm -r`, `-R`, `-rf` or `--recursive` whose path
+  holds `$`, a backtick or a wildcard (`*`, `?`, `[`), or that is chained with
+  other commands (`&&`, `;`, `|`, a loop, an `if`). Unattended workers have
+  waited hours on that prompt. The guard says to run the delete as its own
+  command with the path written out, then run the rest in a separate call.
+  Only the command the agent sends counts: a script it runs can still use
+  variables and wildcards in its own deletes. `git rm -r`, `grep -r "rm -rf"`
+  and `echo rm -rf` are not deletes, and `rm -f a && echo ok` is not recursive.
 
 It reads commands the way the shell runs them. It looks through:
 
@@ -142,13 +151,75 @@ is allowed. Test, lint and format tools never count as deploys, so
 Each package script is checked once per command. Some commands are too big to
 check in time, and these are refused rather than let through:
 
-- scripts nested more than 8 levels deep;
+- scripts nested more than 8 levels deep, unless the owner lists the script
+  (see "Deep scripts the owner lists" below);
 - more scripts than the guard can check in time;
 - moving into more than 200 different folders with `cd` or `git -C`, not
   counting the folder the command starts in. Each new folder costs the guard
   about 8 ms, because it asks git which repository the folder belongs to.
 
 It does not refuse ordinary merges. Agents merge when the owner says so.
+
+### Deep scripts the owner lists
+
+Some projects have a self-test or setup script that runs scripts that run more
+scripts. The guard refuses anything nested past 8 levels, so no agent could run
+it. The owner can list such a script, and the guard then stops reading it below
+8 levels instead of refusing.
+
+**The list is a file in your own Claude configuration folder, never in a
+repository.** It is `cstack/deep-scripts.json` inside the folder named by
+`CLAUDE_CONFIG_DIR` (`~/.claude` when that is not set), next to the guard log
+`cstack/guard-log.jsonl`. The guard reads no such list from `.claude/verify.json`
+or from anywhere else inside a repository, so nothing an agent changes in a
+repository can widen it. The file maps a repository to the script paths:
+
+```json
+{
+  "repos": {
+    "/Users/you/Source/smsMarketing": [
+      "scripts/preflight.sh",
+      "scripts/__tests__/preflight*.test.sh",
+      "scripts/preflight-fixture-suites.sh"
+    ]
+  }
+}
+```
+
+- **Which repository.** The key is the real path of the repository's main
+  checkout, the folder that holds its `.git` folder. Every worktree of the
+  repository, wherever it is, shares that one entry. A repository's address on
+  the network is not used, because anyone working in the repository can change
+  it with one git command, and the main checkout's path they cannot change
+  without moving the repository. The cost: the key differs from one machine to
+  the next, so each machine's file has its own entry. A key may begin with `~/`.
+- **Which scripts.** Each entry is a path from the repository root, written
+  exactly or with a simple glob: `*` and `?` stay inside one folder name, and `**`
+  also crosses folders. The guard follows links first, so a link counts only if
+  what it points at is listed. `bash`, `sh`, `./`, `source` and a package script
+  that runs the file all count. An entry that is absolute, holds `..`, names a
+  folder or has no letter or digit is ignored.
+- **It lifts one refusal.** Inside a listed script, what nests deeper than 8
+  levels is not read, and not refused. Everything the guard reads within those 8
+  levels is judged by every other rule as always: production deploys, "never"
+  names, protected branches, `--no-verify`, deletes and the rest. The command
+  that starts the script is judged too. A script that isn't listed gets today's
+  refusal message.
+- **Fails closed.** If the file is missing, can't be read, isn't in this format,
+  or has no entry for the repository, nothing is listed and the guard refuses
+  deep scripts as before. An unreadable file (as opposed to a missing one) is
+  also written to the guard log. Set `CSTACK_GUARD_DEEP_SCRIPTS` to the path of a
+  different file to have the guard read that one instead, as `CSTACK_GUARD_LOG`
+  does for the log.
+
+What it can't promise: the guard doesn't read below 8 levels inside a listed
+script, so a listed script is trusted code. An agent can still edit a listed
+script, or create a new file that a glob in the list matches, and run it. Both
+are ordinary changes to the repository and go through review, so keep entries
+exact and use a glob only for a folder the team reviews. The guard does not
+protect the file itself from an agent that writes to your configuration folder:
+it does not check file edits, and a shell command that writes there is judged by
+the same rules as any other. Keep the file where only you edit it.
 
 ### Tool servers
 
