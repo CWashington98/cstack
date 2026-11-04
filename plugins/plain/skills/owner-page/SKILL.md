@@ -11,22 +11,28 @@ The model writes only a short brief. A script turns the brief into the page, so 
 
 The script is in the plugin's `scripts` folder, two levels above this file. Below, `SCRIPTS` means `<this skill's folder>/../../scripts`. `example.json` in this folder is a full brief to copy from.
 
+## First: does this need a page?
+
+Up to four decisions go to the owner in the chat UI (AskUserQuestion), not a page: context in each question, a concrete example or `preview` on each option. Use a page for reports, status and comparisons to read, or for decision batches too big for the chat UI.
+
+**A page is frozen once opened.** Finish every check, the cold-read included, BEFORE the first `open`. After that, never re-render it, never write or `open` a `-v2` while the owner may be answering, and never open another page on top. A fix found later goes in chat, or waits for the answers. The renderer enforces this: it refuses a new file when an earlier page with the same brief `id` exists and no newer `<id>-answers*.md` is in `~/Downloads`. `--new-round` overrides it, and only after the owner has answered (for example by pasting the answers into chat).
+
 ## Steps
 
 1. **Check the facts.** Every claim on the page is checked against the code, GitHub or the live system first. This is the part that needs a strong model.
 2. **Write the brief** (format below). Run the `plain` rules over its words.
 3. **Diagrams**, if any (see below).
-4. **Render and open it:**
+4. **Render it** (don't open it yet):
 
    ```bash
-   node SCRIPTS/page-render.mjs <brief.json> <page.html> && open <page.html>
+   node SCRIPTS/page-render.mjs <brief.json> <page.html>   # refuses to overwrite
    ```
 
    It exits 1 and lists what is missing when a card is incomplete. Fix the brief and run it again.
-5. **Cold-read the page.** Run `plain:cold-reader` on the page file; it must pass. The reader starts with no context, so it finds the terms and background you forgot to explain. Fix the brief, not the page, and render again.
+5. **Cold-read the page, then open it.** Only after it passes, `open <page.html>` once. Run `plain:cold-reader` on the page file; it must pass. The reader starts with no context, so it finds the terms and background you forgot to explain. Fix the brief, not the page, and render again.
 6. When the person pastes their answers back, act on them.
 
-**Where files go.** Outside the repository, unless the person asks otherwise: the project's notes folder if it has one, or the session's scratch folder. Keep one page per topic and update it in place. Open it as a local file in the browser.
+**Where files go.** Outside the repository, unless the person asks otherwise: the project's notes folder if it has one, or the session's scratch folder. Keep one page per topic. Once it has been opened, a change is a new file (`-v2.html`), as below. Open it as a local file in the browser.
 
 **Cheaper models.** The brief is the expensive part, and it stays with the model that checked the facts. If a diagram needs drawing, hand only that to a smaller model (step 3).
 
@@ -67,6 +73,8 @@ The script is in the plugin's `scripts` folder, two levels above this file. Belo
 - **Notes boxes** come with every `decision` and `fyi` card. Add one to any card with `"notes": "placeholder text"`.
 - **Text** accepts `**bold**`, `` `code` ``, `[text](https://url)`, blank-line paragraphs and `- ` lists. Nothing else.
 - **Copy answers** copies each answered card's title, context (the first paragraph of `body`, or `context`), options, choice and notes. The chat it is pasted into needs nothing else.
+- **Answers are kept.** Each answer saves to the browser as it is typed, keyed by the brief's `id` (or its title) and each card's `id` (or its title). A reload brings them back, and so does a newer version of the page with the same brief `id` and card ids. **Never rewrite a page the owner may have open:** the script refuses an existing output file. Write `<name>-v2.html` instead, and keep `id` and the card titles or ids stable. `--force` is only for a page nobody has opened.
+- **Download answers** saves the same text as Copy answers to `<id>-answers.md` in Downloads, so it can be read from disk.
 
 ## Writing the cards
 

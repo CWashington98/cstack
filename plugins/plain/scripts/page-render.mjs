@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 // Renders an owner-page brief (JSON) into one standalone HTML page. No model, no network.
 // Usage: node page-render.mjs <brief.json> <page.html>
-import { readFileSync, realpathSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { basename, dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const KINDS = ["close", "decision", "info", "fyi"];
 const LABELS = { close: "You can close", decision: "Decision", info: "Note", fyi: "FYI" };
 
+const slug = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 // Inline markup: `code`, **bold**, [text](https://url). Everything else is escaped.
@@ -93,7 +95,7 @@ export function renderPage(brief, { readFragment = () => null } = {}) {
       parts.push(`<textarea placeholder="${esc(c.notes ?? "Notes")}"></textarea>`);
     }
     const context = (c.context ?? String(c.body ?? "").split(/\n\s*\n/)[0]).replace(/\s+/g, " ").slice(0, 400);
-    return `<section class="card ${esc(kind)}" data-title="${esc(c.title ?? "")}" data-context="${esc(context)}">${parts.filter(Boolean).join("\n")}</section>`;
+    return `<section class="card ${esc(kind)}" data-key="${esc(c.id ?? slug(c.title ?? `card-${i}`))}" data-title="${esc(c.title ?? "")}" data-context="${esc(context)}">${parts.filter(Boolean).join("\n")}</section>`;
   };
 
   // Things to close first, then decisions, then notes, then FYIs; brief order within each.
@@ -122,7 +124,7 @@ ${prose(brief.intro)}
 ${glance}
 ${cards}
 </main>
-${hasInputs ? COPY.replace("__TITLE__", JSON.stringify(`${brief.title}: answers`)) : ""}
+${hasInputs ? COPY.replace("__TITLE__", JSON.stringify(`${brief.title}: answers`)).replace("__STORE__", JSON.stringify(`owner-page:${brief.id ?? slug(brief.title)}`)) : ""}
 </body>
 </html>
 `;
@@ -168,9 +170,36 @@ ul { padding-left:20px; }
 `;
 
 // Copies every answered card with its context, options, choice and notes, so the chat it is pasted into needs nothing else.
-const COPY = `<div class="bar"><button id="copy">Copy answers</button><span id="ok"></span></div>
+const COPY = `<div class="bar"><button id="copy">Copy answers</button> <button id="dl">Download answers</button><span id="ok"></span></div>
 <script>
-document.getElementById("copy").onclick = async () => {
+// Answers save to this browser as you type, keyed by the page id and each card's id, so a reload or a newer
+// version of the same page (same brief id or title) brings them back.
+const STORE = __STORE__;
+const cards = () => [...document.querySelectorAll(".card[data-key]")];
+const load = () => { try { return JSON.parse(localStorage.getItem(STORE) || "{}"); } catch { return {}; } };
+const save = () => {
+  const all = load();
+  cards().forEach((c) => {
+    const pick = c.querySelector("input[type=radio]:checked");
+    const ta = c.querySelector("textarea");
+    const entry = { choice: pick ? pick.value : null, note: ta ? ta.value : "" };
+    if (entry.choice || entry.note) all[c.dataset.key] = entry; else delete all[c.dataset.key];
+  });
+  localStorage.setItem(STORE, JSON.stringify(all));
+  document.getElementById("ok").textContent = "Saved in this browser";
+};
+const saved = load();
+cards().forEach((c) => {
+  const e = saved[c.dataset.key];
+  if (e) {
+    if (e.choice) c.querySelectorAll("input[type=radio]").forEach((r) => { r.checked = r.value === e.choice; });
+    const ta = c.querySelector("textarea");
+    if (ta && e.note) ta.value = e.note;
+  }
+  c.addEventListener("input", save);
+  c.addEventListener("change", save);
+});
+const answers = () => {
   const out = [__TITLE__];
   document.querySelectorAll(".card[data-title]").forEach((c) => {
     const radios = [...c.querySelectorAll("input[type=radio]")];
@@ -182,17 +211,46 @@ document.getElementById("copy").onclick = async () => {
     if (radios.length) out.push("Options: " + radios.map((r) => r.value).join(" | "), "Choice: " + (pick ? pick.value : "no answer"));
     if (note) out.push("Notes: " + note);
   });
-  const text = out.join("\\n");
+  return out.join("\\n");
+};
+document.getElementById("dl").onclick = () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([answers()], { type: "text/markdown" }));
+  a.download = STORE.replace(/^owner-page:/, "") + "-answers.md";
+  a.click();
+  document.getElementById("ok").textContent = "Downloaded";
+};
+document.getElementById("copy").onclick = async () => {
+  const text = answers();
   try { await navigator.clipboard.writeText(text); }
   catch { const t = document.createElement("textarea"); t.value = text; document.body.append(t); t.select(); document.execCommand("copy"); t.remove(); }
   document.getElementById("ok").textContent = "Copied";
 };
 </script>`;
 
+// An earlier page with the same answer key, rendered after the newest downloaded answers for it.
+function earlierUnanswered(key, outPath, briefPath) {
+  const store = JSON.stringify(`owner-page:${key}`);
+  const out = resolve(outPath);
+  const dirs = [...new Set([dirname(out), dirname(resolve(briefPath))])];
+  const pages = dirs
+    .flatMap((d) => readdirSync(d).filter((f) => f.endsWith(".html")).map((f) => join(d, f)))
+    .filter((f) => f !== out && readFileSync(f, "utf8").includes(store));
+  if (!pages.length) return null;
+  const downloads = join(homedir(), "Downloads");
+  let answered = 0;
+  try {
+    for (const f of readdirSync(downloads)) {
+      if (f.startsWith(`${key}-answers`) && f.endsWith(".md")) answered = Math.max(answered, statSync(join(downloads, f)).mtimeMs);
+    }
+  } catch {}
+  return pages.find((f) => statSync(f).mtimeMs > answered) ?? null;
+}
+
 function main(argv) {
-  const [briefPath, outPath] = argv.slice(2);
+  const [briefPath, outPath] = argv.slice(2).filter((a) => !a.startsWith("--"));
   if (!briefPath || !outPath) {
-    console.error("usage: node page-render.mjs <brief.json> <page.html>");
+    console.error("usage: node page-render.mjs <brief.json> <page.html> [--force | --new-round]");
     return 2;
   }
   const dir = dirname(resolve(briefPath));
@@ -203,9 +261,19 @@ function main(argv) {
       return null;
     }
   };
-  const { html, errors } = renderPage(JSON.parse(readFileSync(briefPath, "utf8")), { readFragment });
+  const brief = JSON.parse(readFileSync(briefPath, "utf8"));
+  const { html, errors } = renderPage(brief, { readFragment });
   if (errors.length) {
     console.error(`brief errors:\n- ${errors.join("\n- ")}`);
+    return 1;
+  }
+  if (existsSync(outPath) && !argv.includes("--force")) {
+    console.error(`${outPath} exists. A page the owner may have open is never rewritten: write a new file (e.g. -v2.html). Answers carry over through the browser when the brief keeps the same id or title. Pass --force only for a page nobody has opened.`);
+    return 1;
+  }
+  const earlier = earlierUnanswered(brief.id ?? slug(brief.title), outPath, briefPath);
+  if (earlier && !argv.includes("--new-round")) {
+    console.error(`${earlier} is an earlier version of this page and no answers file for it is in ~/Downloads. The owner may be answering it now. Don't write or open a new version: put the fix in chat, or wait for the answers. Pass --new-round only after the owner has answered.`);
     return 1;
   }
   writeFileSync(outPath, html);
