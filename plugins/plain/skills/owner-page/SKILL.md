@@ -73,7 +73,7 @@ Up to four decisions go to the owner in the chat UI (AskUserQuestion), not a pag
 - **Notes boxes** come with every `decision` and `fyi` card. Add one to any card with `"notes": "placeholder text"`.
 - **Text** accepts `**bold**`, `` `code` ``, `[text](https://url)`, blank-line paragraphs and `- ` lists. Nothing else.
 - **Copy answers** copies each answered card's title, context (the first paragraph of `body`, or `context`), options, choice and notes. The chat it is pasted into needs nothing else.
-- **Answers are kept.** Each answer saves to the browser as it is typed, keyed by the brief's `id` (or its title) and each card's `id` (or its title). A reload brings them back, and so does a newer version of the page with the same brief `id` and card ids. **Never rewrite a page the owner may have open:** the script refuses an existing output file. Write `<name>-v2.html` instead, and keep `id` and the card titles or ids stable. `--force` is only for a page nobody has opened.
+- **Answers are kept.** Each answer saves to the browser as it is typed, keyed by the brief's `id` (or its title) and each card's `id` (or its title). A reload brings them back. In Chrome, which shares storage across local files, so does a newer version of the page with the same brief `id` and card ids; other browsers may keep each file's answers separate, so ask for Download answers before a new round. **Never rewrite a page the owner may have open:** the script refuses an existing output file. Write `<name>-v2.html` instead, and keep `id` and the card titles or ids stable. `--force` is only for a page nobody has opened.
 - **Download answers** saves the same text as Copy answers to `<id>-answers.md` in Downloads, so it can be read from disk.
 
 ## Writing the cards
