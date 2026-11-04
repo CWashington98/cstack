@@ -23,7 +23,7 @@
 // checked.
 //
 // Project facts come from the project's settings file, .claude/verify.json.
-// See docs/project-settings.md in cstack for every field. The guard reads:
+// See plugins/verify/project-settings.md in cstack for every field. The guard reads:
 //   agentsNeverTouch   text agents must never use: production backend names,
 //                      addresses, cloud profiles, or whole commands
 //   agentsMayDeployTo  deploy targets agents may use, such as a staging backend
@@ -38,7 +38,7 @@
 // own Claude configuration folder (cstack/deep-scripts.json, next to the log),
 // never in a repository: the guard reads no such list from .claude/verify.json
 // or from anywhere else inside a repository, so nothing an agent changes in a
-// repository can widen it. See docs/project-settings.md. A missing or unreadable
+// repository can widen it. See plugins/verify/project-settings.md in cstack. A missing or unreadable
 // file lists nothing.
 //
 // Each deploy is judged on its own: the target has to be named in the same
@@ -54,7 +54,7 @@
 // shell scripts that text runs, and the env files it loads. Commands started
 // from inside a program (a Node or Python script, a Makefile recipe, a
 // workflow's own steps) can still get past it, and so can commands fed to a
-// shell through a pipe. docs/project-settings.md lists every known limit. It
+// shell through a pipe. plugins/verify/project-settings.md in cstack lists every known limit. It
 // guards against mistakes, not against an agent working to get around it.
 import { readFileSync, existsSync, statSync, readdirSync, appendFileSync, mkdirSync, realpathSync } from "node:fs";
 import { resolve, join, dirname, basename, relative, sep } from "node:path";

@@ -1,213 +1,71 @@
 # cstack
 
-Personal Claude Code plugin marketplace, with one goal: **make any repository
-AI-native** — a constitution the agent reads, experts it routes to, gates it can't
-talk its way past, and skills for the procedures. One place for the generic skills
-that used to be copy-pasted (and drift) across every repo, plus sha-pinned
-third-party skill repos, plus stable python snippets. Licensing/attribution:
-[LICENSE](LICENSE) + [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+The Claude Code skills Crishon uses every day, in every project. The aim is to make any repository AI-native: agents prove their work, an independent checker reviews it, everything published reads plainly, and a guard stops the moves only a person should make.
 
-## What belongs in cstack
+Each project keeps its own facts in its own `.claude/` folder, so these skills stay generic. The pieces were chosen by real use: [LATER.md](LATER.md) lists what was cut or parked, and why.
 
-cstack is the owner's set of skills for the way the owner likes to work. Every piece must drop into any of the owner's projects and work there, with the project's own facts kept in that project's `.claude/verify.json`.
+## Skills
 
-It holds three kinds of thing:
+| Skill | Say | What it does |
+|---|---|---|
+| `verify` | "prove it", "verify" | The proof standard: plan the proof before building, then show evidence a person can check without taking the agent's word for it. |
+| `pr-review` | "review this PR" | Two independent verdicts (the claims auditor and Codex), tied to the exact commit, posted as one plain-English comment. |
+| `claims-auditor` (agent) | "is this really done?" | Re-runs the tests and build itself, checks the scope against the claim, and says ready or not ready. |
+| `drive-web`, `drive-expo` | (read by `verify`) | How to drive a web or Expo app the way a user does, and capture proof. |
+| `verify-setup`, `verify-upkeep` | "/verify-setup <app>" | Give one app a verification skill, and keep it honest each month. |
+| `plain` | "plain" | Rewrite text so a junior developer or product manager understands it with no outside context. |
+| `cold-reader` | "cold read this" | A blank reader reports the terms and context it couldn't follow. |
+| `to-diagram` | "diagram", "draw" | A dark, accessible diagram in plain English, proved by a checker. |
+| `owner-page` | "put it in a page" | A simple local page to read or decide on. A script builds it from a short brief. |
+| `bootstrap-agents` | "set up agents for this repo" | Writes a repository's CLAUDE.md, 2–3 expert agents and hook skeletons. A prep skill will replace it. |
+| `upkeep` | "are my skills current?" | Checks installed plugins and pinned pointers are current. Reports only. |
 
-- **Skills:** procedures an agent follows, such as the proof standard, pull request review and plain writing.
-- **Evals:** cases that show a skill still does its job after a change.
-- **Small tested scripts, only where a skill's rule must be checked rather than trusted.** Examples: the guard that refuses production deploys, a review verdict tied to the exact commit it read, the plain-English checker.
+Two pieces run on their own:
 
-cstack checks and reports anything that helps the owner decide. It does not start work on its own, schedule work, watch pull requests or merge. The coding app does those (Claude Code, T3 Code, a terminal), and the owner merges. A new piece earns its place by the rule in [LATER.md](LATER.md): it shows up needed in a third project, or its named trigger fires.
+- **The guard**, before every shell command and tool-server call. It refuses production deploys, store submissions, package publishes, pushes to protected branches, force pushes, GitHub settings changes, deletes outside the repository, and anything on the project's "never" list.
+- **The plain hold**, before text is posted to GitHub, published as a page or committed as a spec. It holds text that isn't plain. A repository opts in with `.claude/plain.json`.
 
-One rule ties the pieces together: a pull request is marked ready for the owner only when the merge gate says it can merge. If it can't, the agent fixes it, or, when only the owner can decide, it stays a draft with one question at the top. The [delivery loop diagram](docs/diagrams/delivery-loop.svg) shows each step and the skill behind it.
+The merge gate is a script, not a skill: `node <verify plugin>/scripts/gate.mjs <PR number>` says whether a pull request can merge, and sorts every reason into fix, wait or owner. The owner merges.
 
-From the `factory` plugin, the merge gate, the token usage report, the budget meter and review routing stay. Merging without the owner, triggers and scheduling are parked; see [LATER.md](LATER.md).
+**Coming next:** a prep skill that gets a codebase ready for AI-native development. It will set up the commands, the proof, OpenSpec planning (`plugins/core/skills/bootstrap-agents/openspec-config.yaml` holds the rules), and checks that make the mistakes agents keep repeating impossible.
+
+## Borrowed skills
+
+Pinned pointers to other people's repositories, never copies. Where each came from is in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+| Pointer | What it gives you | Installed |
+|---|---|---|
+| `pstack-picks` | Lauren Tan's `unslop`, TypeScript practices, engineering principles and `/correct` | Everywhere |
+| `ponytail-picks` | The simplest change that fully works: `/ponytail`, `/ponytail-review` | Everywhere |
+| `expo-picks`, `rn-callstack-picks`, `rn-vercel-picks` | Expo and React Native skills | Expo apps |
+| `vercel-react-picks`, `good-css-picks` | React web rules and modern CSS | React web apps |
+| `vercel-deploy-picks` | Deploying to Vercel | Apps on Vercel |
 
 ## Install
 
-From your project's folder, run:
+From your project's folder:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/CWashington98/cstack/main/install.sh | bash
 ```
 
-Inside Claude Code, put `!` in front to run it there. Run the same command again later to update.
+It installs `cstack`, `plain`, `verify`, `pstack-picks` and `ponytail-picks` for you in every project. Then it reads the project's `package.json` files and adds the Expo, web or Vercel group for this project only. Name groups yourself with `... | bash -s -- expo web`, or `all`. Run it again to update, then restart Claude Code. The comments at the top of [install.sh](install.sh) cover the details.
 
-It installs the everyday set for you, in every project: `cstack`, `plain`, `verify`, `pstack-picks` and `ponytail-picks`. Then it looks at the project's `package.json` files and adds what the project uses, for this project only, so an Expo app's skills don't load in your web projects:
+## Project settings
 
-| Group | Added when | Plugins |
-|---|---|---|
-| `expo` | A `package.json` lists `expo` as a dependency | `expo-picks`, `rn-callstack-picks`, `rn-vercel-picks` |
-| `web` | A `package.json` without `expo` lists `react-dom` or `next` | `vercel-react-picks`, `good-css-picks` |
-| `vercel` | The project has `vercel.json` or a `.vercel` folder | `vercel-deploy-picks` |
-
-To choose the groups yourself, name them: `... | bash -s -- expo web`, or `all`. A plugin already installed for you, or for this project, is updated instead. One installed only in another project doesn't count. Folders inside `node_modules` and hidden folders, such as old worktree copies, are skipped. Restart Claude Code afterwards. To install one plugin by hand: `claude plugin install <name>@cstack`.
-
-A few details, for when something looks odd:
-
-- **Run from a subfolder**, it works from the top folder of the project's git repository. That way the subfolder doesn't get its own copy of the groups. It looks for `package.json` files under the folder you started in, and also under the top folder, up to four folders down. So the app you're in is always found, and a monorepo also gets the groups its other apps use. Outside a git repository, the current folder is the project. The same is true when the repository is your home folder, which some people use to keep their settings files.
-- **Installed both ways.** If a plugin is installed for you and also for this project, the install for you is the one updated. An install for the whole project, shared with the team through its settings, counts as installed here too.
-- **Reading what's installed** needs `node`, or `python3` when `node` is missing. With neither, the script says so and installs every plugin again instead of updating it.
-- **Groups installed for you everywhere.** An earlier version of this script installed the groups for you in every project. If any are still installed that way, the script lists them with the `claude plugin uninstall <name>@cstack --scope user` command for each. It never removes anything itself. After removing one, run the script again in each project that uses it.
-
-Borrowed skills are pinned pointers, never copies. Install the ones a project needs:
-
-| Pointer | What it gives you | Install where |
-|---|---|---|
-| `pstack-picks` | TypeScript best practices, engineering principles, review and system-building skills | Everywhere |
-| `ponytail-picks` | The simplest change that fully works; call it with `/ponytail` | Everywhere |
-| `vercel-react-picks` | React rules, composition patterns, view transitions, web interface review | React web apps |
-| `vercel-deploy-picks` | Deploying to Vercel, its command line, making a deployed app faster | Apps hosted on Vercel |
-| `good-css-picks` | Modern styling techniques | Web apps |
-| `software-factory-picks` | Matt Pocock's words and design questions for a software factory; call it with `/software-factory` | Projects designing a factory |
-| `expo-picks` | Expo's own skills | Expo apps |
-| `rn-callstack-picks`, `rn-vercel-picks` | React Native performance, navigation and coding rules | React Native apps |
-
-Where each skill came from is in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
-
-## Using cstack
-
-You don't need to remember its commands. Ask Claude in plain words, such as "how do I use cstack to review this?", and it reads the `how-to-use-cstack` skill and suggests the right skill or command. It only suggests; nothing starts until you choose. The skill lists everything available now, and what's coming but not built yet.
-
-Skills invoke as `cstack:deslop`, `cstack:upkeep`, etc. A project-local `.claude/skills/deslop`
-always wins over the plugin version; both coexist (namespacing makes collisions impossible).
-The core plugin also ships the **claims-auditor** agent. Run it after any agent claims work is
-done: it re-runs the tests and builds itself, checks the scope against the claim, and returns
-a "ready" or "not ready" verdict.
-It was called `karen` until core 3.0.0. If you called `cstack:karen`, call `cstack:claims-auditor` instead.
-
-The core plugin also runs the **guard** before every shell command an agent sends, in every
-project. It refuses production deploys, store submissions, package publishes, releases,
-pushes to protected branches, force pushes, GitHub settings changes, deletes outside the
-repository, and anything on the project's "never" list. It allows merges and deploys to
-targets the project lists as safe for agents. It also checks every call to a tool server,
-such as a hosting or database tool, and refuses one whose input uses anything on the
-"never" list or points a Convex tool at a production deployment. It also refuses a recursive `rm` that
-Claude Code would stop and ask a person about (its path holds a variable or wildcard, or it is chained with other commands), and
-tells the agent to run the delete on its own. You can list deep script chains that agents may run in a file in your own
-Claude configuration folder (`cstack/deep-scripts.json`), never in a repository. Each project lists the rest in `.claude/verify.json`; the
-format is in [docs/project-settings.md](docs/project-settings.md).
-
-## Matt Pocock's skills
-
-cstack used to ship copies of these. Install them from his own marketplace, which carries his latest release. The copy in Anthropic's official marketplace lags behind it (on 2026-10-05 it was 27 commits older than his version 1.3.1):
-
-    claude plugin marketplace add mattpocock/skills
-    claude plugin install mattpocock-skills@mattpocock
-
-| Old cstack name | Name in his plugin |
-|---|---|
-| tdd | tdd |
-| diagnose | diagnosing-bugs |
-| triage | triage |
-| to-prd | to-spec |
-| to-issues | to-tickets |
-| grill-with-docs | grill-with-docs |
-| grill-me | grill-me |
-| handoff | handoff |
-| improve-codebase-architecture | improve-codebase-architecture |
-| prototype | prototype |
-
-## plain
-
-Keeps everything we publish readable for a junior developer or product manager with no outside context. It has writing rules, a checker script, a blank cold reader and a hold before anything is posted to GitHub, published as a page, or committed as a spec or plan.
-
-    claude plugin install plain@cstack
-
-The hold does nothing until a repository opts in with `.claude/plain.json` (shared) or `.claude/plain.local.json` (personal). Details: `plugins/plain/skills/plain/glossary-format.md`.
-
-It also has to-diagram, a skill that draws a diagram in plain English. Diagrams are always dark, use a fixed palette that passes accessibility contrast rules, and are proved by a checker. Details: `plugins/plain/skills/to-diagram/SKILL.md`.
-
-And to-page, a skill that turns a short brief into a simple local page for someone to read or decide on: decision cards with answer buttons, tables, flows and diagrams, and a "Copy answers" button. A script builds the page, so no model writes HTML. Details: `plugins/plain/skills/to-page/SKILL.md`.
-
-## Keeping skills current
-
-Run the `upkeep` skill monthly, or `node plugins/core/scripts/upkeep.mjs`. It checks every Claude account on this machine and the repositories listed in `~/.config/cstack/upkeep.json`. It reports deprecated or outdated plugins, stale catalogs, changed upstream skills behind our pinned pointers, and skill copies inside repositories, with the command that fixes each one. It only reports; you choose what to apply.
-
-## React Native projects
-
-Install these only in a project that has a React Native or Expo app, using `--scope local` so other projects don't load them:
-
-    claude plugin install expo@expo-plugins --scope local          # Expo's official skills
-    claude plugin install rn-callstack-picks@cstack --scope local  # performance, navigation, upgrades
-    claude plugin install rn-vercel-picks@cstack --scope local     # everyday React Native coding rules
-
-Expo's older `expo-app-design`, `upgrading-expo` and `expo-deployment` plugins are deprecated; the `expo` plugin replaces all three.
-
-**Sharing:** this repo is public — the two commands above work for anyone. New machine or
-new person: start at [`recipes/bootstrap.md`](recipes/bootstrap.md) (day-one installs,
-companion plugins, templates, enforcement hooks, adoption order).
-
-## Customization model — "change what a skill KNOWS, not what it DOES"
-
-1. **Ambient (free):** skills read the repo's CLAUDE.md for commands/conventions — it's always in context.
-2. **Delta file:** per-repo `.claude/cstack.md` (20–40 lines) with per-skill factual overrides.
-   Template: [`templates/cstack.md.template`](templates/cstack.md.template). Skills check for it.
-3. **Local override:** project `.claude/skills/<name>` — only when the _procedure_ genuinely
-   differs (see excluded-by-rule below). Must earn its existence.
-
-Per-repo forks with minor edits are the failure mode this repo exists to end.
-
-## Excluded by rule — do NOT centralize these
-
-- **Domain skills:** a2p-tcr-reviewer, tcpa-compliance, billing-accuracy, founder-voice,
-  betting-calculations, clerk-auth-patterns, hipaa-check, watermelondb-patterns,
-  convex-function-security, check-decisions, test-design, environment-safety…
-  They are the product context of their repos.
-- **Name-collision skills:** `react-hook-pattern` exists in 3 repos with the same name and
-  incompatible bodies (RN vs Convex vs Convex+Suspense). That is specialization, not drift.
-  It stays local everywhere.
-
-## Operating rules
-
-- **Harvest on pain, never on schedule.** This repo changes only when you catch yourself
-  re-solving something in a live project. No roadmap, no backlog.
-- **Rule of three.** Nothing enters `plugins/` until it has appeared in a third project.
-  Two occurrences = a note in `LATER.md`, at most.
-- **Deletion budget = addition budget.** A quarter where something goes unused, it leaves
-  before anything new enters.
-- **≤2 hrs/month.** Two consecutive months over budget → delete, don't reorganize.
-- **Client-repo copies decay in place.** Don't chase the drifted copies in client repos —
-  the installed plugin outranks them for you; teammates keep theirs. Never write into
-  client/team repos; recipes travel by consented PR only.
-- **Externals are sha-pinned; updates are deliberate sha bumps.** Auto-update stays off.
-- **Reference over vendoring.** Default to pointers (install commands, pinned URL+SHA)
-  with a one-line "what it's for." Vendor a copy only when the upstream license is
-  verified permissive AND stability demands it — record it in THIRD-PARTY-NOTICES.md.
-  Unlicensed upstreams are pointer-only, forever. See `recipes/skills-ecosystem.md`.
+- `.claude/verify.json`: commands, protected branches, the guard's "never" list, and the gate's settings. Every field is in [plugins/verify/project-settings.md](plugins/verify/project-settings.md).
+- `.claude/plain.json`: opts the repository into the plain hold. See `plugins/plain/skills/plain/glossary-format.md`.
 
 ## Names say what things do
 
-Agents, skills, scripts and plugins are named by their job, never by a person or a joke.
-A reader should know what something does from its name alone: `claims-auditor` checks
-claims that work is done, `check-pointers` checks pinned pointers. The description then
-says when to use it. The `bootstrap-agents` skill and its agent template follow the same
-rule. A test fails if an agent file's name doesn't match the name inside it.
+Agents, skills, scripts and plugins are named by their job, never by a person or a joke: `claims-auditor` checks claims that work is done. Skills in a family share a prefix so they sort together (`verify-setup`, `verify-upkeep`). A test fails if an agent file's name doesn't match the name inside it.
 
-Skills in a family share a prefix, so they sort together: `pr-open` and `pr-review`. A
-script run as a command is called `<plugin> <noun>`, such as `verify gate`.
+## Changing cstack
 
-## Checking a change
+- A new piece earns its place by the rule in [LATER.md](LATER.md): it shows up needed in a third project, or its named trigger fires. Something unused for a quarter leaves.
+- `npm test` runs the tests. `npm run validate` runs Claude Code's manifest check on the catalog and each plugin.
+- Only the guard, the plain hold and the hook files need the two independent review verdicts (`highRisk` in `.claude/verify.json`).
 
-cstack is mostly markdown, so checks are light:
+## License
 
-- `npm run validate` runs Claude Code's own manifest check (`claude plugin validate --strict`) on the catalog and each plugin.
-- `npm test` runs the tests for the hooks and scripts, plus checks that the guide and the catalog list what is on disk.
-- Only the guard, the `plain` hold and the hook files need the two independent review verdicts (`highRisk` in `.claude/verify.json`). Skills, guides and docs do not.
-
-## Layout
-
-```
-.claude-plugin/marketplace.json   # catalog: core plugin + pinned externals
-plugins/core/                     # the "cstack" plugin: skills, the claims-auditor agent, the guard hook
-docs/project-settings.md          # the .claude/verify.json format each project fills in
-snippets/py/                      # copy-paste by design: atomic write, telegram sink, launchd, curl_cffi
-templates/                        # stamped once at project birth: CLAUDE.md constitution + cstack.md delta
-recipes/                          # agent-stack-brief (operating model) · bootstrap (zero→agent-ready) · expert-agents · review-pipeline
-```
-
-## Success / kill criteria — check once, Q4 2026
-
-Success: a new project goes zero → hooks + CLAUDE.md + skills in under 1 hour, and no generic
-skill has been copy-pasted since install. If it fails: shrink to `plugins/core` + the
-mutation-testing recipe and stop growing it.
+[MIT](LICENSE). Borrowed material keeps its own license; see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

@@ -36,7 +36,8 @@ test("the claims auditor ships with the core plugin", () => {
 });
 
 test("the naming rule is in the readme, the bootstrap-agents skill and its agent template", () => {
+  const skill = join(root, "plugins", "core", "skills", "bootstrap-agents");
   assert.match(readFileSync(join(root, "README.md"), "utf8"), /^## Names say what things do$/m);
-  assert.match(readFileSync(join(root, "plugins", "core", "skills", "bootstrap-agents", "SKILL.md"), "utf8"), /Names say what things do/);
-  assert.match(readFileSync(join(root, "templates", "agents", "domain-expert.md.template"), "utf8"), /Names say what things do/);
+  assert.match(readFileSync(join(skill, "SKILL.md"), "utf8"), /Names say what things do/);
+  assert.match(readFileSync(join(skill, "templates", "agents", "domain-expert.md.template"), "utf8"), /Names say what things do/);
 });

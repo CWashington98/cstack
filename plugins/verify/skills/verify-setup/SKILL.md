@@ -30,7 +30,7 @@ After step 3, come back and fill in the three lists the cstack guard reads befor
 - `agentsMayDeployTo`: the targets agents may deploy to, such as a staging backend or a cloud sandbox profile. Leave it empty if agents never deploy.
 - `protectedBranches`: branches agents never push to directly. Leave it out to use `main` and `master`. The `integrationBranch` is always protected.
 
-The full format is in `docs/project-settings.md` in cstack.
+The full format is in `plugins/verify/project-settings.md` in cstack.
 
 Add `.verify/` to `.gitignore` if it is not there. Evidence runs go in that folder and must never be committed.
 

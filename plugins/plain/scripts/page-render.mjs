@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Renders a to-page brief (JSON) into one standalone HTML page. No model, no network.
+// Renders an owner-page brief (JSON) into one standalone HTML page. No model, no network.
 // Usage: node page-render.mjs <brief.json> <page.html>
 import { readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";

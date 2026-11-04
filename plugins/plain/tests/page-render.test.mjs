@@ -9,7 +9,7 @@ import { tempDir } from "../../../tests/helpers.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const script = join(here, "..", "scripts", "page-render.mjs");
-const example = join(here, "..", "skills", "to-page", "example.json");
+const example = join(here, "..", "skills", "owner-page", "example.json");
 const decision = (title, extra = {}) => ({ kind: "decision", title, options: [{ label: "Yes" }], recommendation: "Yes.", noAnswer: "Nothing.", ...extra });
 
 test("the example brief renders", () => {
@@ -86,7 +86,7 @@ test("the page loads nothing from the internet", () => {
 });
 
 test("the command line writes the page, reads diagrams beside the brief, and exits 1 on a bad brief", () => {
-  const dir = tempDir("to-page");
+  const dir = tempDir("owner-page");
   writeFileSync(join(dir, "d.svg"), "<svg><title>d</title></svg>");
   writeFileSync(join(dir, "good.json"), JSON.stringify({ title: "t", sections: [{ title: "D", diagram: "d.svg" }] }));
   writeFileSync(join(dir, "bad.json"), JSON.stringify({ title: "t", sections: [{ kind: "decision", title: "x" }] }));
@@ -100,7 +100,7 @@ test("the command line writes the page, reads diagrams beside the brief, and exi
 });
 
 test("the command line still runs when the script is reached through a symlink", () => {
-  const dir = tempDir("to-page-link");
+  const dir = tempDir("owner-page-link");
   symlinkSync(dirname(script), join(dir, "scripts"));
   writeFileSync(join(dir, "b.json"), JSON.stringify({ title: "t", sections: [] }));
   const run = spawnSync(process.execPath, [join(dir, "scripts", "page-render.mjs"), join(dir, "b.json"), join(dir, "b.html")], { encoding: "utf8" });

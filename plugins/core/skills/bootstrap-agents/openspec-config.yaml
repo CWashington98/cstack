@@ -1,0 +1,27 @@
+schema: spec-driven
+
+# The OpenSpec rules cstack offers a project that plans its changes with OpenSpec
+# (https://github.com/Fission-AI/OpenSpec). Copy this file to the project's
+# openspec/config.yaml, then rewrite `context` for that project. A project can add
+# its own rules.
+context: |
+  <What this project is, who uses it, and anything every spec must respect.>
+  Everything published is plain English for a reader with no outside context.
+
+rules:
+  proposal:
+    - "After Why, add '## Who it's for' and '## Before / After' (two plain lines a non-technical reader understands)."
+    - "Add '## Non-goals', including what was considered and rejected, and why."
+  specs:
+    - "Write every scenario as GIVEN / WHEN / THEN / AND bullets. Every scenario has WHEN and THEN."
+    - "Give every scenario a short kebab-case ID as its heading; tests carry it as [scenario-id] in their names."
+    - "Cover refusals and edge cases, not only the happy path."
+    - "A scenario that describes behavior the change must leave alone starts with a '- **GUARDS** <what must stay the same>' bullet. Its covering task lists the files it protects after 'Touches:'. Every other scenario must fail before the change and pass after."
+    - "No TBD, TODO or '?' placeholders."
+  design:
+    - "Include '## Reuse': for each new piece, what already exists and whether it is extended or created."
+    - "Include '## Decisions' with dates, and '## Open questions' for the owner, at most three."
+  tasks:
+    - "Group 1 is always the acceptance tests: one per scenario, written first, failing on the current code by an assertion, then locked."
+    - "End every task with 'Covers: <scenario-ids>' (or 'Covers: all' for the acceptance-test task, or 'Setup: <why>') and 'Touches: <files or globs>'."
+    - "Every task says how it is verified."

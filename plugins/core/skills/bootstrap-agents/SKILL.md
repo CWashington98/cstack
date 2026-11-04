@@ -9,9 +9,11 @@ Interview a codebase, then generate its agent operating layer. Explore → propo
 confirm → generate → verify. Never generate before the operator has confirmed the
 risk map — wrong domains produce confidently wrong experts.
 
-Companion docs: `recipes/expert-agents.md` (anatomy), `recipes/review-pipeline.md`
-(how the generated agents hand off work), `recipes/bootstrap.md` (installs + hooks),
-`templates/` (the skeletons this skill fills in).
+Companion docs, all in this skill's folder: `reference/expert-agents.md` (anatomy),
+`reference/review-pipeline.md` (how the generated agents hand off work),
+`reference/bootstrap.md` (installs + hooks), `templates/` (the skeletons this skill fills
+in), and `openspec-config.yaml` (the OpenSpec rules to offer a project that plans its
+changes with OpenSpec).
 
 ## 1 · Explore (read-only)
 
@@ -53,11 +55,11 @@ should know what it does from its name alone; its description says when to use i
    `templates/agents/domain-expert.md.template` into `.claude/agents/` — each loaded
    with that domain's real paths, real commands, and any decisions the operator
    named. claims-auditor ships with the cstack plugin; reference it, don't regenerate it.
-3. **Hooks skeleton** from the `recipes/bootstrap.md` starter into
+3. **Hooks skeleton** from the `reference/bootstrap.md` starter into
    `.claude/settings.json` + `.claude/hooks/` — wired to the proven commands,
    exit-code gated, no bypass flags.
 4. **Optional**: a `/ship-check`-style command that spawns the security-lens expert
-   and claims-auditor in parallel on the current diff (see `recipes/review-pipeline.md` §3).
+   and claims-auditor in parallel on the current diff (see `reference/review-pipeline.md` §3).
 
 ## 4 · Verify (the wizard eats its own contract)
 

@@ -83,7 +83,7 @@ test("the Codex answer format is strict", () => {
 });
 
 test("the verify plugin ships exactly its seven skills", () => {
-  assert.deepEqual(skills().sort(), ["drive-expo", "drive-web", "pr-open", "pr-review", "verify", "verify-setup", "verify-upkeep"]);
+  assert.deepEqual(skills().sort(), ["drive-expo", "drive-web", "pr-review", "verify", "verify-setup", "verify-upkeep"]);
 });
 
 test("pr-review records each verdict against the reviewed commit from meta.json", () => {
