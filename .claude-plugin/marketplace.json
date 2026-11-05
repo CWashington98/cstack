@@ -9,42 +9,18 @@
     {
       "name": "cstack",
       "source": "./plugins/core",
-      "description": "Crishon's own Claude Code skills (how-to-use-cstack, deslop, write-a-skill, bootstrap-agents, upkeep), the claims-auditor agent, which checks finished work against what was claimed, and the guard, which refuses production deploys, protected-branch pushes and anything on a project's never list before a shell command runs, and refuses tool-server calls that use anything on that list or point a Convex tool at production. Borrowed skills are pinned pointers listed below, not copies."
+      "description": "Crishon's own Claude Code skills (bootstrap-agents, upkeep), the claims-auditor agent, which checks finished work against what was claimed, and the guard, which refuses production deploys, protected-branch pushes and anything on a project's never list before a shell command runs, and refuses tool-server calls that use anything on that list or point a Convex tool at production. Borrowed skills are pinned pointers listed below, not copies."
     },
     {
       "name": "plain",
       "source": "./plugins/plain",
-      "version": "0.6.0",
-      "description": "Keeps everything we publish readable for a junior developer or product manager with no outside context: writing rules, a checker, a blank cold reader, plain-English dark diagrams with a contrast checker, simple decision and report pages built from a short brief, and a hold before posting. Opt in per repository with .claude/plain.json."
+      "version": "0.7.0",
+      "description": "Keeps everything we publish readable for a junior developer or product manager with no outside context: writing rules, a checker, a blank cold reader, plain-English dark diagrams with a contrast checker, simple decision and report pages built from a short brief (owner-page), and a hold before posting. Opt in per repository with .claude/plain.json."
     },
     {
       "name": "verify",
       "source": "./plugins/verify",
       "description": "Proves that work works, not only that tests pass: a proof standard, a check that specs and plans name their evidence, one verification skill per app (created by verify-setup, kept honest by verify-upkeep), shared guides for driving web and Expo apps, the pr-review skill (claims auditor plus Codex verdicts tied to the commit, posted as one plain-English comment), and the ready check (verify gate), which says whether a pull request is ready for the owner to merge and sorts every reason into fix, wait or owner."
-    },
-    {
-      "name": "factory",
-      "source": "./plugins/factory",
-      "version": "0.1.0",
-      "description": "Token usage report (factory tokens), and budget meter with review routing (factory budget). The merge gate moved to verify (verify gate)."
-    },
-    {
-      "name": "agent-browser",
-      "source": {
-        "source": "url",
-        "url": "https://github.com/vercel-labs/agent-browser.git",
-        "sha": "ed2e10598c9064aecfaeb7cf21b540684db4be2c"
-      },
-      "description": "Pinned external: vercel-labs browser-automation skill (was 'dogfood' in Hermes skills-lock)"
-    },
-    {
-      "name": "ui-ux-pro-max",
-      "source": {
-        "source": "url",
-        "url": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill.git",
-        "sha": "4baa399d00da806f83ed93652172f66943205153"
-      },
-      "description": "Pinned external: UI/UX design skill"
     },
     {
       "name": "pstack-picks",
@@ -234,20 +210,6 @@
       "strict": false,
       "skills": [
         "./good-css"
-      ]
-    },
-    {
-      "name": "software-factory-picks",
-      "description": "Pinned pointer to Matt Pocock's software-factory skill (mattpocock/skills, MIT): the shared words for designing a software factory (task, trigger, run, runner, ticket tracker, ticket source, git host, orchestrator, observability platform), the three brakes, five questions per task, example tasks and surveys of products for each slot. You call it yourself with /software-factory, next to a grilling session. Pinned to the head of his open pull request #1316, because the skill is still in his in-progress folder, which his own plugin leaves out.",
-      "source": {
-        "source": "git-subdir",
-        "url": "https://github.com/mattpocock/skills.git",
-        "path": "skills/in-progress",
-        "sha": "b59cab42bf1206e1363eafc37f71b21c3bcaa12f"
-      },
-      "strict": false,
-      "skills": [
-        "./software-factory"
       ]
     }
   ]

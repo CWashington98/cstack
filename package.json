@@ -5,6 +5,6 @@
   "engines": { "node": ">=22" },
   "scripts": {
     "test": "node tests/run.mjs",
-    "validate": "claude plugin validate . --strict && claude plugin validate plugins/core --strict && claude plugin validate plugins/plain --strict && claude plugin validate plugins/verify --strict && claude plugin validate plugins/factory --strict"
+    "validate": "claude plugin validate . --strict && claude plugin validate plugins/core --strict && claude plugin validate plugins/plain --strict && claude plugin validate plugins/verify --strict"
   }
 }

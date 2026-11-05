@@ -46,7 +46,7 @@ import { readdirSync } from "node:fs";
 
 test("the core plugin ships only our own skills; borrowed ones are pointers", () => {
   const skills = readdirSync(join(root, "plugins", "core", "skills")).sort();
-  assert.deepEqual(skills, ["bootstrap-agents", "deslop", "how-to-use-cstack", "upkeep", "write-a-skill"]);
+  assert.deepEqual(skills, ["bootstrap-agents", "upkeep"]);
 });
 
 test("the plain skill and its reference files exist", () => {
@@ -82,11 +82,16 @@ function pointer(name) {
   return p;
 }
 
-test("the software-factory pointer picks only that skill, from Matt Pocock's in-progress folder", () => {
-  const p = pointer("software-factory-picks");
-  assert.equal(p.source.url, "https://github.com/mattpocock/skills.git");
-  assert.equal(p.source.path, "skills/in-progress");
-  assert.deepEqual(p.skills, ["./software-factory"]);
+test("the plugins cut on 2026-11-04 for no use are gone", () => {
+  for (const name of ["factory", "agent-browser", "ui-ux-pro-max", "software-factory-picks"]) {
+    assert.ok(!market.plugins.some((p) => p.name === name), `${name} is back in the catalog`);
+  }
+});
+
+test("the page skill is owner-page, and the old to-page name is gone", () => {
+  const dir = join(root, "plugins", "plain", "skills");
+  assert.match(readFileSync(join(dir, "owner-page", "SKILL.md"), "utf8"), /^---\nname: owner-page\ndescription: .+\n---/);
+  assert.ok(!existsSync(join(dir, "to-page")));
 });
 
 test("the ponytail pointer picks all six of its skills, without its always-on hooks", () => {
