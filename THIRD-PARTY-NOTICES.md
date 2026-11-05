@@ -10,6 +10,7 @@ Outside material appears in this repository in two ways, on purpose:
 | Skill or agent | Plugin | Where it started |
 |---|---|---|
 | `bootstrap-agents`, `upkeep` | core | Written here |
+| `automate-me` | core | Adapted from Lauren Tan's `automate-me` (pstack, MIT). Ours is rewritten for Claude Code and Codex: it writes the owner's own rules files instead of a separate mode skill, and a tested script picks out only what the owner typed. |
 | `plain`, `cold-reader`, `to-diagram`, `owner-page` | plain | Written here |
 | `verify`, `drive-web`, `drive-expo`, `pr-review` | verify | Written here |
 | `verify-setup`, `verify-upkeep` | verify | Adapted from Lauren Tan's `create-verification-skill` and `maintain-verification-skill` (pstack, MIT). See `plugins/verify/THIRD_PARTY.md`. |
