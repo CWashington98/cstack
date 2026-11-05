@@ -19,6 +19,7 @@ Each project keeps its own facts in its own `.claude/` folder, so these skills s
 | `owner-page` | "put it in a page" | A simple local page to read or decide on. A script builds it from a short brief. |
 | `bootstrap-agents` | "set up agents for this repo" | Writes a repository's CLAUDE.md, 2–3 expert agents and hook skeletons. A prep skill will replace it. |
 | `upkeep` | "are my skills current?" | Checks installed plugins and pinned pointers are current. Reports only. |
+| `automate-me` | "/cstack:automate-me" | Turns how you work into the personal rules Claude Code and Codex both load, mined only from what you typed. You approve a diff before anything changes. |
 
 Two pieces run on their own:
 

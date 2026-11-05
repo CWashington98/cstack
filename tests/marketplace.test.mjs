@@ -46,7 +46,7 @@ import { readdirSync } from "node:fs";
 
 test("the core plugin ships only our own skills; borrowed ones are pointers", () => {
   const skills = readdirSync(join(root, "plugins", "core", "skills")).sort();
-  assert.deepEqual(skills, ["bootstrap-agents", "upkeep"]);
+  assert.deepEqual(skills, ["automate-me", "bootstrap-agents", "upkeep"]);
 });
 
 test("the plain skill and its reference files exist", () => {
