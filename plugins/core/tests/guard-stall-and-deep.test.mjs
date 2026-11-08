@@ -56,9 +56,10 @@ test("the rule is about what the shell sends Claude Code, not about scripts it r
 });
 
 test("the other delete rules still say their own reason", () => {
-  const r = run(repo(), "cd /tmp && rm -rf ~/Documents");
+  const dir = repo();
+  const r = run(dir, `cd /tmp && rm -rf ${dir}/.git`);
   assert.match(reasons(r), STALL);
-  assert.match(reasons(r), /outside this repository/);
+  assert.match(reasons(r), /history/);
 });
 
 test("the hook tells the agent to run the delete alone, not to hand it to the owner", () => {
@@ -128,7 +129,7 @@ test("a listed script is still checked by every other rule within the levels the
     "scripts/m2.sh": "git push origin staging\nbash scripts/d0.sh\n",
     "scripts/bad-never.sh": "curl https://prod-backend-9.convex.cloud\nbash scripts/d0.sh\n",
     "scripts/bad-prod.sh": "vercel --prod\nbash scripts/d0.sh\n",
-    "scripts/bad-rm.sh": "rm -rf ~/Documents\nbash scripts/d0.sh\n",
+    "scripts/bad-rm.sh": "rm -rf .git\nbash scripts/d0.sh\n",
     ...chain("d", 12),
   };
   const dir = repo(files);
@@ -137,7 +138,7 @@ test("a listed script is still checked by every other rule within the levels the
   refused(dir, "bash scripts/bad-mid.sh", /protected branch "staging"/);
   refused(dir, "bash scripts/bad-never.sh", /agentsNeverTouch/);
   refused(dir, "bash scripts/bad-prod.sh", /Vercel/);
-  refused(dir, "bash scripts/bad-rm.sh", /outside this repository/);
+  refused(dir, "bash scripts/bad-rm.sh", /history/);
   // The command that runs the script is checked as always.
   refused(dir, "bash scripts/d0.sh && git push origin staging", /protected branch/);
   refused(dir, "npx convex deploy && bash scripts/d0.sh", /convex deploy/);

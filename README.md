@@ -23,7 +23,7 @@ Each project keeps its own facts in its own `.claude/` folder, so these skills s
 
 Two pieces run on their own:
 
-- **The guard**, before every shell command and tool-server call. It refuses production deploys, store submissions, package publishes, pushes to protected branches, force pushes, GitHub settings changes, deletes outside the repository, and anything on the project's "never" list.
+- **The guard**, before every shell command and tool-server call. It refuses production deploys, store submissions, package publishes, pushes to protected branches, force pushes, GitHub settings changes, deleting a whole repository or its history, and anything on the project's "never" list.
 - **The plain hold**, before text is posted to GitHub, published as a page or committed as a spec. It holds text that isn't plain. A repository opts in with `.claude/plain.json`.
 
 The merge gate is a script, not a skill: `node <verify plugin>/scripts/gate.mjs <PR number>` says whether a pull request can merge, and sorts every reason into fix, wait or owner. The owner merges.
