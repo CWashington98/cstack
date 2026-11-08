@@ -1181,12 +1181,6 @@ class Checker {
     if (!flags.some((f) => f === "--recursive" || (/^-[a-zA-Z]+$/.test(f) && /[rR]/.test(f)))) return;
     const ends = w.indexOf("--");
     const paths = w.slice(1).filter((x, k) => x !== "--" && ((ends !== -1 && k + 1 > ends) || !x.startsWith("-")));
-    // Claude Code asks a person about these, even when it is told not to ask.
-    // Scripts the command runs are not shown to it, so only the command itself counts.
-    if (!ctx.indirect) {
-      const why = paths.some((p) => /[$`*?[]/.test(p)) ? "its path comes from a variable, a command substitution or a wildcard" : ctx.chained ? "it is chained with other commands" : null;
-      if (why) this.refuse("stall", `This recursive rm would stop and wait for a person to approve it, because ${why}. Unattended workers can sit on that prompt for hours. Run the delete as its own Bash call with the literal path written out, for example: rm -rf /tmp/my-scratch/tree . Then run the rest of the commands in a separate call.`);
-    }
     this.checkPaths(paths.flatMap((p) => this.variants(p, ctx)), dir, ctx, "");
   }
 
@@ -1331,8 +1325,6 @@ export function refuseOnError(command, cwd, { tool = false } = {}) {
 }
 
 export function message(refusals, tool = null) {
-  // Nothing here is the owner's to run: the agent only has to send the same delete another way.
-  if (refusals.length > 0 && refusals.every((r) => r.rule === "stall")) return ["The cstack guard refused this command, because it would stall on a permission prompt.", ...refusals.map((r) => `- ${r.reason}`)].join("\n");
   return [
     tool ? "The cstack guard refused this tool call. Only the owner does this." : "The cstack guard refused this command. Only the owner runs it.",
     ...refusals.map((r) => `- ${r.reason}`),
