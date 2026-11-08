@@ -105,11 +105,11 @@ shell commands it refuses:
   repository settings, and `gh pr merge --admin`, which overrides the merge rules;
 - `--prod` on a Convex command, except `convex dashboard --prod`, which only
   prints an address;
-- recursive deletes outside the repository and temporary folders, of a whole
-  repository, or of its history: the `.git` folder or anything inside it. Git's
-  own leftovers may be deleted: `rebase-merge`, `rebase-apply`, `sequencer`,
-  lock files, and hooks. When the working folder isn't a repository, only
-  temporary folders count as safe;
+- recursive deletes of a whole repository, a folder that holds one, or its
+  history: the `.git` folder or anything inside it. Git's own leftovers may be
+  deleted: `rebase-merge`, `rebase-apply`, `sequencer`, lock files, and hooks.
+  Recursive deletes anywhere else are allowed, inside the repository or not
+  (owner, 2026-11-08: agents are trusted with their own scratch space);
 - any command that uses an entry from `agentsNeverTouch`, including inside an env
   file it loads or a heredoc it feeds to a program. Commands that only mention a
   name, such as a search, a commit message or a pull request comment, are allowed;

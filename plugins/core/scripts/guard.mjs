@@ -8,8 +8,8 @@
 //   - pushes to protected branches, force pushes and deleting protected branches
 //   - changes to GitHub secrets, rulesets, branch protection, access and
 //     repository settings, and merges that override the code host's rules
-//   - recursive deletes outside the repository and temporary folders, of a whole
-//     repository, or of its history
+//   - recursive deletes of a whole repository, or of its history. Deletes
+//     anywhere else are allowed: agents are trusted with their own scratch space
 //   - anything that uses an entry on the project's "never" list
 //   - a recursive delete Claude Code would stop and ask a person about: its path
 //     comes from a variable, a substitution or a glob, or it is chained with
@@ -1152,7 +1152,6 @@ class Checker {
   // Judges each folder a recursive delete would remove.
   checkPaths(paths, dir, ctx, how, contents = false) {
     const roots = [this.project.root, projectFor(dir, this.cache).root].filter(Boolean);
-    const temps = [tmpdir(), "/tmp", "/private/tmp", "/var/folders", "/private/var/folders"].map(real);
     for (const p of paths) {
       const expanded = this.expand(p, ctx);
       if (expanded === null) {
@@ -1174,8 +1173,6 @@ class Checker {
         this.refuse("delete", target === git ? `It deletes "${p}"${how}, the repository's history.` : `It deletes "${p}"${how}, which is inside the repository's .git folder, where its history is kept.`);
         continue;
       }
-      if (roots.some((r) => inside(target, r)) || temps.some((t) => inside(target, t))) continue;
-      this.refuse("delete", `It deletes "${p}"${how}, which is outside this repository and outside temporary folders.`);
     }
   }
 

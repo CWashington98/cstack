@@ -447,7 +447,7 @@ test("workflows that deploy or release are refused; other workflows are not", ()
   allowed(dir, "gh api -X POST repos/o/r/actions/workflows/ci.yml/dispatches -f ref=main");
 });
 
-test("recursive deletes are allowed inside the repository and temporary folders, and refused everywhere else", () => {
+test("recursive deletes are allowed anywhere except a whole repository, a folder that holds one, or its history", () => {
   const dir = project();
   const tmp = tempDir("guard-rm");
   allowed(dir, "rm -rf node_modules dist");
@@ -456,25 +456,25 @@ test("recursive deletes are allowed inside the repository and temporary folders,
   allowed(dir, "rm -rf /tmp/guard-test-x");
   allowed(dir, "rm notes.txt ../outside.txt");
   allowed(dir, `rm -rf ${tmp}/out/build`);
-  refused(dir, "rm -rf ~/Documents", /outside this repository/);
+  allowed(dir, "rm -rf ~/Documents/guard-test-not-there");
   refused(dir, "rm -rf /", /holds one/);
   refused(dir, "rm -rf ./*", /whole repository/);
   refused(dir, "rm -rf .", /whole repository/);
   refused(dir, "rm -rf .git", /history/);
   refused(dir, `rm -rf ${dirname(dir)}`, /holds one/);
-  refused(dir, `rm -fr ${homedir()}/guard-test-not-there`, /outside/);
-  refused(dir, "rm -r -f -- /opt/guard-test");
-  refused(dir, "rm --recursive /etc/thing");
-  refused(dir, "rm -Rf /usr/local/guard-test");
-  refused(dir, "sudo rm -rf /usr/local/thing");
-  refused(dir, "if [ -d ~/old ]; then rm -rf ~/old; fi", /outside/);
+  allowed(dir, `rm -fr ${homedir()}/guard-test-not-there`);
+  allowed(dir, "rm -r -f -- /opt/guard-test");
+  allowed(dir, "rm --recursive /etc/thing");
+  allowed(dir, "rm -Rf /usr/local/guard-test");
+  allowed(dir, "sudo rm -rf /usr/local/thing");
+  refused(dir, "if [ -d ~/old ]; then rm -rf ~/old; fi", /as its own Bash call/);
 });
 
-test("deletes from a folder that isn't a repository allow only temporary folders", () => {
+test("deletes from a folder that isn't a repository are allowed", () => {
   const home = mkdtempSync(join(homedir(), ".guard-test-"));
   try {
-    refused(home, "rm -rf Documents", /outside/);
-    refused("/", "rm -rf usr/local/guard-test", /outside/);
+    allowed(home, "rm -rf Documents/guard-test-not-there");
+    allowed("/", "rm -rf usr/local/guard-test");
     allowed(home, `rm -rf ${tmpdir()}/guard-x`);
   } finally {
     spawnSync("rmdir", [home]);
@@ -489,17 +489,18 @@ test("variables in a delete are followed when the command or script sets them", 
   allowed(dir, "bash scripts/build.sh");
   allowed(dir, "bun run clean");
   refused(dir, "bash scripts/wipe.sh", /holds one/);
-  refused(dir, "D=/opt/x; rm -rf $D", /outside/);
+  refused(dir, "D=/opt/x; rm -rf $D", /as its own Bash call/);
   refused(dir, "rm -rf $GUARD_TEST_UNSET_VARIABLE/x", /can't tell where/);
   allowed(dir, "bash scripts/loop.sh");
-  refused(dir, 'for d in dist ~/old; do rm -rf "$d"; done', /outside/);
-  refused(dir, "bash scripts/loop-out.sh", /outside/);
+  refused(dir, 'for d in dist ~/old; do rm -rf "$d"; done', /as its own Bash call/);
+  allowed(dir, "bash scripts/loop-out.sh");
 });
 
 test("find and xargs deletes are judged too", () => {
   const dir = project();
-  refused(dir, "find ~ -name '*.log' -delete", /with `find`/);
-  refused(dir, "find ~/Library/Caches -exec rm -rf {} +", /with `find`/);
+  allowed(dir, "find ~/guard-test-not-there -name '*.log' -delete");
+  allowed(dir, "find ~/Library/Caches/guard-test -exec rm -rf {} +");
+  refused(dir, `find ${dir} -delete`, /whole repository/);
   refused(dir, "ls -d ~/old-* | xargs rm -rf", /xargs rm -r/);
   allowed(dir, "find . -name '*.log' -delete");
   allowed(dir, "find dist -type f -print");
@@ -617,7 +618,7 @@ test("round 2: a branch named through a variable is followed to the checked-out 
   allowed(dir, 'BRANCH=$(git branch --show-current); git push -u origin "$BRANCH"');
   allowed(dir, "BRANCH=$(git rev-parse --abbrev-ref HEAD) && git push origin $BRANCH");
   refused(dir, 'rm -rf "$(git rev-parse --show-toplevel)/dist"', /literal path/);
-  refused(dir, 'cd ~ && rm -rf "$PWD/Documents"', /outside/);
+  refused(dir, 'cd ~ && rm -rf "$PWD/Documents"', /as its own Bash call/);
   refused(dir, 'rm -rf "$(git rev-parse --show-toplevel)"', /whole repository/);
 });
 
@@ -686,7 +687,7 @@ test("round 2: smaller spellings that used to slip past", () => {
   allowed(dir, "rm -rf {dist,build}");
   allowed(dir, "rm -rf /tmp/guard-x");
   // On Linux the test folder sits under /tmp, so the guard may name the repository inside it instead.
-  refused(dir, "rm -rf /tmp", /outside|whole repository/);
+  allowed(dir, "rm -rf /tmp/guard-test-not-there");
 });
 
 test("round 3: workspace scripts that run every workspace are checked once each, so the guard can't hang", () => {
@@ -766,7 +767,7 @@ test("round 3: bun exec runs a shell string, and it is checked", () => {
   refused(dir, "bun exec 'npx convex deploy'", /convex deploy/);
   refused(dir, 'bun exec "vercel --prod"', /Vercel/);
   refused(dir, "bun exec 'git push origin main'", /"main"/);
-  refused(dir, "bun exec 'rm -rf ~'", /outside/);
+  refused(dir, `bun exec 'rm -rf ${dir}'`, /whole repository/);
   allowed(dir, "bun exec 'echo hi'");
 });
 
