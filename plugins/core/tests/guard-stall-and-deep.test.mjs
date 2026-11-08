@@ -26,22 +26,13 @@ const allowed = (dir, command) => {
   assert.equal(r.allow, true, `expected the guard to allow: ${command}\n${reasons(r)}`);
 };
 
-// ---- Change 1: recursive rm that would stall on a permission prompt ----
+// ---- Change 1: recursive rm with a variable, a wildcard or other commands ----
+// The owner dropped the rule that refused these (2026-11-08). Only where the delete points matters.
 
-const STALL = /as its own Bash call with the literal path/;
-
-test("a recursive rm on a variable, a substitution or a wildcard is refused with the way out", () => {
+test("a recursive rm on a variable, a wildcard or chained with other commands is judged only by where it points", () => {
   const dir = repo();
-  for (const c of ['S=/tmp/x && rm -rf "$S"', 'rm -rf "$(cat f)"', "rm -rf /tmp/foo-*", "rm -rf /tmp/foo-?", "rm -rf /tmp/foo-[ab]", "rm -rf `cat f`", "rm -r $HOME_NOT_SET", 'rm --recursive "${X:-/tmp/y}"']) refused(dir, c, STALL);
-  const r = run(dir, 'S=/tmp/x && rm -rf "$S" && mkdir -p "$S"');
-  assert.match(reasons(r), /literal path/);
-  assert.match(reasons(r), /rest .* separate/);
-});
-
-test("a recursive rm chained with other commands is refused, alone it is not", () => {
-  const dir = repo();
-  for (const c of ["cd /tmp && rm -r build", "rm -rf build; echo done", "echo a | rm -rf build", "if true; then rm -rf build; fi", "bash -c 'cd /tmp && rm -rf build'", "(rm -rf build)\nls", "echo $(rm -rf build)", "for i in 1; do rm -rf /tmp/scratch; done", "while true; do rm -rf /tmp/scratch; done", "{ rm -rf /tmp/scratch; }", "X=$(date) rm -rf /tmp/scratch", "cat <<EOF\n$(rm -rf /tmp/scratch)\nEOF"]) refused(dir, c, STALL);
-  for (const c of ["rm -rf /tmp/x/tree", "rm -rf node_modules", "rm -r build/", "sudo rm -rf /tmp/x/tree", "rm -rf /tmp/x/tree 2>/dev/null", "bash -c 'rm -rf /tmp/x/tree'"]) allowed(dir, c);
+  for (const c of ['S=/tmp/x && rm -rf "$S"', "rm -rf /tmp/foo-*", "rm -rf /tmp/foo-?", "rm -rf /tmp/foo-[ab]", "cd /tmp && rm -r build", "rm -rf build; echo done", "echo a | rm -rf build", "if true; then rm -rf build; fi", "for i in 1; do rm -rf /tmp/scratch; done", "{ rm -rf /tmp/scratch; }", 'S=/tmp/x && rm -rf "$S" && mkdir -p "$S"']) allowed(dir, c);
+  for (const c of ['rm -rf "$(cat f)"', "rm -rf `cat f`", "rm -r $HOME_NOT_SET/x"]) refused(dir, c, /can't tell where/);
 });
 
 test("commands that only look like a recursive delete are left alone", () => {
@@ -49,26 +40,10 @@ test("commands that only look like a recursive delete are left alone", () => {
   for (const c of ["rm -f a && echo ok", "rm a b; ls", "git rm -r --cached foo && git commit -m x", 'grep -rn "rm -rf" scripts/', "echo rm -rf stuff", 'git commit -m "never rm -rf $HOME"']) allowed(dir, c);
 });
 
-test("the rule is about what the shell sends Claude Code, not about scripts it runs", () => {
-  const dir = repo({ "scripts/clean.sh": 'OUT=dist\nrm -rf "$OUT" build/*\n', "package.json": JSON.stringify({ scripts: { clean: 'rm -rf "$OUT_DIR" && rm -rf dist/*' } }) });
-  allowed(dir, "bash scripts/clean.sh");
-  allowed(dir, "npm run clean");
-});
-
-test("the other delete rules still say their own reason", () => {
+test("a chained delete of the repository's history is still refused", () => {
   const dir = repo();
-  const r = run(dir, `cd /tmp && rm -rf ${dir}/.git`);
-  assert.match(reasons(r), STALL);
-  assert.match(reasons(r), /history/);
-});
-
-test("the hook tells the agent to run the delete alone, not to hand it to the owner", () => {
-  const dir = repo();
-  const call = spawnSync(process.execPath, [script], { input: JSON.stringify({ cwd: dir, tool_name: "Bash", tool_input: { command: 'S=/tmp/x && rm -rf "$S"' } }), encoding: "utf8" });
-  assert.equal(call.status, 2);
-  assert.match(call.stderr, STALL);
-  assert.doesNotMatch(call.stderr, /Only the owner runs it/);
-  assert.doesNotMatch(call.stderr, /with ! in front/);
+  refused(dir, `cd /tmp && rm -rf ${dir}/.git`, /history/);
+  refused(dir, `S=${dir} && rm -rf "$S"`, /whole repository/);
 });
 
 // ---- Change 2: the owner's list of deep scripts ----
