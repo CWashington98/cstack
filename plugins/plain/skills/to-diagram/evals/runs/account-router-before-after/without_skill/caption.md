@@ -1,1 +1,0 @@
-Account router, before and after. Before, a new Claude Code session started on whichever of our two Claude subscriptions had lower usage. After, the router first treats any usage meter reading older than 12 hours as unknown, then skips accounts that are locked or close to their 5-hour usage limit, and from the rest picks the account whose weekly allowance resets soonest.

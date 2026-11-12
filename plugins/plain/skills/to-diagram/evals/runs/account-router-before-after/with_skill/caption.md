@@ -1,1 +1,0 @@
-Notice that the old router looked only at how much each account had used, while the new one first rules accounts out. A locked account, or one close to its 5-hour usage limit, is skipped. A usage meter reading more than 12 hours old counts as unknown, not as a safe number. Among the accounts left, the router picks the one whose weekly allowance resets soonest.

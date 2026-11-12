@@ -1,161 +1,146 @@
 #!/usr/bin/env bash
-# Installs or updates the cstack plugins in one step.
+# Installs or updates cstack for Claude Code and Codex: the skills and agents in this repository,
+# plus the skills listed in picks.txt, fetched at their pinned commits.
 #
-#   bash install.sh             the everyday set, plus whatever this project uses (detected)
-#   bash install.sh expo web    the everyday set, plus the named groups
-#   bash install.sh all         everything
-#
-# Or without a copy of cstack, from the project's folder:
+#   bash install.sh
 #   curl -fsSL https://raw.githubusercontent.com/CWashington98/cstack/main/install.sh | bash
-#   curl -fsSL https://raw.githubusercontent.com/CWashington98/cstack/main/install.sh | bash -s -- expo
 #
-# The everyday set is installed for you, in every project. The groups are installed for this
-# project only, so an Expo app's skills don't load in a web project.
-
-SOURCE="CWashington98/cstack"
+# Where things go:
+#   skills  $CLAUDE_CONFIG_DIR/skills (default ~/.claude/skills)
+#           $CODEX_HOME/skills (default ~/.codex/skills), only if that Codex folder exists
+#   agents  $CLAUDE_CONFIG_DIR/agents
+#
+# What it changes:
+#   - A skill or agent that already exists and differs is moved to <target>/.cstack-backup/<time>/
+#     before the new copy goes in. Identical ones are left alone.
+#   - One that an earlier run installed and cstack no longer lists is moved to the backup too.
+#   - Skills and agents you added yourself are never touched.
+#   - Everything is fetched before anything is installed, so a failed download changes nothing.
 
 # Everything is inside main, which runs on the last line. When this file is piped into bash,
-# a half-downloaded copy then runs nothing, and nothing below can be eaten as input.
+# a half-downloaded copy then runs nothing.
 main() {
   set -euo pipefail
 
-  # Each group names plugins from .claude-plugin/marketplace.json. A test checks every name is there.
-  local GROUP_EVERYDAY="cstack plain verify pstack-picks ponytail-picks"
-  local GROUP_WEB="vercel-react-picks good-css-picks"
-  local GROUP_VERCEL="vercel-deploy-picks"
-  local GROUP_EXPO="expo-picks rn-callstack-picks rn-vercel-picks"
+  local repo="CWashington98/cstack"
+  local claude="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+  local codex="${CODEX_HOME:-$HOME/.codex}"
+  local stamp work src
+  stamp=$(date +%Y%m%d-%H%M%S)
+  work=$(mktemp -d)
+  # Expanded now, because $work is gone by the time the shell exits.
+  trap "rm -rf '$work'" EXIT
 
-  # Work from the project's top folder, so a subfolder doesn't get its own copy of the group
-  # plugins. Outside a git project, the current folder is the project. So it is when the git
-  # project is the home folder, as some people keep their settings files: that isn't one project.
-  # -ef compares the folders themselves, so a difference in letter case or a link doesn't count.
-  local start top here
-  start=$(pwd -P)
-  top=$(git rev-parse --show-toplevel 2>/dev/null || echo "$start")
-  if [ "$top" -ef "${HOME:-}" ]; then top=$start; fi
-  if [ ! "$top" -ef "$start" ]; then
-    cd "$top"
-    echo "Working from the project's top folder: $(pwd -P)"
+  # Use the clone this script sits in. Piped from curl, there is none, so fetch one.
+  src=$(cd "$(dirname "${BASH_SOURCE[0]:-.}")" && pwd)
+  if [ ! -f "$src/picks.txt" ]; then
+    git clone -q --depth 1 "https://github.com/$repo.git" "$work/cstack" </dev/null
+    src="$work/cstack"
   fi
-  here=$(pwd -P)
 
-  local groups=() g
-  if [ "$#" -eq 0 ]; then
-    detect_groups "$start" "$here"
+  mkdir -p "$work/skills" "$work/agents"
+
+  # 1. Stage cstack's own skills and agents.
+  local path
+  for path in "$src"/skills/*/; do
+    stage_skill "$path" "$work/skills"
+  done
+  cp "$src"/agents/*.md "$work/agents/"
+
+  # 2. Stage the picks, each at its pinned commit.
+  local gh sha folder names dir name license
+  while read -r gh sha folder names; do
+    case "$gh" in '' | \#*) continue ;; esac
+    dir="$work/src/${gh//\//_}-$sha"
+    if [ ! -d "$dir" ]; then
+      echo "Fetching $gh at ${sha:0:12}"
+      git init -q "$dir"
+      git -C "$dir" fetch -q --depth 1 "https://github.com/$gh.git" "$sha" </dev/null
+      git -C "$dir" -c advice.detachedHead=false checkout -q FETCH_HEAD </dev/null
+    fi
+    license=$(license_for "$dir" "$folder") || fail "picks.txt: $gh has no license file above $folder"
+    for name in $names; do
+      [ -f "$dir/$folder/$name/SKILL.md" ] || fail "picks.txt: $gh has no $folder/$name at $sha"
+      stage_skill "$dir/$folder/$name" "$work/skills"
+      [ -e "$work/skills/$name/LICENSE" ] || cp "$license" "$work/skills/$name/LICENSE"
+    done
+  done <"$src/picks.txt"
+
+  # 3. Install.
+  place "$work/skills" "$claude/skills"
+  if [ -d "$codex" ]; then
+    place "$work/skills" "$codex/skills"
   else
-    for g in "$@"; do
-      case "$g" in
-        web|vercel|expo) groups+=("$g") ;;
-        all) groups+=(web vercel expo) ;;
-        -h|--help) usage; return 0 ;;
-        *) echo "Unknown group: $g" >&2; usage; return 2 ;;
-      esac
-    done
+    echo "Codex folder $codex not found, so skills were installed for Claude Code only."
   fi
+  place "$work/agents" "$claude/agents"
 
-  if ! command -v node >/dev/null 2>&1 && ! command -v python3 >/dev/null 2>&1; then
-    echo "Neither node nor python3 was found, so the list of installed plugins can't be read." >&2
-    echo "Every plugin will be installed again at its usual scope, instead of updated where it is." >&2
-  fi
-
-  # Refresh the catalog if it's already added. If it isn't, the first install adds it.
-  claude plugin marketplace update cstack </dev/null >/dev/null 2>&1 || true
-  local installed
-  installed=$(claude plugin list --json </dev/null 2>/dev/null || echo "[]")
-
-  local failed=() p
-  for p in $GROUP_EVERYDAY; do
-    install_or_update "$p" user || failed+=("$p")
-  done
-  for g in "${groups[@]+"${groups[@]}"}"; do
-    local list=""
-    case "$g" in
-      web) list="$GROUP_WEB" ;;
-      vercel) list="$GROUP_VERCEL" ;;
-      expo) list="$GROUP_EXPO" ;;
-    esac
-    for p in $list; do
-      install_or_update "$p" local || failed+=("$p")
-    done
-  done
-
-  # An earlier version installed the group plugins for the user, in every project. Name any still
-  # there with the command to remove each one. Removing is the user's choice, so nothing is removed here.
-  local everywhere=()
-  for p in $GROUP_WEB $GROUP_VERCEL $GROUP_EXPO; do
-    if [ "$(installed_scope "$p@cstack")" = user ]; then everywhere+=("$p"); fi
-  done
-  if [ "${#everywhere[@]}" -gt 0 ]; then
-    echo "Installed for you in every project, but meant for one project at a time: ${everywhere[*]}"
-    echo "To keep one to the projects that use it, remove it everywhere, then run this script again in each of those projects:"
-    for p in "${everywhere[@]}"; do echo "  claude plugin uninstall $p@cstack --scope user"; done
-  fi
-
-  if [ "${#failed[@]}" -gt 0 ]; then
-    echo "These didn't install or update: ${failed[*]}" >&2
-    return 1
-  fi
-  echo "Done. Restart Claude Code to load the changes."
+  echo "Done. Restart Claude Code and Codex to load the changes."
 }
 
-usage() {
-  echo "Usage: install.sh [web] [vercel] [expo] [all]" >&2
-  echo "  With no group, it detects what the current project uses." >&2
+fail() {
+  echo "cstack install: $*" >&2
+  exit 1
 }
 
-# Sets `groups` from the package.json files and Vercel settings under each folder given: the one
-# the script started in, so a deep app is never missed, and the project's top folder, so the rest
-# of the repository counts too. Installed packages and hidden folders, such as old worktree
-# copies, are skipped. Each search runs from inside its folder, so a hidden folder further up
-# doesn't hide everything.
-detect_groups() {
-  local expo=0 web=0 vercel=0 dir f
-  for dir in "$@"; do
-    while IFS= read -r -d '' f; do
-      # Only a dependency entry counts, not the word in a description or keyword list.
-      # An Expo app often lists react-dom for Expo's own web support, so it counts only as Expo.
-      if grep -qE '"expo"[[:space:]]*:' "$dir/$f"; then expo=1
-      elif grep -qE '"(react-dom|next)"[[:space:]]*:' "$dir/$f"; then web=1
+# Copies one skill folder into the staging folder. Two skills with one name would overwrite
+# each other, so that stops the install.
+stage_skill() {
+  local from="${1%/}" to="$2" name
+  name=$(basename "$from")
+  [ ! -e "$to/$name" ] || fail "two skills are named $name"
+  cp -R "$from" "$to/$name"
+}
+
+# Prints the nearest license file at or above <repo>/<folder>.
+license_for() {
+  local root="$1" d="$1/$2" f
+  while :; do
+    for f in "$d"/LICENSE*; do
+      [ -f "$f" ] && { echo "$f"; return 0; }
+    done
+    [ "$d" = "$root" ] && return 1
+    d=$(dirname "$d")
+  done
+}
+
+# Installs every entry of a staging folder into a target folder. <target>/.cstack-installed
+# lists what cstack put there, so a later run can tell its own entries from yours.
+place() {
+  local staged="$1" target="$2"
+  local manifest="$target/.cstack-installed" backup="$target/.cstack-backup/$stamp"
+  local name path added=0 updated=0 removed=0
+  mkdir -p "$target"
+
+  if [ -f "$manifest" ]; then
+    while read -r name; do
+      [ -n "$name" ] || continue
+      if [ ! -e "$staged/$name" ] && { [ -e "$target/$name" ] || [ -L "$target/$name" ]; }; then
+        mkdir -p "$backup"
+        mv "$target/$name" "$backup/"
+        removed=$((removed + 1))
       fi
-    done < <(cd "$dir" && find . -maxdepth 4 -name package.json -not -path "*/node_modules/*" -not -path "*/.*/*" -print0 2>/dev/null)
-    if [ -n "$(cd "$dir" && find . -maxdepth 3 \( -name vercel.json -o -name .vercel \) -not -path "*/node_modules/*" -not -path "*/.*/*" 2>/dev/null)" ]; then vercel=1; fi
+    done <"$manifest"
+  fi
+
+  : >"$manifest.new"
+  for path in "$staged"/*; do
+    name=$(basename "$path")
+    echo "$name" >>"$manifest.new"
+    if [ -e "$target/$name" ] || [ -L "$target/$name" ]; then
+      diff -rq "$path" "$target/$name" >/dev/null 2>&1 && continue
+      mkdir -p "$backup"
+      mv "$target/$name" "$backup/"
+      updated=$((updated + 1))
+    else
+      added=$((added + 1))
+    fi
+    cp -R "$path" "$target/$name"
   done
-  if [ "$expo" = 1 ]; then groups+=(expo); fi
-  if [ "$web" = 1 ]; then groups+=(web); fi
-  if [ "$vercel" = 1 ]; then groups+=(vercel); fi
-  echo "Detected for this project: ${groups[*]:-nothing extra}"
-}
+  mv "$manifest.new" "$manifest"
 
-# Prints the scope this plugin is installed at for this project: "user" (everywhere),
-# "local" or "project" (this folder only), or nothing. An install in another project doesn't count.
-installed_scope() {
-  local id="$1"
-  local reader='
-    const [list, id, here] = process.argv.slice(1);
-    const rows = JSON.parse(list || "[]").filter((r) => r.id === id);
-    const mine = rows.find((r) => r.scope === "user") ?? rows.find((r) => (r.scope === "local" || r.scope === "project") && r.projectPath === here);
-    process.stdout.write(mine ? mine.scope : "");'
-  if command -v node >/dev/null 2>&1; then
-    node -e "$reader" "$installed" "$id" "$here" </dev/null 2>/dev/null || true
-  elif command -v python3 >/dev/null 2>&1; then
-    python3 -c '
-import json, sys
-rows = [r for r in json.loads(sys.argv[1] or "[]") if r.get("id") == sys.argv[2]]
-mine = next((r for r in rows if r.get("scope") == "user"), None) or next((r for r in rows if r.get("scope") in ("local", "project") and r.get("projectPath") == sys.argv[3]), None)
-sys.stdout.write(mine["scope"] if mine else "")' "$installed" "$id" "$here" </dev/null 2>/dev/null || true
-  fi
-}
-
-install_or_update() {
-  local p="$1" scope="$2" have
-  have=$(installed_scope "$p@cstack")
-  if [ -n "$have" ]; then
-    echo "Updating $p ($have)"
-    claude plugin update "$p@cstack" --scope "$have" </dev/null
-  else
-    echo "Installing $p ($scope)"
-    claude plugin install "$p" --marketplace "$SOURCE" --scope "$scope" </dev/null
-  fi
+  echo "$target: $added added, $updated updated, $removed removed."
+  if [ -d "$backup" ]; then echo "  Replaced copies were saved in $backup"; fi
 }
 
 main "$@"
