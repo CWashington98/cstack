@@ -1,32 +1,25 @@
 # Third-party notices
 
-Outside material appears in this repository in two ways, on purpose:
+## Picked skills (never copied here)
 
-- **Pinned pointer.** The marketplace file lists the outside repository's address and an exact commit. Nothing is copied here; Claude Code fetches the skill from its source. This is the default for anything outside, and the only option when the source has no license.
-- **Adapted copy.** The file lives in this repository and we have changed it. We do this only for MIT or Apache material we have rewritten for our own needs, and each file names where it came from.
+The skills in [picks.txt](picks.txt) live in their own repositories. `install.sh` fetches each at its pinned commit and copies the source's license file into the installed skill's folder.
 
-## Our own skills, and where each one started
+| Source | License |
+|---|---|
+| [t3dotgg/tstack](https://github.com/t3dotgg/tstack) (Theo Browne) | MIT |
+| [cursor/plugins, pstack](https://github.com/cursor/plugins/tree/main/pstack) (Lauren Tan) | MIT |
+| [cursor/plugins, cursor-team-kit](https://github.com/cursor/plugins/tree/main/cursor-team-kit) (Cursor) | MIT |
+| [mattpocock/skills](https://github.com/mattpocock/skills) (Matt Pocock) | MIT |
 
-| Skill or agent | Plugin | Where it started |
-|---|---|---|
-| `bootstrap-agents`, `upkeep` | core | Written here |
-| `automate-me` | core | Adapted from Lauren Tan's `automate-me` (pstack, MIT). Ours is rewritten for Claude Code and Codex: it writes the owner's own rules files instead of a separate mode skill, and a tested script picks out only what the owner typed. |
-| `plain`, `cold-reader`, `to-diagram`, `owner-page` | plain | Written here |
-| `verify`, `drive-web`, `drive-expo`, `pr-review` | verify | Written here |
-| `verify-setup`, `verify-upkeep` | verify | Adapted from Lauren Tan's `create-verification-skill` and `maintain-verification-skill` (pstack, MIT). See `plugins/verify/THIRD_PARTY.md`. |
-| `claims-auditor` agent | core | The idea comes from the Karen agent in [darcyegb/ClaudeCodeAgents](https://github.com/darcyegb/ClaudeCodeAgents) (MIT), and ours was called karen until we renamed it for what it does. Ours is rewritten: it re-runs the tests itself, checks scope and returns a ready or not ready verdict. |
+Licenses checked on 2026-11-12. Check again before adding a source.
 
-Everything written or rewritten here is © Crishon Washington, MIT (see the license file). Copied material keeps its original license; this table and the comments in each file are the attribution those licenses ask for.
+## Written here, and where each started
 
-## Pinned pointers (never copied)
+| Piece | Where it started |
+|---|---|
+| `plain` | Written here. Its rules draw on the US Federal Plain Language Guidelines (public domain), ASD-STE100 Simplified Technical English, Lauren Tan's `unslop` (MIT) and Matt Pocock's glossary format (MIT). Its pull request layout uses Matt Pocock's `/pr` sections (MIT). |
+| `verify` | Written here. |
+| `claims-auditor` agent | The idea comes from the Karen agent in [darcyegb/ClaudeCodeAgents](https://github.com/darcyegb/ClaudeCodeAgents) (MIT). Rewritten here: it re-runs the tests itself, checks scope and returns a ready or not ready verdict. |
+| `runner` agent | Written here. |
 
-| Source | License | cstack entry |
-|---|---|---|
-| [cursor/plugins, pstack folder](https://github.com/cursor/plugins/tree/main/pstack) (Lauren Tan) | MIT | `pstack-picks`: TypeScript best practices, her engineering principles, and her review, design and system-building skills |
-| [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail) | MIT | `ponytail-picks`: its six skills, without its always-on hooks |
-| [callstackincubator/agent-skills](https://github.com/callstackincubator/agent-skills) (Callstack) | MIT | `rn-callstack-picks`: three React Native skills |
-| [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills) | MIT in its readme and in some skills (none of the deploy skills), but no license file | `rn-vercel-picks`, `vercel-react-picks` and `vercel-deploy-picks`. **Never copied until a license file exists.** Its writing guide is left out on purpose: `plain` is our writing standard, and two would conflict. |
-| [expo/skills](https://github.com/expo/skills) (Expo) | MIT | `expo-picks`: Expo's own skills, except the feedback skill, whose command breaks when picked by folder |
-| [vojtaholik/good-css](https://github.com/vojtaholik/good-css) | MIT | `good-css-picks` |
-
-Licenses were checked through GitHub's license information on 2026-10-09. Check again before copying anything new.
+Everything written here is © Crishon Washington, MIT (see [LICENSE](LICENSE)).

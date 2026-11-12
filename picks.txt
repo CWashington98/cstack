@@ -1,0 +1,9 @@
+# Skills from other people's repositories. install.sh fetches each one at the pinned commit,
+# so nothing is copied into this repository and nothing changes until a pin moves.
+# Every source here is MIT. install.sh puts the source's license in each skill's folder.
+#
+# repository         commit                                    folder                  skills
+t3dotgg/tstack       11e37a74d0a6868c121cd0910ab2b3bd9873b92a  skills                  babysit-pr council file-pr full-send full-stop leaving-pr-comments modernize sol-loop takeover
+cursor/plugins       a5539b15a3d56e04992565aafee2b37051329ce3  pstack/skills           unslop typescript-best-practices show-me-your-work
+cursor/plugins       a5539b15a3d56e04992565aafee2b37051329ce3  cursor-team-kit/skills  verify-this
+mattpocock/skills    5863806dd4e15c63174bee4e7515a4256792ecfa  skills/engineering      tdd grill-with-docs improve-codebase-architecture
