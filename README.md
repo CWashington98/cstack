@@ -12,6 +12,7 @@ cstack is a list of skills and nothing else. A few are written here. The rest co
 |---|---|---|
 | `plain` | "plain" | Rewrites text so a junior developer or product manager understands it with no outside context. |
 | `verify` | "prove it" | The proof standard: plan the proof before building, then show evidence a person can check. |
+| `overnight` | "I'm going to sleep" | Briefs every session that has work left to keep going alone, and schedules one combined morning report. Needs T3's thread and scheduling tools. |
 
 ### Agents
 
