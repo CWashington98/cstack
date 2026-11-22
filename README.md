@@ -12,6 +12,7 @@ cstack is a list of skills and nothing else. A few are written here. The rest co
 |---|---|---|
 | `plain` | "plain" | Rewrites text so a junior developer or product manager understands it with no outside context. |
 | `verify` | "prove it" | The proof standard: plan the proof before building, then show evidence a person can check. |
+| `principle-*` (10) | *(engineering principles)* | Lean copies from `pstack` (pinned in `THIRD-PARTY-NOTICES.md` for periodic checks): `boundary-discipline`, `model-the-domain`, `type-system-discipline`, `make-operations-idempotent`, `subtract-before-you-add`, `minimize-reader-load`, `fix-root-causes`, `attack-the-premise`, `encode-lessons-in-structure`, `test-behavior-not-implementation`. |
 
 ### Agents
 

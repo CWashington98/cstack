@@ -19,6 +19,7 @@ Licenses checked on 2026-11-12. Check again before adding a source.
 |---|---|
 | `plain` | Written here. Its rules draw on the US Federal Plain Language Guidelines (public domain), ASD-STE100 Simplified Technical English, Lauren Tan's `unslop` (MIT) and Matt Pocock's glossary format (MIT). Its pull request layout uses Matt Pocock's `/pr` sections (MIT). |
 | `verify` | Written here. |
+| `principle-*` (10) | Copied from [cursor/plugins, pstack](https://github.com/cursor/plugins/tree/7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9/pstack/skills) (Lauren Tan, MIT) at commit `7a583913eb1b8d1a0ee76753d1a2cf072e7b54f9` on 2026-11-22, with `disable-model-invocation: true` removed so they load standalone without `poteto-mode`. Check upstream periodically: `boundary-discipline`, `model-the-domain`, `type-system-discipline`, `make-operations-idempotent`, `subtract-before-you-add`, `minimize-reader-load`, `fix-root-causes`, `attack-the-premise`, `encode-lessons-in-structure`, `test-behavior-not-implementation`. |
 | `claims-auditor` agent | The idea comes from the Karen agent in [darcyegb/ClaudeCodeAgents](https://github.com/darcyegb/ClaudeCodeAgents) (MIT). Rewritten here: it re-runs the tests itself, checks scope and returns a ready or not ready verdict. |
 | `runner` agent | Written here. |
 
